@@ -446,13 +446,12 @@ def configure(conf):
 	# subsystem=bld.env.MSVC_SUBSYSTEM
 	# TODO: wrapper around bld.stlib, bld.shlib and so on?
 	conf.env.MSVC_SUBSYSTEM = 'WINDOWS,5.01'
-	conf.env.MSVC_TARGETS = ['x64'] # explicitly request x86 target for MSVC
-	if conf.options.TARGET32:
-		conf.env.MSVC_TARGETS = ['x86']
-
+	conf.env.MSVC_TARGETS = ['x86'] # explicitly request x86 target for MSVC
+	if conf.options.ALLOW64:
+		conf.env.MSVC_TARGETS = ['x64']
 	if sys.platform == 'win32':
-		conf.load('msvc_pdb_ext msdev msvs msvcdeps')
-	conf.load('subproject xcompile compiler_c compiler_cxx gccdeps gitversion clang_compilation_database strip_on_install_v2 waf_unit_test enforce_pic')
+		conf.load('msvc_pdb_ext msdev msvs')
+	conf.load('subproject xcompile compiler_c compiler_cxx clang_compilation_database strip_on_install_v2 waf_unit_test enforce_pic')
 	if conf.env.DEST_OS == 'win32' and conf.env.DEST_CPU == 'amd64':
 		conf.load('masm')
 	elif conf.env.DEST_OS == 'darwin':
