@@ -44,7 +44,7 @@ def build(bld):
 
 	defines = []
 
-	libs = ['tier0','tier1','tier2','vstdlib','mathlib']
+	libs = ['tier0','tier1','tier2','vstdlib','mathlib','SDL2']
 
 	if bld.env.DEST_OS == "darwin":
 		libs += ["OPENGL", "CARBON"]
