@@ -281,7 +281,7 @@ def define_platform(conf):
 			'NDEBUG'
 		])
 
-	conf.define('GIT_COMMIT_HASH', conf.env.GIT_VERSION)
+	#conf.define('GIT_COMMIT_HASH', conf.env.GIT_VERSION)
 
 
 def options(opt):
