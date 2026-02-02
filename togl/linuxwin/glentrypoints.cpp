@@ -260,67 +260,126 @@ static bool CheckBaseOpenGLVersion()
 
 static bool CheckOpenGLExtension_internal(const char *ext, const int coremajor, const int coreminor)
 {
-	if ((coremajor >= 0) && (coreminor >= 0))  // we know that this extension is part of the base spec as of GL_VERSION coremajor.coreminor.
+	if ((coremajor >= 0) && (coreminor >= 0))
 	{
 		int major, minor, patch;
 		GetOpenGLVersion(&major, &minor, &patch);
 		const int need = GLVERNUM(coremajor, coreminor, 0);
 		const int have = GLVERNUM(major, minor, patch);
 		if (have >= need)
-			return true;  // we definitely have access to this "extension," as it is part of this version of the GL's core functionality.
+			return true;
 	}
 
-	// okay, see if the GL_EXTENSIONS string reports it.
 	static CDynamicFunctionOpenGL< true, const GLubyte *( APIENTRY *)(GLenum name), const GLubyte * > glGetString("glGetString");
 	if (!glGetString)
 		return false;
 
-	// hacky scanning of this string, because I don't want to spend time breaking it into a vector like I should have.
-	const char *extensions = (const char *) glGetString(GL_EXTENSIONS);
-	const size_t extlen = strlen(ext);
-	while ((extensions) && (*extensions))
+	static CDynamicFunctionOpenGL< false, const GLubyte *( APIENTRY *)(GLenum name, GLuint index), const GLubyte * > glGetStringi("glGetStringi");
+	static CDynamicFunctionOpenGL< true, void ( APIENTRY *)(GLenum pname, GLint *params), void > glGetIntegerv("glGetIntegerv");
+	
+	bool checkedModern = false;
+	if (glGetStringi && glGetIntegerv)
 	{
-		const char *ptr = strstr(extensions, ext);
-#if _WIN32
-		if (!ptr)
+		GLint numExtensions = 0;
+		glGetIntegerv(GL_NUM_EXTENSIONS, &numExtensions);
+		
+		if (numExtensions > 0)
 		{
-			static CDynamicFunctionOpenGL< true, const char *( APIENTRY *)( ), const char * > wglGetExtensionsStringEXT("wglGetExtensionsStringEXT");
-			if (wglGetExtensionsStringEXT) 
+			checkedModern = true;
+			for (GLint i = 0; i < numExtensions; i++)
 			{
-				extensions = wglGetExtensionsStringEXT();
-				ptr = strstr(extensions, ext);
-			}
-
-			if (!ptr) 
-			{
-				return false;
+				const char *extension = (const char *)glGetStringi(GL_EXTENSIONS, i);
+				if (extension && strcmp(extension, ext) == 0)
+					return true;
 			}
 		}
-#elif !defined ( OSX ) && !defined( __ANDROID__ )
-		if (!ptr)
-		{
-			static CDynamicFunctionOpenGL< true, Display *( APIENTRY *)( ), Display* > glXGetCurrentDisplay("glXGetCurrentDisplay");
-			static CDynamicFunctionOpenGL< true, const char *( APIENTRY *)( Display*, int ), const char * > glXQueryExtensionsString("glXQueryExtensionsString");
-			if (glXQueryExtensionsString && glXGetCurrentDisplay) 
-			{
-				extensions = glXQueryExtensionsString(glXGetCurrentDisplay(), 0);
-				ptr = strstr(extensions, ext);
-			}
-		}
-#endif
-
-		if (!ptr)
-			return false;
-
-		// make sure this matches the entire string, and isn't a substring match of some other extension.
-		// if ( ( (string is at start of extension list) or (the char before the string is a space) ) and
-		//      (the next char after the string is a space or a null terminator) )
-		if ( ((ptr == extensions) || (ptr[-1] == ' ')) &&
-			((ptr[extlen] == ' ') || (ptr[extlen] == '\0')) )
-			return true;  // found it!
-
-		extensions = ptr + extlen;  // skip ahead, search again.
 	}
+
+	#if !defined(OSX)
+		const char *video_driver = SDL_GetCurrentVideoDriver();
+		
+		#if defined(_WIN32)
+			static CDynamicFunctionOpenGL< false, const char *( APIENTRY *)(), const char * > wglGetExtensionsStringEXT("wglGetExtensionsStringEXT");
+			if (wglGetExtensionsStringEXT)
+			{
+				const char *extensions = wglGetExtensionsStringEXT();
+				if (extensions && (uintptr_t)extensions >= 0x1000)
+				{
+					const char *ptr = strstr(extensions, ext);
+					if (ptr && ((ptr == extensions) || (ptr[-1] == ' ')) &&
+						((ptr[strlen(ext)] == ' ') || (ptr[strlen(ext)] == '\0')))
+						return true;
+				}
+			}
+		#else
+			if (video_driver && strcmp(video_driver, "x11") == 0)
+			{
+				static CDynamicFunctionOpenGL< false, Display *( APIENTRY *)(), Display* > glXGetCurrentDisplay("glXGetCurrentDisplay");
+				static CDynamicFunctionOpenGL< false, const char *( APIENTRY *)(Display*, int), const char * > glXQueryExtensionsString("glXQueryExtensionsString");
+				if (glXQueryExtensionsString && glXGetCurrentDisplay)
+				{
+					Display *display = glXGetCurrentDisplay();
+					if (display && (uintptr_t)display >= 0x1000 && 
+						!((intptr_t)display < 0 && (intptr_t)display > -0x1000))
+					{
+						const char *extensions = glXQueryExtensionsString(display, 0);
+						if (extensions && (uintptr_t)extensions >= 0x1000)
+						{
+							const char *ptr = strstr(extensions, ext);
+							if (ptr && ((ptr == extensions) || (ptr[-1] == ' ')) &&
+								((ptr[strlen(ext)] == ' ') || (ptr[strlen(ext)] == '\0')))
+								return true;
+						}
+					}
+				}
+			}
+			else if (video_driver && strcmp(video_driver, "wayland") == 0)
+			{
+				typedef void* (*PFNEGLGETCURRENTDISPLAYPROC)(void);
+				typedef const char* (*PFNEGLQUERYSTRINGPROC)(void*, int);
+				
+				static CDynamicFunctionOpenGL< false, void* (*)(), void* > eglGetCurrentDisplay("eglGetCurrentDisplay");
+				static CDynamicFunctionOpenGL< false, const char* (*)(void*, int), const char* > eglQueryString("eglQueryString");
+				
+				const int EGL_EXTENSIONS = 0x3055;
+				
+				if (eglGetCurrentDisplay && eglQueryString)
+				{
+					void *display = eglGetCurrentDisplay();
+					if (display && (uintptr_t)display >= 0x1000)
+					{
+						const char *extensions = eglQueryString(display, EGL_EXTENSIONS);
+						if (extensions && (uintptr_t)extensions >= 0x1000)
+						{
+							const char *search_ext = ext;
+
+							if (strcmp(ext, "GLX_EXT_swap_control_tear") == 0)
+								return false;
+							
+							const char *ptr = strstr(extensions, search_ext);
+							if (ptr && ((ptr == extensions) || (ptr[-1] == ' ')) &&
+								((ptr[strlen(search_ext)] == ' ') || (ptr[strlen(search_ext)] == '\0')))
+								return true;
+						}
+					}
+				}
+			}
+		#endif
+	#endif
+
+	if (!checkedModern)
+	{
+		const char *extensions = (const char *)glGetString(GL_EXTENSIONS);
+		if (extensions && (uintptr_t)extensions >= 0x1000 && 
+			!((intptr_t)extensions < 0 && (intptr_t)extensions > -0x1000))
+		{
+			const char *ptr = strstr(extensions, ext);
+			if (ptr && ((ptr == extensions) || (ptr[-1] == ' ')) &&
+				((ptr[strlen(ext)] == ' ') || (ptr[strlen(ext)] == '\0')))
+				return true;
+		}
+	}
+
 	return false;
 }
 
