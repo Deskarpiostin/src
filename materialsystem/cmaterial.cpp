@@ -13,6 +13,7 @@
 #include "materialsystem_global.h"
 #include "shaderapi/ishaderapi.h"
 #include "materialsystem/imaterialproxy.h"							   
+#include "shaderapidx9/shaderapidx8_global.h"
 #include "shadersystem.h"
 #include "materialsystem/imaterialproxyfactory.h"
 #include "IHardwareConfigInternal.h"
@@ -515,7 +516,8 @@ CMaterial::CMaterial( char const* materialName, const char *pTextureGroupName, K
 
 CMaterial::~CMaterial()
 {
-	MaterialSystem()->UnbindMaterial( this );
+    if ( MaterialSystem() && g_pShaderAPIDX8 )
+        MaterialSystem()->UnbindMaterial( this );
 
 	Uncache();
 
