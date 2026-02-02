@@ -457,7 +457,7 @@ def configure(conf):
 	elif conf.env.DEST_OS == 'darwin':
 		conf.load('mm_hook')
 
-	conf.env.BIT32_MANDATORY = conf.options.TARGET32
+	conf.env.BIT32_MANDATORY = not conf.options.ALLOW64
 	if conf.env.BIT32_MANDATORY:
 		Logs.info('WARNING: will build engine for 32-bit target')
 		conf.load('force_32bit')
