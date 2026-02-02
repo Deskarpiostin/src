@@ -7,6 +7,8 @@ from waflib import Logs, Context, Configure
 import sys
 import os
 
+sys.path.insert(0, os.path.join(os.getcwd(), 'scripts', 'waflib'))
+
 VERSION = '1.0'
 APPNAME = 'source-engine'
 top = '.'

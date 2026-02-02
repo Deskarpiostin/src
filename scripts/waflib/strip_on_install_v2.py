@@ -10,12 +10,19 @@ import shutil, os
 from waflib import Build, Utils, Context, Errors, Logs
 
 def options(opt):
-	grp = opt.option_groups['install/uninstall options']
-	grp.add_option('--strip', dest='strip', action='store_true', default=False,
-		help='strip binaries. You must pass this flag to install command [default: %default]')
+	grp_name = 'install/uninstall options'
+
+	if grp_name not in opt.option_groups:
+		grp = opt.parser.add_argument_group(grp_name)
+		opt.option_groups[grp_name] = grp
+	else:
+		grp = opt.option_groups[grp_name]
+
+	grp.add_argument('--strip', dest='strip', action='store_true', default=False,
+		help='strip binaries. You must pass this flag to install command [default: %(default)s]')
 	
-	grp.add_option('--strip-to-file', dest='strip_to_file', action='store_true', default=False,
-		help='strip debug information to file *.debug. Implies --strip. You must pass this flag to install command [default: %default]')
+	grp.add_argument('--strip-to-file', dest='strip_to_file', action='store_true', default=False,
+		help='strip debug information to file *.debug. Implies --strip. You must pass this flag to install command [default: %(default)s]')
 
 def configure(conf):
 	if conf.env.DEST_BINFMT in ['elf', 'mac-o']:
@@ -43,7 +50,7 @@ def configure(conf):
 def copy_fun(self, src, tgt):
 	inst_copy_fun(self, src, tgt)
 
-	if not self.generator.bld.options.strip and not self.generator.bld.options.strip_to_file:
+	if not getattr(self.generator.bld.options, 'strip', False) and not getattr(self.generator.bld.options, 'strip_to_file', False):
 		return
 
 	if self.env.DEST_BINFMT not in ['elf', 'mac-o']: # don't strip unknown formats or PE
@@ -58,12 +65,12 @@ def copy_fun(self, src, tgt):
 		try:
 			if self.generator.bld.options.strip_to_file and self.env.DEST_BINFMT == 'elf':
 				ocopy_cmd = self.env.OBJCOPY + ['--only-keep-debug', tgt, tgt_debug]
-				self.generator.bld.cmd_and_log(ocopy_cmd, output=Context.BOTH, quiet=Context.BOTH)
+				self.generator.bld.cmd_and_log(ocopy_cmd, output=Context.BOTH, quiet=False)
 				if not self.generator.bld.progress_bar:
 					Logs.info('%s+ objcopy --only-keep-debug %s%s%s %s%s%s', c1, c4, tgt, c1, c3, tgt_debug, c1)
 			
 			strip_cmd = self.env.STRIP + self.env.STRIPFLAGS + [tgt]
-			self.generator.bld.cmd_and_log(strip_cmd, output=Context.BOTH, quiet=Context.BOTH)
+			self.generator.bld.cmd_and_log(strip_cmd, output=Context.BOTH, quiet=False)
 			if not self.generator.bld.progress_bar:
 				f1 = os.path.getsize(src)
 				f2 = os.path.getsize(tgt)
@@ -71,7 +78,7 @@ def copy_fun(self, src, tgt):
 				
 			if self.generator.bld.options.strip_to_file and self.env.DEST_BINFMT == 'elf':
 				ocopy_debuglink_cmd = self.env.OBJCOPY + ['--add-gnu-debuglink=%s' % tgt_debug, tgt]
-				self.generator.bld.cmd_and_log(ocopy_debuglink_cmd, output=Context.BOTH, quiet=Context.BOTH)
+				self.generator.bld.cmd_and_log(ocopy_debuglink_cmd, output=Context.BOTH, quiet=False)
 				if not self.generator.bld.progress_bar:
 					Logs.info('%s+ objcopy --add-gnu-debuglink=%s%s%s %s%s%s', c1, c3, tgt_debug, c1, c2, tgt, c1)
 		except Errors.WafError as e:
