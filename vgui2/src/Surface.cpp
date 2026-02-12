@@ -1872,7 +1872,11 @@ bool CWin32Surface::LoadBMP(Texture *texture, const char *filename)
 				PLAT(_currentContextPanel)->hdc, 
 				32, &texture->_dib );
 
+#ifndef MOON
 			unsigned char *rgba = (unsigned char *)( pDIB + sizeof( BITMAPINFOHEADER ) + 256 * sizeof( RGBQUAD ) );
+#else
+			unsigned int rgba = sizeof( BITMAPINFOHEADER );
+#endif // MOON
 
 			// Copy raw data
 			for (j = 0; j < texture->_tall; j++)
@@ -1881,8 +1885,13 @@ bool CWin32Surface::LoadBMP(Texture *texture, const char *filename)
 				{
 					int y = (texture->_tall - j - 1);
 
+#ifndef MOON
 					int offs = ( y * texture->_wide + i);
+#else
+					int offs = ( y * texture->_wide + i) * 4;
+#endif // MOON
 					int offsdest = (j * texture->_wide + i) * 4;
+#ifndef MOON
 					unsigned char *src = ((unsigned char *)rgba) + offs;
 					char *dst = ((char*)texture->_dib) + offsdest;
 					
@@ -1890,6 +1899,14 @@ bool CWin32Surface::LoadBMP(Texture *texture, const char *filename)
 					dst[1] = lpbmi->bmiColors[ *src ].rgbGreen;
 					dst[2] = lpbmi->bmiColors[ *src ].rgbBlue;
 					dst[3] = (unsigned char)255;
+#else
+					unsigned int src = rgba + offs;
+					unsigned char *dst = ((unsigned char *)texture->_dib) + offsdest;
+					dst[0] = pDIB[ src ];
+					dst[1] = pDIB[ src + 1 ];
+					dst[2] = pDIB[ src + 2 ];
+					dst[3] = pDIB[ src + 3 ];
+#endif // MOON
 				}
 			}
 
