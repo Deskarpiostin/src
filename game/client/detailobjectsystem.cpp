@@ -616,7 +616,11 @@ void CDetailModel::GetRenderBoundsWorldspace( Vector& mins, Vector& maxs )
 
 bool CDetailModel::ShouldReceiveProjectedTextures( int flags )
 {
+#ifndef MOON
 	return false;
+#else
+	return true;
+#endif // MOON
 }
 
 bool CDetailModel::UsesPowerOfTwoFrameBufferTexture()
