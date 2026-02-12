@@ -11,6 +11,9 @@
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
+#ifdef MOON
+ConVar sv_infinite_ammo("sv_infinite_ammo", "0", FCVAR_CHEAT | FCVAR_REPLICATED);
+#endif // MOON
 
 //-----------------------------------------------------------------------------
 // Purpose: Switches to the best weapon that is also better than the given weapon.
@@ -117,7 +120,11 @@ void CBaseCombatCharacter::RemoveAmmo( int iCount, int iAmmoIndex )
 		return;
 
 	// Infinite ammo?
+#ifndef MOON
 	if ( GetAmmoDef()->MaxCarry( iAmmoIndex ) == INFINITE_AMMO )
+#else
+	if ( GetAmmoDef()->MaxCarry( iAmmoIndex ) == INFINITE_AMMO || sv_infinite_ammo.GetBool() )
+#endif // MOON
 		return;
 
 	// Ammo pickup sound
