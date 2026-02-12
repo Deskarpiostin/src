@@ -408,7 +408,12 @@ void CMaster::SendHeartbeat ( adrlist_t *p )
 		return;
 
 	// Send to master
-		Q_FileBase( com_gamedir, szGD, sizeof( szGD ) );
+#ifndef MOON
+	Q_FileBase( com_gamedir, szGD, sizeof( szGD ) );
+#else
+	// @ThePixelMoon: Another "fix" borrowed from SourceBox
+	Q_FileBase( COM_GetModDirectory(), szGD, sizeof(szGD));
+#endif // MOON
 
 	bf_write buf( string, sizeof(string) );
 	buf.WriteByte( S2M_HEARTBEAT );
