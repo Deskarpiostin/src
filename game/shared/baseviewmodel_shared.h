@@ -145,7 +145,11 @@ public:
 	// Should this object receive shadows?
 	virtual bool			ShouldReceiveProjectedTextures( int flags )
 	{
+#ifndef MOON
 		return false;
+#else
+		return true;
+#endif // MOON
 	}
 
 	// Add entity to visible view models list?
