@@ -1159,7 +1159,7 @@ bool CGameClient::ExecuteStringCommand( const char *pCommandString )
 			return false;
 		}
 #else
-		if ( pCommand->IsFlagSet( FCVAR_DEVELOPMENTONLY ) )
+		if ( pCommand->IsFlagSet( FCVAR_DEVELOPMENTONLY ) || pCommand->IsFlagSet( FCVAR_HIDDEN ) )
 		{
 			// If development only then cheat only,
 			// because I said so
