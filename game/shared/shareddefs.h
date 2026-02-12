@@ -121,8 +121,13 @@ public:
 
 #define WEAPON_NOCLIP			-1	// clip sizes set to this tell the weapon it doesn't use a clip
 
+#ifdef MOON
+#define	MAX_AMMO_TYPES	512		// ???
+#define MAX_AMMO_SLOTS  512		// not really slots
+#else
 #define	MAX_AMMO_TYPES	32		// ???
 #define MAX_AMMO_SLOTS  32		// not really slots
+#endif // MOON
 
 #define HUD_PRINTNOTIFY		1
 #define HUD_PRINTCONSOLE	2
