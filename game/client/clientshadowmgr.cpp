@@ -110,7 +110,11 @@ ConVar r_flashlightdepthtexture( "r_flashlightdepthtexture", "1" );
 #if defined( _X360 )
 ConVar r_flashlightdepthres( "r_flashlightdepthres", "512" );
 #else
+#ifndef MOON
 ConVar r_flashlightdepthres( "r_flashlightdepthres", "1024" );
+#else
+ConVar r_flashlightdepthres( "r_flashlightdepthres", "2048" );
+#endif // MOON
 #endif
 
 ConVar r_threaded_client_shadow_manager( "r_threaded_client_shadow_manager", "0" );
