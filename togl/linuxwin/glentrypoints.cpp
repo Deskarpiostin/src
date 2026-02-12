@@ -258,18 +258,20 @@ static bool CheckBaseOpenGLVersion()
 	return true;
 }
 
+// @ThePixelMoon: Won't ifdef this one out. Seems useful enough for Wayland
 static bool CheckOpenGLExtension_internal(const char *ext, const int coremajor, const int coreminor)
 {
-	if ((coremajor >= 0) && (coreminor >= 0))
+	if ((coremajor >= 0) && (coreminor >= 0)) // we know that this extension is part of the base spec as of GL_VERSION coremajor.coreminor.
 	{
 		int major, minor, patch;
 		GetOpenGLVersion(&major, &minor, &patch);
 		const int need = GLVERNUM(coremajor, coreminor, 0);
 		const int have = GLVERNUM(major, minor, patch);
-		if (have >= need)
+		if (have >= need)  // we definitely have access to this "extension," as it is part of this version of the GL's core functionality.
 			return true;
 	}
 
+	// okay, see if the GL_EXTENSIONS string reports it.
 	static CDynamicFunctionOpenGL< true, const GLubyte *( APIENTRY *)(GLenum name), const GLubyte * > glGetString("glGetString");
 	if (!glGetString)
 		return false;
