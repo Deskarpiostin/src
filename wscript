@@ -324,6 +324,9 @@ def options(opt):
 	grp.add_option('--sanitize', action = 'store', dest = 'SANITIZE', default = '',
 		help = 'build with sanitizers [default: %(default)s]')
 
+	grp.add_option('--build-flags', action = 'store', dest = 'BUILD_FLAGS', type = 'string',
+		help = 'specify build flags (both cflags and cxxflags) separated by a comma. Note that this does NOT override flags produced automatically by waf!')
+
 	grp.add_option('--custom-march', action = 'store', dest = 'FLAGS', default = '',
 		help = 'build using custom march flag')
 
@@ -602,6 +605,13 @@ def configure(conf):
 
 		cxxflags += conf.filter_cxxflags(compiler_optional_flags, cflags)
 		cflags += conf.filter_cflags(compiler_optional_flags + c_compiler_optional_flags, cflags)
+
+	preferred_flags = conf.options.BUILD_FLAGS
+	if preferred_flags:
+		preferred_flags = preferred_flags.split(',')
+		cflags += preferred_flags
+		cxxflags += preferred_flags
+		linkflags += preferred_flags
 
 	conf.env.append_unique('CFLAGS', cflags)
 	conf.env.append_unique('CXXFLAGS', cxxflags)
