@@ -281,6 +281,12 @@ def define_platform(conf):
 			'NDEBUG'
 		])
 
+	# @ThePixelMoon: I want to organize my changes from now on,
+	# so do this
+	conf.env.append_unique('DEFINES', [
+		'MOON'
+	])
+
 	#conf.define('GIT_COMMIT_HASH', conf.env.GIT_VERSION)
 
 
