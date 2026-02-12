@@ -237,7 +237,11 @@ enum CastVote
 #if defined( CSTRIKE_DLL )
 	#define MAX_PLAYERS				65  // Absolute max players supported
 #else
+	#ifdef MOON
+	#define MAX_PLAYERS				256  // Absolute max players supported
+	#else
 	#define MAX_PLAYERS				33  // Absolute max players supported
+	#endif // MOON
 #endif
 
 #define MAX_PLACE_NAME_LENGTH		18
