@@ -21,7 +21,11 @@
 // Flow control bytes per second limits
 #define MAX_RATE		(1024*1024)				
 #define MIN_RATE		1000
+#ifdef MOON
+#define DEFAULT_RATE	131072
+#else
 #define DEFAULT_RATE	80000
+#endif // MOON
 
 #define SIGNON_TIME_OUT				300.0f  // signon disconnect timeout
 
