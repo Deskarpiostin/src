@@ -1152,11 +1152,21 @@ bool CGameClient::ExecuteStringCommand( const char *pCommandString )
 			}
 		}
 
+#ifndef MOON
 		// Don't allow clients to execute commands marked as development only.
 		if ( pCommand->IsFlagSet( FCVAR_DEVELOPMENTONLY ) )
 		{
 			return false;
 		}
+#else
+		if ( pCommand->IsFlagSet( FCVAR_DEVELOPMENTONLY ) )
+		{
+			// If development only then cheat only,
+			// because I said so
+			if ( !CanCheat() )
+				return false;
+		}
+#endif
 
 		g_pServerPluginHandler->SetCommandClient( m_nClientSlot );
 		Cmd_Dispatch( pCommand, args );

@@ -349,9 +349,11 @@ bool CCvarUtilities::IsCommand( const CCommand &args )
 	if ( !v )
 		return false;
 
+#ifndef MOON
 	// NOTE: Not checking for 'HIDDEN' here so we can actually set hidden convars
 	if ( v->IsFlagSet(FCVAR_DEVELOPMENTONLY) )
 		return false;
+#endif
 
 	// perform a variable print or set
 	if ( c == 1 )
@@ -489,8 +491,10 @@ bool CCvarUtilities::IsValidToggleCommand( const char *cmd )
 		return false;
 	}
 
+#ifndef MOON
 	if ( v->IsFlagSet(FCVAR_DEVELOPMENTONLY) || v->IsFlagSet(FCVAR_HIDDEN) )
 		return false;
+#endif
 
 	if ( v->IsFlagSet( FCVAR_SPONLY ) )
 	{
@@ -861,8 +865,10 @@ void CCvarUtilities::CvarList( const CCommand &args )
 	{
 		bool print = false;
 
+#ifndef MOON
 		if ( var->IsFlagSet(FCVAR_DEVELOPMENTONLY) || var->IsFlagSet(FCVAR_HIDDEN) )
 			continue;
+#endif
 
 		if (partial)  // Partial string searching?
 		{
@@ -983,8 +989,11 @@ void CCvarUtilities::CvarDifferences( const CCommand &args )
 	{
 		if ( var->IsCommand( ) )
 			continue;
+
+#ifndef MOON
 		if ( var->IsFlagSet(FCVAR_DEVELOPMENTONLY) || var->IsFlagSet(FCVAR_HIDDEN) )
 			continue;
+#endif
 
 		if ( !Q_stricmp( ((ConVar *)var)->GetDefault(), ((ConVar *)var)->GetString() ) )
 			continue;
@@ -1065,8 +1074,10 @@ void CCvarUtilities::CvarFindFlags_f( const CCommand &args )
 	// Loop through vars and print out findings
 	for (var=g_pCVar->GetCommands() ; var ; var=var->GetNext())
 	{
+#ifndef MOON
 		if ( var->IsFlagSet(FCVAR_DEVELOPMENTONLY) || var->IsFlagSet(FCVAR_HIDDEN) )
 			continue;
+#endif
 
 		for ( int i=0; i < ARRAYSIZE( g_ConVarFlags ); i++ )
 		{

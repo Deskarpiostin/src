@@ -1037,11 +1037,13 @@ const ConCommandBase *Cmd_ExecuteCommand( const CCommand &command, cmd_source_t 
 				}
 			}
 			
+#ifndef MOON
 			if ( pCommand->IsFlagSet( FCVAR_DEVELOPMENTONLY ) )
 			{
 				Msg( "Unknown command \"%s\"\n", pCommand->GetName() );
 				return NULL;
 			}
+#endif // MOON
 
 			Cmd_Dispatch( pCommand, command );
 			return pCommand;
