@@ -862,6 +862,14 @@ void RichText::Paint()
 		if ( m_LineBreaks.IsValidIndex( lineBreakIndexIndex ) && m_LineBreaks[lineBreakIndexIndex] < iLim )
 			iLim = m_LineBreaks[lineBreakIndexIndex];
 
+#ifdef MOON
+		// Stop in selection range
+		if ( iLim >= selection0  && i < selection0 )
+			iLim = selection0;
+		if ( iLim >= selection1 && i < selection1 && i >= selection0 )
+			iLim = selection1;
+#endif // MOON
+
 		// Handle non-drawing characters specially
 		for ( int iT = i; iT < iLim; iT++ )
 		{
@@ -1234,7 +1242,9 @@ void RichText::RecalculateLineBreaks()
 	if (!HasText())
 		return;
 	
+#ifndef MOON
 	int selection0 = -1, selection1 = -1;
+#endif // MOON
 
 	// subtract the scrollbar width
 	if (_vertScrollBar->IsVisible())
@@ -1345,6 +1355,7 @@ void RichText::RecalculateLineBreaks()
 		}
 
 		float w = 0;
+#ifndef MOON
 		wchar_t wchBefore = 0;
 		wchar_t wchAfter = 0;
 
@@ -1352,9 +1363,14 @@ void RichText::RecalculateLineBreaks()
 			wchBefore = m_TextStream[i-1];
 		if ( i < m_TextStream.Count() - 1 && i+1 != selection0 && i != selection1 )
 			wchAfter = m_TextStream[i+1];
+#endif // MOON
 
 		float flabcA;
+#ifndef MOON
 		surface()->GetKernedCharWidth( font, ch, wchBefore, wchAfter, w, flabcA );
+#else
+		surface()->GetKernedCharWidth( font, ch, 0, 0, w, flabcA );
+#endif // MOON
 		flLineWidthSoFar += w;
 	
 		// See if we've exceeded the width we have available, with 
