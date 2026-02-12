@@ -59,7 +59,12 @@
 // 16 bit short limits
 #define	MAX_MAP_MODELS					1024
 #define	MAX_MAP_BRUSHES					8192
+#ifdef MOON
+										// @ThePixelMoon: "borrowed" from SourceBox, thx relt!
+#define	MAX_MAP_ENTITIES				MAX_EDICTS
+#else
 #define	MAX_MAP_ENTITIES				8192
+#endif // MOON
 #define	MAX_MAP_TEXINFO					12288
 #define MAX_MAP_TEXDATA					2048
 #define MAX_MAP_DISPINFO				4096
