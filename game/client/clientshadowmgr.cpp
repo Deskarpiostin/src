@@ -97,7 +97,11 @@ static IVEngineServer *g_pEngineServer = nullptr;
 static ConVar r_flashlightdrawfrustum( "r_flashlightdrawfrustum", "0" );
 static ConVar r_flashlightmodels( "r_flashlightmodels", "1" );
 static ConVar r_shadowrendertotexture( "r_shadowrendertotexture", "0" );
+#ifdef MOON
+static ConVar r_flashlight_version2( "r_flashlight_version2", "1", FCVAR_CHEAT | FCVAR_DEVELOPMENTONLY );
+#else
 static ConVar r_flashlight_version2( "r_flashlight_version2", "0", FCVAR_CHEAT | FCVAR_DEVELOPMENTONLY );
+#endif // MOON
 void WorldLightCastShadowCallback( IConVar *pVar, const char *pszOldValue, float flOldValue );
 static ConVar r_worldlight_castshadows( "r_worldlight_castshadows", "1", FCVAR_CHEAT, "Allow world lights to cast shadows", true, 0, true, 1, WorldLightCastShadowCallback );
 static ConVar r_worldlight_lerptime( "r_worldlight_lerptime", "0.5", FCVAR_CHEAT );
