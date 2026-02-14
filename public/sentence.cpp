@@ -606,7 +606,16 @@ void CSentence::ParseCloseCaption( CUtlBuffer& buf )
 
 			buf.GetString( token );
 			cc_length = atoi( token );
+#ifndef MOON
 			Assert( cc_length >= 0 && cc_length < sizeof( cc_stream ) );
+#else
+			if ( cc_length < 0 || (unsigned int)cc_length >= ARRAYSIZE( cc_stream ) )
+			{
+				Warning( "Invalid CloseCaption data - segment length %d is out of bounds\n", cc_length );
+				AssertMsg( false, "Invalid CloseCaption data" );
+				break;
+			}
+#endif // MOON
 			// Skip space
 			buf.GetChar();
 			buf.Get( cc_stream, cc_length );

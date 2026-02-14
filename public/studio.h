@@ -3299,6 +3299,14 @@ inline int Studio_LoadVertexes( const vertexFileHeader_t *pTempVvdHdr, vertexFil
 			continue;
 		}
 
+#ifdef MOON
+		if ( ( pFixupTable[ i ].numVertexes < 0 ) || ( target + pFixupTable[ i ].numVertexes > numVertexes ) )
+		{
+			Assert( !"Malicious map attempting to write off the end of our fixup verts. Sad face." );
+			Error( "Unable to load corrupted map." );
+		}
+#endif // MOON
+
 		// copy vertexes
 
 		// TODO(nillerusr): That sucks and needs to be fixed
