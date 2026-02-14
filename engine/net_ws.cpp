@@ -1230,7 +1230,17 @@ static char const *DescribeSocket( int sock )
 //-----------------------------------------------------------------------------
 bool NET_GetLong( const int sock, netpacket_t *packet )
 {
+#ifndef MOON
 	int				packetNumber, packetCount, sequenceNumber, offset;
+#else
+	// RaphaelIT7:
+	// previous source engine exploit???
+	// if someone sent a malformed packet with a negative packetNumber, it would cause memcpy further below to crash as the calculated offset would be negative!
+	// This seems to have been fixed in GMod atleast.
+	// None of these should be negative at any point, so let's ensure they never can be.
+	unsigned int	packetNumber, packetCount, offset;
+	int				sequenceNumber;
+#endif // MOON
 	short			packetID;
 	SPLITPACKET		*pHeader;
 	
