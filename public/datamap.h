@@ -312,10 +312,17 @@ struct datamap_t
 
 #ifdef MOON
 #if defined( GAME_DLL ) // serverside only - exposed for plugins to make iterating over all datamaps easy.
-	datamap_t(typedescription_t* _dataDesc, int _dataNumFields, char const* _dataClassName, datamap_t* _baseMap, bool _chains_validated, bool _packed_offsets_computed, int _packed_size
-#if defined( _DEBUG )
-	, bool _bValidityChecked = false
-#endif // _DEBUG
+	datamap_t(
+		typedescription_t* _dataDesc = nullptr,
+		int _dataNumFields = 0,
+		char const* _dataClassName = nullptr,
+		datamap_t* _baseMap = nullptr,
+		bool _chains_validated = false,
+		bool _packed_offsets_computed = false,
+		int _packed_size = 0
+	#if defined(_DEBUG)
+		, bool _bValidityChecked = false
+	#endif
 	) :
 		dataDesc(_dataDesc), dataNumFields(_dataNumFields), dataClassName(_dataClassName), baseMap(_baseMap), chains_validated(_chains_validated),
 		packed_offsets_computed(_packed_offsets_computed), packed_size(_packed_size)
