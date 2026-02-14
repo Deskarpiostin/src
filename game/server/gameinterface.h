@@ -153,6 +153,12 @@ public:
 	// Called to see if the game server is okay with a manual changelevel or map command
 	virtual bool			IsManualMapChangeOkay( const char **pszReason ) OVERRIDE;
 
+#ifdef MOON
+	// Give the list of datatable classes for plugins.
+	// This is useful since plugins can get variable offsets from the datamap's allowing them to be safe across updates.
+	virtual datamap_t*	GetAllDataMaps( void ) override;
+#endif // MOON
+
 private:
 
 	// This can just be a wrapper on MapEntity_ParseAllEntities, but CS does some tricks in here
