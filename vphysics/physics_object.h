@@ -187,6 +187,11 @@ public:
 
 	void			OutputDebugInfo() const;
 
+#ifdef MOON
+	float	GetBuoyancyRatio( void ) const override { return m_buoyancyRatio; }
+	IPhysicsEnvironment	*GetEnvironment() const override;
+#endif // MOON
+
 	// local functions
 	inline	IVP_Real_Object *GetObject( void ) const { return m_pObject; }
 	inline int		CallbackFlags( void ) const { return m_callbacks; }

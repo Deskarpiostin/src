@@ -500,10 +500,14 @@ void PhysDestroyObject( IPhysicsObject *pObject, CBaseEntity *pEntity )
 		g_EntityCollisionHash->RemoveAllPairsForObject( pEntity );
 	}
 
+#ifndef MOON
 	if ( physenv )
 	{
 		physenv->DestroyObject( pObject );
 	}
+#else
+	DestroyPhysicsObject( pObject );
+#endif // MOON
 }
 
 void AddSurfacepropFile( const char *pFileName, IPhysicsSurfaceProps *pProps, IFileSystem *pFileSystem )

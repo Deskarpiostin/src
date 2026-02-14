@@ -1451,6 +1451,14 @@ void CPhysicsObject::OutputDebugInfo() const
 	}
 }
 
+#ifdef MOON
+IPhysicsEnvironment *CPhysicsObject::GetEnvironment() const
+{
+	// Same as GetVPhysicsEnvironment but this function is exposed for the game dlls
+	return (CPhysicsEnvironment *) (m_pObject->get_environment()->client_data);
+}
+#endif // MOON
+
 bool CPhysicsObject::IsAttachedToConstraint( bool bExternalOnly ) const
 {
 	if ( m_pObject )

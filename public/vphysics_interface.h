@@ -854,8 +854,23 @@ public:
 	// dumps info about the object to Msg()
 	virtual void			OutputDebugInfo() const = 0;
 
+#ifdef MOON
+	// returns the buoyancy of the object.
+	// newly added by Valve in new builds since it was requested by Rubat to solve https://github.com/Facepunch/garrysmod-issues/issues/5696
+	virtual float			GetBuoyancyRatio( void ) const = 0;
+
+	// returns the environment this object belongs to
+	virtual IPhysicsEnvironment *GetEnvironment( void ) const = 0;
+#endif // MOON
+
 };
 
+#ifdef MOON
+static inline void DestroyPhysicsObject( IPhysicsObject* pObject )
+{
+	pObject->GetEnvironment()->DestroyObject( pObject );
+}
+#endif // MOON
 
 abstract_class IPhysicsSpring
 {
