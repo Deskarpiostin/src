@@ -330,7 +330,7 @@ def options(opt):
 	grp.add_option('--sanitize', action = 'store', dest = 'SANITIZE', default = '',
 		help = 'build with sanitizers [default: %(default)s]')
 
-	grp.add_option('--build-flags', action = 'store', dest = 'BUILD_FLAGS', type = 'string',
+	grp.add_option('--build-flags', action = 'store', dest = 'BUILD_FLAGS', type = str,
 		help = 'specify build flags (both cflags and cxxflags) separated by a comma. Note that this does NOT override flags produced automatically by waf!')
 
 	grp.add_option('--custom-march', action = 'store', dest = 'FLAGS', default = '',
