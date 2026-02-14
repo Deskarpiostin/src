@@ -1259,6 +1259,19 @@ bool NET_GetLong( const int sock, netpacket_t *packet )
 	// Low byte is number of total packets
 	packetCount		= ( packetID & 0xff );	
 
+#ifdef MOON
+	// RaphaelIT7: Do not accept negative packet IDs due to out-of-buffer access and related exploit.
+	if ( packetID < 0 )
+	{
+		/*Msg( "NET_GetLong:  Split packet from %s with invalid packetID %hd out of allowed range [%hd, %hd].\n", 
+			packet->from.ToString(),
+			packetID,
+			0,
+			std::numeric_limits<decltype(packetID)>::max() );*/
+		return false;
+	}
+#endif // MOON
+
 	int nSplitSizeMinusHeader = (int)LittleShort( (short)pHeader->nSplitSize );
 	if ( nSplitSizeMinusHeader < MIN_SPLIT_SIZE ||
 		 nSplitSizeMinusHeader > MAX_SPLIT_SIZE )
