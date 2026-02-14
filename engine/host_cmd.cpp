@@ -1454,6 +1454,14 @@ CON_COMMAND( kickid, "Kick a player by userid or uniqueid, with a message." )
 			return;
 		}
 
+#ifdef MOON
+		if ( host_client == client )
+		{
+			ConMsg( "Preventing kick of local server host!\n" );
+			return;
+		}
+#endif // MOON
+
 		if ( iSearchIndex != -1 || !client->IsFakeClient() )
 		{
 			if ( who == NULL )
@@ -1564,6 +1572,14 @@ CON_COMMAND( kick, "Kick a player by name." )
 			if ( cmd_source != src_command && host_client == client && !sv.IsDedicated() )
 				return;
 
+#ifdef MOON
+			if ( host_client == client )
+			{
+				ConMsg( "Preventing kick of local server host!\n" );
+				return;
+			}
+#endif // MOON
+
 			if ( who )
 			{
 				client->Disconnect( "Kicked by %s", who );
@@ -1609,6 +1625,14 @@ CON_COMMAND( kickall, "Kicks everybody connected with a message." )
 		// can't kick yourself!
 		if ( cmd_source != src_command && host_client == client && !sv.IsDedicated() )
 			continue;
+
+#ifdef MOON
+		if ( host_client == client )
+		{
+			ConMsg( "Preventing kick of local server host!\n" );
+			return;
+		}
+#endif // MOON
 
 #if defined( REPLAY_ENABLED )
 		if ( client->IsReplay() )
