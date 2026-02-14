@@ -137,7 +137,11 @@ void Memory_Init( void )
 #ifdef PLATFORM_64BITS
     // Seems to need to be larger to not get exhausted on
     // 64-bit. Perhaps because of larger pointer sizes.
+#ifdef MOON
+    int nMaxBytes = 256*1024*1024;
+#else
     int nMaxBytes = 128*1024*1024;
+#endif // MOON
 #else
 	int nMaxBytes = 48*1024*1024;
 #endif
