@@ -238,7 +238,7 @@ enum CastVote
 	#define MAX_PLAYERS				65  // Absolute max players supported
 #else
 	#ifdef MOON
-	#define MAX_PLAYERS				256  // Absolute max players supported
+	#define MAX_PLAYERS				255  // Absolute max players supported
 	#else
 	#define MAX_PLAYERS				33  // Absolute max players supported
 	#endif // MOON
