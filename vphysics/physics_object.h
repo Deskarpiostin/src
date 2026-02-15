@@ -206,7 +206,9 @@ public:
 
 	inline int		GetActiveIndex( void ) const { return m_activeIndex; }
 	inline void		SetActiveIndex( int index ) { m_activeIndex = index; }
+#ifndef MOON
 	inline float	GetBuoyancyRatio( void ) const { return m_buoyancyRatio; }
+#endif
 	// returns true if the mass center is set to the default for the collision model
 	bool			IsMassCenterAtDefault() const;
 
