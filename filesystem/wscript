@@ -25,6 +25,7 @@ def build(bld):
 		'filetracker.cpp',
 		'filesystem_async.cpp',
 		'filesystem_stdio.cpp',
+		'gma_store.cpp',
 		'../public/kevvaluescompiler.cpp',
 		'../public/zip_utils.cpp',
 		'QueuedLoader.cpp',

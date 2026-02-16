@@ -275,6 +275,9 @@ public:
 
 	void RegisterFileTracker( IThreadedFileMD5Processor *pFileTracker ) { m_pFileTracker = pFileTracker; m_PackedStoreReadCache.m_pFileTracker = pFileTracker; }
 
+#ifdef MOON
+	virtual
+#endif
 	CPackedStoreFileHandle OpenFile( char const *pFile );
 	CPackedStoreFileHandle GetHandleForHashingFiles();
 
@@ -291,6 +294,9 @@ public:
 	// write out the file directory
 	void Write( void );
 
+#ifdef MOON
+	virtual
+#endif
 	int ReadData( CPackedStoreFileHandle &handle, void *pOutData, int nNumBytes );
 
 	~CPackedStore( void );
@@ -302,19 +308,31 @@ public:
 
 	// Get a list of all the files in the zip You are responsible for freeing the contents of
 	// outFilenames (call outFilenames.PurgeAndDeleteElements).
+#ifdef MOON
+	virtual
+#endif
 	int GetFileList( CUtlStringList &outFilenames, bool bFormattedOutput, bool bSortedOutput );
 
 	// Get a list of all files that match the given wildcard string
+#ifdef MOON
+	virtual
+#endif
 	int GetFileList( const char *pWildCard, CUtlStringList &outFilenames, bool bFormattedOutput, bool bSortedOutput );
 	
 	/// Get a list of all files that match the given wildcard string, fetching all the details
 	/// at once
+#ifdef MOON
+	virtual
+#endif
 	void GetFileList( const char *pWildcard, CUtlVector<VPKContentFileInfo_t> &outVecResults );
 
 	// Get a list of all directories of the given wildcard
 	int GetFileAndDirLists( const char *pWildCard, CUtlStringList &outDirnames, CUtlStringList &outFilenames, bool bSortedOutput );
 	int GetFileAndDirLists( CUtlStringList &outDirnames, CUtlStringList &outFilenames, bool bSortedOutput );
 
+#ifdef MOON
+	virtual
+#endif
 	bool IsEmpty( void ) const;
 
 	/// Hash metadata and chunk files
@@ -383,7 +401,9 @@ public:
 	void SetUseDirFile() { m_bUseDirFile = true; }
 
 	int m_PackFileID;
+#ifndef MOON
 private:
+#endif
 	char m_pszFileBaseName[MAX_PATH];
 	char m_pszFullPathName[MAX_PATH];
 	int m_nDirectoryDataSize;

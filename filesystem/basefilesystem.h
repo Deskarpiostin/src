@@ -793,6 +793,11 @@ protected:
 	void						AddVPKFile( const char *pPath, const char *pPathID, SearchPathAdd_t addType );
 	bool						RemoveVPKFile( const char *pPath, const char *pPathID );
 
+#ifdef MOON
+	void						AddGMAFile( const char *pPath, const char *pPathID, SearchPathAdd_t addType );
+	bool						RemoveGMAFile( const char *pPath, const char *pPathID );
+#endif
+
 	void						HandleOpenRegularFile( CFileOpenInfo &openInfo, bool bIsAbsolutePath );
 
 	FileHandle_t				FindFileInSearchPath( CFileOpenInfo &openInfo );

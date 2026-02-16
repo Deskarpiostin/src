@@ -25,6 +25,9 @@
 #ifdef _X360
 #include "xbox/xbox_launch.h"
 #endif
+#ifdef MOON
+#include "gma_store.h"
+#endif
 
 #ifndef DEDICATED
 #include "keyvaluescompiler.h"
@@ -878,6 +881,99 @@ bool CBaseFileSystem::RemoveVPKFile( const char *pPath, const char *pPathID )
 	return false;
 }
 
+#ifdef MOON
+void CBaseFileSystem::AddGMAFile( char const *pPath, const char *pPathID, SearchPathAdd_t addType )
+{
+	char nameBuf[MAX_PATH];
+	Q_MakeAbsolutePath( nameBuf, sizeof( nameBuf ), pPath );
+	Q_FixSlashes( nameBuf );
+
+	if (!FileExists(nameBuf))
+		return;
+
+	CUtlSymbol pathIDSym = g_PathIDTable.AddString( pPathID );
+	
+	CGMAStoreRefCount *pGMA = NULL;
+
+	for ( int i = 0; i < m_SearchPaths.Count(); i++ )
+	{
+		CPackedStoreRefCount *p = m_SearchPaths[i].GetPackedStore();
+		if ( p )
+		{
+			if ( V_stricmp( p->FullPathName(), nameBuf ) == 0 )
+			{
+				if ( m_SearchPaths[i].GetPath() == pathIDSym )
+					return;
+
+				pGMA = (CGMAStoreRefCount*)p;
+			}
+		}
+	}
+	
+	if ( pGMA == NULL )
+	{
+		char pszBaseName[MAX_PATH];
+		char pszFullPath[MAX_PATH];
+		
+		V_StripExtension(nameBuf, pszBaseName, sizeof(pszBaseName));
+		V_strncpy(pszFullPath, nameBuf, sizeof(pszFullPath));
+		
+		pGMA = new CGMAStoreRefCount( pszBaseName, pszFullPath, this );
+		
+		if (!pGMA)
+			return;
+
+		if ( pGMA->IsEmpty() )
+		{
+			delete pGMA;
+			return;
+		}
+		
+		pGMA->RegisterFileTracker( (IThreadedFileMD5Processor *)&m_FileTracker2 );
+		
+		pGMA->m_PackFileID = m_FileTracker2.NotePackFileOpened( pGMA->FullPathName(), pPathID, 0 );
+	}
+	else
+		pGMA->AddRef();
+	
+	int searchPathIndex = ( addType == PATH_ADD_TO_TAIL ) ? m_SearchPaths.AddToTail() : m_SearchPaths.AddToHead();
+	
+	CSearchPath *sp = &m_SearchPaths[ searchPathIndex ];
+	sp->SetPackedStore( (CPackedStoreRefCount*)pGMA );
+	sp->m_storeId = g_iNextSearchPathID++;    
+	sp->SetPath( pathIDSym );
+	sp->m_pPathIDInfo = FindOrAddPathIDInfo( g_PathIDTable.AddString( pPathID ), -1 );
+
+	SetSearchPathIsTrustedSource( sp );
+}
+
+bool CBaseFileSystem::RemoveGMAFile( const char *pPath, const char *pPathID )
+{
+	char nameBuf[MAX_PATH];
+
+	Q_MakeAbsolutePath( nameBuf, sizeof( nameBuf ), pPath );
+	Q_FixSlashes( nameBuf );
+
+	CUtlSymbol pathIDSym = g_PathIDTable.AddString( pPathID );
+
+	// See if we already have this vpk file as a search path
+	for ( int i = 0; i < m_SearchPaths.Count(); i++ )
+	{
+		CPackedStoreRefCount *p = m_SearchPaths[i].GetPackedStore();
+		if ( p && V_stricmp( p->FullPathName(), nameBuf ) == 0 )
+		{
+			// remove if we find one
+			if ( m_SearchPaths[i].GetPath() == pathIDSym )
+			{
+				m_SearchPaths.Remove( i );
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+#endif
 
 //-----------------------------------------------------------------------------
 // Purpose: Adds the specified pack file to the list
@@ -1119,7 +1215,7 @@ void CBaseFileSystem::AddMapPackFile( const char *pPath, const char *pPathID, Se
 	// Security nightmares already, should not let things explicitly loading from e.g. "MOD" get surprise untrusted
 	// files unless you really really know what you're doing.
 	AssertMsg( V_strcasecmp( pPathID, "GAME" ) == 0,
-	           "Mounting map files anywhere besides GAME is asking for pain" );
+			   "Mounting map files anywhere besides GAME is asking for pain" );
 
 	char newPath[ MAX_FILEPATH ];
 	// +2 for '\0' and potential slash added at end.
@@ -1412,6 +1508,15 @@ void CBaseFileSystem::AddSearchPathInternal( const char *pPath, const char *path
 		return;
 	}
 
+#ifdef MOON
+	// And GMA
+	if ( V_stristr( pPath, ".gma" ) )
+	{
+		AddGMAFile( pPath, pathID, addType );
+		return;
+	}
+#endif
+
 	// Clean up the name
 	char newPath[ MAX_FILEPATH ];
 	if ( pPath[0] == 0 )
@@ -1658,6 +1763,12 @@ bool CBaseFileSystem::RemoveSearchPath( const char *pPath, const char *pathID )
 		{
 			return RemoveVPKFile( newPath, pathID );
 		}
+#ifdef MOON
+		else if ( V_stristr( newPath, ".gma" ) )
+		{
+			return RemoveGMAFile( newPath, pathID );
+		}
+#endif
 		else
 		{
 			AddSeperatorAndFixPath( newPath );
@@ -2438,6 +2549,10 @@ FileHandle_t CBaseFileSystem::OpenForRead( const char *pFileNameT, const char *p
 		#if defined( SUPPORT_PACKED_STORE )
 			if ( !pZipExt )
 				pZipExt = V_stristr( openInfo.m_AbsolutePath, ".vpk" CORRECT_PATH_SEPARATOR_S );
+		#ifdef MOON
+			if ( !pZipExt )
+				pZipExt = V_stristr( openInfo.m_AbsolutePath, ".gma" CORRECT_PATH_SEPARATOR_S );
+		#endif
 		#endif
 	
 		if ( pZipExt && pZipExt[5] )
@@ -4338,7 +4453,7 @@ bool CBaseFileSystem::FixUpPath( const char *pFileName, char *pFixedUpFileName, 
 				V_strlower( &pFixedUpFileName[iBaseLength-1] );
 			}
 		}
-	    
+		
 	}
 
 //	Msg("CBaseFileSystem::FixUpPath: Converted %s to %s\n", pFileName, pFixedUpFileName);  // too noisy
@@ -4346,7 +4461,7 @@ bool CBaseFileSystem::FixUpPath( const char *pFileName, char *pFixedUpFileName, 
 #ifdef NEVER // Useful if you're trying to see why your file may not be found (if you have a mixed case file)
 	if (strncmp(pFixedUpFileName, pFileName, 256))
 	{
-	    printf("FixUpPath->Converting %s to %s\n",pFileName, pFixedUpFileName);
+		printf("FixUpPath->Converting %s to %s\n",pFileName, pFixedUpFileName);
 	}
 #endif // NEVER
 	return true;
@@ -4792,11 +4907,11 @@ void CBaseFileSystem::Warning( FileWarningLevel_t level, const char *fmt, ... )
 		return;
 
 	va_list argptr; 
-    char warningtext[ 4096 ];
-    
-    va_start( argptr, fmt );
-    Q_vsnprintf( warningtext, sizeof( warningtext ), fmt, argptr );
-    va_end( argptr );
+	char warningtext[ 4096 ];
+	
+	va_start( argptr, fmt );
+	Q_vsnprintf( warningtext, sizeof( warningtext ), fmt, argptr );
+	va_end( argptr );
 
 	// Dump to stdio
 	printf( "%s", warningtext );
