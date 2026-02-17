@@ -6,6 +6,7 @@
 // $NoKeywords: $
 //===========================================================================//
 
+#include "iconvar.h"
 #include "server_pch.h"
 #include "decal.h"
 #include "host_cmd.h"
@@ -195,7 +196,18 @@ ConVar	sv_pure_consensus( "sv_pure_consensus", "5", 0, "Minimum number of file h
 ConVar	sv_pure_retiretime( "sv_pure_retiretime", "900", 0, "Seconds of server idle time to flush the sv_pure file hash cache." );
 
 ConVar  sv_cheats( "sv_cheats", "0", FCVAR_NOTIFY|FCVAR_REPLICATED, "Allow cheats on server", SV_CheatsChanged_f );
-ConVar  sv_lan( "sv_lan", "0", 0, "Server is a lan server ( no heartbeat, no authentication, no non-class C addresses )" );
+#ifdef MOON
+static void SV_LanChangedF( IConVar *pConVar, const char *pOldString, float flOldValue )
+{
+	// @ThePixelMoon: Damn
+	Host_Changelevel(false, sv.GetMapName(), "");
+}
+#endif
+#ifdef MOON
+ConVar  sv_lan( "sv_lan", "0", FCVAR_REPLICATED, "Server is a lan server ( no heartbeat, no authentication, no non-class C addresses ) ( Causes changelevel on value change )" , SV_LanChangedF);
+#else
+ConVar  sv_lan( "sv_lan", "0", 0, "Server is a lan server ( no heartbeat, no authentication, no non-class C addresses )" 
+#endif
 
 
 
