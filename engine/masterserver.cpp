@@ -35,7 +35,8 @@ static char g_MasterServers[][64] =
 	"168.138.92.21:27016",
 	"135.125.188.162:27010"
 #else
-	"ms.workbench.network:27010"
+	"ms.workbench.network:27010",
+	"oreo922.cn:27010"
 #endif
 };
 
