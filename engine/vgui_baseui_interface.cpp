@@ -806,7 +806,12 @@ void CEngineVGui::Init()
 	if ( staticGameConsole )
 	{
 		staticGameConsole->Initialize();
+#ifndef MOON
 		staticGameConsole->SetParent(staticGameUIPanel->GetVPanel());
+#else
+		// https://github.com/perilouswithadollarsign/cstrike15_src/blob/master/engine/vgui_baseui_interface.cpp
+		staticGameConsole->SetParent(staticEngineToolsPanel->GetVPanel());
+#endif
 	}
 
 	if ( IsX360() )
@@ -1135,7 +1140,9 @@ void CEngineVGui::ShowConsole()
 	if ( IsX360() )
 		return;
 
+#ifndef MOON
 	ActivateGameUI();
+#endif
 
 	if ( staticGameConsole )
 	{
