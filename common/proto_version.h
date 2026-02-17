@@ -12,9 +12,15 @@
 #endif
 
 // The current network protocol version.  Changing this makes clients and servers incompatible
+#ifndef MOON
 #define PROTOCOL_VERSION    25
+#else
+#define PROTOCOL_VERSION    26
+#endif
 
+#ifndef MOON
 #define DEMO_BACKWARDCOMPATABILITY
+#endif
 
 // For backward compatibility of demo files (NET_MAX_PAYLOAD_BITS went away)
 #define PROTOCOL_VERSION_23		23
