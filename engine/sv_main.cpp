@@ -150,6 +150,11 @@ static void SV_Pure_f( const CCommand &args )
             {
 				g_sv_pure_waiting_on_reload = true;
             }
+
+#ifdef MOON
+			// @ThePixelMoon: again
+			Host_Changelevel(false, sv.GetMapName(), "");
+#endif
         }
     }
     else
