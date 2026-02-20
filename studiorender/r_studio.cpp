@@ -72,6 +72,12 @@ IMaterial* CStudioRender::R_StudioSetupSkinAndLighting( IMatRenderContext *pRend
 	void /*IClientRenderable*/ *pClientRenderable, ColorMeshInfo_t *pColorMeshes, StudioModelLighting_t &lighting )
 {
 	VPROF( "R_StudioSetupSkin" );
+
+#ifdef MOON
+	if (!m_pRC || !ppMaterials || !ppMaterials[index])
+		return m_pMaterialMRMWireframe;
+#endif
+
 	IMaterial *pMaterial = NULL;
 	bool bCheckForConVarDrawTranslucentSubModels = false;
 	if( m_pRC->m_Config.bWireframe && !m_pRC->m_pForcedMaterial )
@@ -195,21 +201,45 @@ IMaterial* CStudioRender::R_StudioSetupSkinAndLighting( IMatRenderContext *pRend
 		// Set this bool to check after the bind below
 		bCheckForConVarDrawTranslucentSubModels = true;
 
+#ifdef MOON
+		if (!pMaterial)
+		{
+			Warning("pMaterial is NULL in R_StudioSetupSkinAndLighting\n");
+			return m_pMaterialMRMWireframe;
+		}
+#endif
+
 		if ( m_pRC->m_nForcedMaterialType != OVERRIDE_DEPTH_WRITE && m_pRC->m_nForcedMaterialType != OVERRIDE_SSAO_DEPTH_WRITE)
 		{
+#ifdef MOON
+			// Try to set the alpha based on the blend
+			if (m_pRC->m_AlphaMod >= 0.0f && m_pRC->m_AlphaMod <= 1.0f)
+			{
+#endif
 			// Try to set the alpha based on the blend
 			pMaterial->AlphaModulate( m_pRC->m_AlphaMod );
 
 			// Try to set the color based on the colormod
 			pMaterial->ColorModulate( m_pRC->m_ColorMod[0], m_pRC->m_ColorMod[1], m_pRC->m_ColorMod[2] );
+#ifdef MOON
+			}
+#endif
 		}
 	}
 
 	lighting = R_StudioComputeLighting( pMaterial, materialFlags, pColorMeshes );
 	if ( lighting == LIGHTING_MOUTH )
 	{
+#ifdef MOON
+		if (!m_pRC)
+			return m_pMaterialMRMWireframe;
+
+		if ( !m_pRC->m_Config.bTeeth || !R_TeethAreVisible() )
+			return m_pMaterialMRMWireframe;
+#else
 		if ( !m_pRC->m_Config.bTeeth || !R_TeethAreVisible() )
 			return NULL;
+#endif
 		// skin it and light it, but only if we need to.
 		if ( m_pRC->m_Config.m_bSupportsVertexAndPixelShaders )
 		{
@@ -219,6 +249,10 @@ IMaterial* CStudioRender::R_StudioSetupSkinAndLighting( IMatRenderContext *pRend
 
 	// TODO: It's possible we don't want to use the color texels--for example because of a convar. 
 	// We should check that here in addition to whether or not we have the data available.
+#ifdef MOON
+	if (pMaterial)
+	{
+#endif
 	static unsigned int lightmapVarCache = 0;
 	IMaterialVar *pLightmapVar = pMaterial->FindVarFast( "$lightmap", &lightmapVarCache );
 	if ( pLightmapVar )
@@ -230,6 +264,9 @@ IMaterial* CStudioRender::R_StudioSetupSkinAndLighting( IMatRenderContext *pRend
 		else 
 			pLightmapVar->SetUndefined();
 	}
+#ifdef MOON
+	}
+#endif
 	
 	pRenderContext->Bind( pMaterial, pClientRenderable );
 

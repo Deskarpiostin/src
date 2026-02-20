@@ -465,10 +465,24 @@ void CStudioRender::DrawModel( const DrawModelInfo_t& info, const StudioRenderCo
 	m_VertexCache.StartModel();
 
 	m_pStudioHdr = info.m_pStudioHdr;
+#ifdef MOON
+	if (!m_pStudioHdr)
+		return;
+			
+	if (!info.m_pHardwareData || !info.m_pHardwareData->m_pLODs)
+	{
+		const char* name = nullptr;
+		if (m_pStudioHdr && (uintptr_t)m_pStudioHdr > 0x1000) // avoid null/small junk ptrs
+		{
+			if ((uintptr_t)m_pStudioHdr < 0x00007ffffffffff)
+				name = m_pStudioHdr->pszName();
+		}
+#else
 	if ( !info.m_pHardwareData->m_pLODs )
 	{
 		// If we are missing LODs then print the model name before returning
 		// so we can perhaps correct the underlying problem.
+#endif
 		Msg( "Missing LODs for %s, lod index is %d.\n", m_pStudioHdr->pszName(), info.m_Lod );
 		return;
 	}

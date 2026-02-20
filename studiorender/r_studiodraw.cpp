@@ -262,7 +262,22 @@ int CStudioRender::R_StudioRenderModel( IMatRenderContext *pRenderContext, int s
 {
 	VPROF("CStudioRender::R_StudioRenderModel");
 
+#ifdef MOON
+    if (!pRenderContext)
+        return 0;
+
+    if (!m_pStudioHdr)
+        return 0;
+
+    if (!ppMaterials || !pMaterialFlags)
+        return 0;
+#endif
 	int nDrawGroup = flags & STUDIORENDER_DRAW_GROUP_MASK;
+
+#ifdef MOON
+	if ( lod < 0 || lod >= m_pStudioHdr->numbodyparts )
+		lod = 0;
+#endif
 
 	if ( m_pRC->m_Config.drawEntities == 2 )
 	{
@@ -2142,59 +2157,132 @@ template<VertexCompressionType_t T> void CStudioRender::R_StudioRestoreMesh( mst
 //-----------------------------------------------------------------------------
 int CStudioRender::R_StudioDrawGroupHWSkin( IMatRenderContext *pRenderContext, studiomeshgroup_t* pGroup, IMesh* pMesh, ColorMeshInfo_t * pColorMeshInfo )
 {
-	PROFILE_STUDIO("HwSkin");
-	int numTrianglesRendered = 0;
+    PROFILE_STUDIO("HwSkin");
+    int numTrianglesRendered = 0;
 
+#ifdef MOON
+    if (!pGroup)
+        return 0;
+#endif
 #if PIX_ENABLE
 	char szPIXEventName[128];
 	sprintf( szPIXEventName, "R_StudioDrawGroupHWSkin (%s)", m_pStudioHdr->name );	// PIX
 	PIXEVENT( pRenderContext, szPIXEventName );
 #endif
 
+#ifdef MOON
+    if (!pMesh)
+        return 0;
+
+    if ( m_pStudioHdr && m_pStudioHdr->numbones == 1 )
+#else
 	if ( m_pStudioHdr->numbones == 1 )
-	{
-		pRenderContext->MatrixMode( MATERIAL_MODEL );
-		pRenderContext->LoadMatrix( m_PoseToWorld[0] );
+#endif
+    {
+        pRenderContext->MatrixMode( MATERIAL_MODEL );
+        pRenderContext->LoadMatrix( m_PoseToWorld[0] );
 
 		// a single bone means all verts rigidly assigned
 		// any bonestatechange would needlessly re-load the same matrix
 		// xbox can skip further hw skinning, seems ok for pc too
 		pRenderContext->SetNumBoneWeights( 0 );
-	}
+    }
 
-	if ( pColorMeshInfo )
-		pMesh->SetColorMesh( pColorMeshInfo->m_pMesh, pColorMeshInfo->m_nVertOffsetInBytes );
-	else
-		pMesh->SetColorMesh( NULL, 0 );
+    if ( pColorMeshInfo )
+        pMesh->SetColorMesh( pColorMeshInfo->m_pMesh, pColorMeshInfo->m_nVertOffsetInBytes );
+    else
+        pMesh->SetColorMesh( NULL, 0 );
 
-	for (int j = 0; j < pGroup->m_NumStrips; ++j)
-	{
+#ifdef MOON
+    if (pGroup->m_NumStrips == 0)
+    {
+        pMesh->SetColorMesh( NULL, 0 );
+        return 0;
+    }
+
+    if (!pGroup->m_pUniqueTris || !pGroup->m_pStripData)
+    {
+        pMesh->SetColorMesh( NULL, 0 );
+        return 0;
+    }
+
+    const int MAX_REASONABLE_STRIPS = 1 << 20; // 1 million strips is absurd
+    if (pGroup->m_NumStrips <= 0 || pGroup->m_NumStrips > MAX_REASONABLE_STRIPS)
+    {
+        pMesh->SetColorMesh( NULL, 0 );
+        return 0;
+    }
+#endif
+    for (int j = 0; j < pGroup->m_NumStrips; ++j)
+    {
+#ifdef MOON
+        OptimizedModel::StripHeader_t* pStrip = nullptr;
+        if (!pGroup->m_pStripData)
+            return 0;
+
+        pStrip = &pGroup->m_pStripData[j];
+
+        if (pStrip->numIndices < 0 || pStrip->indexOffset < 0)
+            continue;
+
+        if ( m_pStudioHdr && m_pStudioHdr->numbones > 1 )
+        {
+#else
 		OptimizedModel::StripHeader_t* pStrip = &pGroup->m_pStripData[j];
 
 		if ( m_pStudioHdr->numbones > 1 )
 		{
 			// Reset bone state if we're hardware skinning
-			pRenderContext->SetNumBoneWeights( pStrip->numBones );
+#endif
+            pRenderContext->SetNumBoneWeights( pStrip->numBones );
 
-			for (int k = 0; k < pStrip->numBoneStateChanges; ++k)
-			{
-				OptimizedModel::BoneStateChangeHeader_t* pStateChange = pStrip->pBoneStateChange(k);
-				if ( pStateChange->newBoneID < 0 )
-					break;
+            for (int k = 0; k < pStrip->numBoneStateChanges; ++k)
+            {
+                OptimizedModel::BoneStateChangeHeader_t* pStateChange = pStrip->pBoneStateChange(k);
+#ifdef MOON
+				if (!pStateChange)
+                    break;
+#endif
+                if ( pStateChange->newBoneID < 0 )
+                    break;
 
-				pRenderContext->LoadBoneMatrix( pStateChange->hardwareID, m_PoseToWorld[pStateChange->newBoneID] );
-			}
+#ifdef MOON
+				if (pStateChange->hardwareID < 0 || pStateChange->hardwareID >= MAX_NUM_BONES_PER_STRIP)
+					continue;
+
+				if (pStateChange->newBoneID < 0 || pStateChange->newBoneID >= m_pStudioHdr->numbones)
+					continue;
+#endif
+                pRenderContext->LoadBoneMatrix( pStateChange->hardwareID, m_PoseToWorld[pStateChange->newBoneID] );
+            }
+        }
+
+        pMesh->SetPrimitiveType( pStrip->flags & OptimizedModel::STRIP_IS_TRISTRIP ? 
+            MATERIAL_TRIANGLE_STRIP : MATERIAL_TRIANGLES );
+
+#ifdef MOON
+        if (pStrip->numIndices > 0)
+        {
+#endif
+            pMesh->Draw( pStrip->indexOffset, pStrip->numIndices );
+#ifdef MOON
 		}
 
-		pMesh->SetPrimitiveType( pStrip->flags & OptimizedModel::STRIP_IS_TRISTRIP ? 
-			MATERIAL_TRIANGLE_STRIP : MATERIAL_TRIANGLES );
+		if (!pGroup->m_pUniqueTris)
+			return 0;
 
-		pMesh->Draw( pStrip->indexOffset, pStrip->numIndices );
+        int triCount = pGroup->m_pUniqueTris ? pGroup->m_pUniqueTris[j] : 0;
+        if (triCount > 0 && triCount < (1 << 24))
+        {
+            numTrianglesRendered += triCount;
+        }
+#else
 		numTrianglesRendered += pGroup->m_pUniqueTris[j];
-	}
-	pMesh->SetColorMesh( NULL, 0 );
+#endif
+    }
+    pMesh->SetColorMesh( NULL, 0 );
 
-	return numTrianglesRendered;
+    return numTrianglesRendered;
 }
 
 int CStudioRender::R_StudioDrawGroupSWSkin( studiomeshgroup_t* pGroup, IMesh* pMesh )
@@ -2375,7 +2463,9 @@ int CStudioRender::R_StudioDrawStaticMesh( IMatRenderContext *pRenderContext, ms
 		}
 		if ( bUseSOFlex )
 		{
+#ifdef MOON
 			pGroup->m_pMesh->DisableFlexMesh();	// clear flex stream
+#endif
 		}
 	}
 
@@ -2774,10 +2864,26 @@ int CStudioRender::R_StudioDrawMesh( IMatRenderContext *pRenderContext, mstudiom
 
 	int numTrianglesRendered = 0;
 
+#ifdef MOON
+	if (pMeshData->m_NumGroup <= 0)
+		return 0;
+#endif
+
 	// Draw all the various mesh groups...
 	for ( int j = 0; j < pMeshData->m_NumGroup; ++j )
 	{
+#ifdef MOON
+		if (!pMeshData->m_pMeshGroup || j < 0 || j >= pMeshData->m_NumGroup)
+    		return 0;
+#endif
 		studiomeshgroup_t* pGroup = &pMeshData->m_pMeshGroup[j];
+#ifdef MOON
+		if (!pGroup)
+			return 0;
+
+		if (pGroup->m_Flags <= 0)
+			return 0;
+#endif
 
 		// Older models are merely flexed while new ones are also delta flexed
 		bool bIsFlexed = (pGroup->m_Flags & MESHGROUP_IS_FLEXED) != 0;
