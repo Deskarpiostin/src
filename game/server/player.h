@@ -795,7 +795,7 @@ public:
 	uint64		GetSteamIDAsUInt64( void );
 #endif
 
-#ifdef SBPP
+#ifndef SBPP
 	int GetRemainingMovementTicksForUserCmdProcessing() const { return m_nMovementTicksForUserCmdProcessingRemaining; }
 	int ConsumeMovementTicksForUserCmdProcessing( int nTicks )
 	{
