@@ -1,0 +1,13 @@
+build/
+.waf3*
+.waf*
+.lock*
+*.pfx
+*.so
+*.vpk
+/bin/
+.classpath
+.project
+*.pyc
+android-sdk/
+android-ndk-r10e-linux-x86_64.zip

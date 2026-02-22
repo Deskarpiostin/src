@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="srceng_launcher_command_args">Аргументы командной строки</string>
+
+    <string name="srceng_launcher_about_title">Создатели</string>
+    <string name="srceng_launcher_about_text">СОЗДАТЕЛИ\nThePixelMoon/YourLocalMoon - Ведущий программист\nWaltenthethird - Помог починить анимации от третьего лица\nAshforever - Поставщик пофикшенных GMod моделей\nMrDinnerMau5 - Сторонник, рекламирование
+\nGraman/Carl - Предложения\nItzVladik - Участник, он разрешил изпользовать mov_ квары из GunMod\n\nУЧАСТНИКИ\nhahayoutookind - Русский перевод\nKokoleong - Модная шляпа\nR_4d - Модная шляпа.. снова\n\nТЕСТЕРЫ\nInflesi\nGustavo/Nekto\nRamdoms\nYaymon\nBartG1014\n\nНекоторые обложки для карт - https://github.com/norbcodes/MapThumbnailPack, https://steamcommunity.com/sharedfiles/filedetails/?id=2922426391\n\nСпасибо всем, кто поддерживает этот проект!\nИ GMod, конечно же.</string>
+    
+    <string name="srceng_launcher_launch">Запустить</string>
+    <string name="srceng_launcher_ok">ОК</string>
+    <string name="srceng_launcher_error">Ошибка</string>
+
+    <string name="new_update">Доступно обновление!</string>
+    <string name="source_engine_fatal">Пожалуйста, установите Source Engine!</string>
+</resources>
