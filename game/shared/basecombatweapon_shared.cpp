@@ -1526,6 +1526,9 @@ bool CBaseCombatWeapon::DefaultDeploy( char *szViewModel, char *szWeaponModel, i
 		pOwner->SetAnimationExtension( szAnimExt );
 
 #ifdef SBPP
+        SetViewModel();
+        SendWeaponAnim( iActivity );
+
 		float flDeploySpeed;
 		if (IsScripted())
 			flDeploySpeed = GetWpnData().fDeploySpeed;
@@ -1540,10 +1543,10 @@ bool CBaseCombatWeapon::DefaultDeploy( char *szViewModel, char *szWeaponModel, i
 		CBaseViewModel *vm = pOwner->GetViewModel();
 		if ( vm )
 			vm->SetPlaybackRate( flDeploySpeed );
-#endif
-
+#else
 		SetViewModel();
 		SendWeaponAnim( iActivity );
+#endif
 
 		pOwner->SetNextAttack( gpGlobals->curtime + SequenceDuration() );
 	}
