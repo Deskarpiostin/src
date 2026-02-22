@@ -4,12 +4,12 @@
 , fetchurl
 , makeDesktopItem
 , copyDesktopItems
-, hl2-unwrapped ? callPackage ./hl2-unwrapped.nix { }
-, hl2-wrapper ? callPackage ./hl2-wrapper.nix { inherit hl2-unwrapped; }
+, hl2sbpp-unwrapped ? callPackage ./hl2sbpp-unwrapped.nix { }
+, hl2sbpp-wrapper ? callPackage ./hl2sbpp-wrapper.nix { inherit hl2sbpp-unwrapped; }
 }:
 
 let
-  name = "hl2";
+  name = "hl2sbpp";
 
   icon = fetchurl {
     url = "https://upload.wikimedia.org/wikipedia/commons/1/14/Half-Life_2_Logo.svg";
@@ -20,8 +20,8 @@ symlinkJoin rec{
   inherit name;
 
   paths = [ 
-    hl2-unwrapped
-    hl2-wrapper
+    hl2sbpp-unwrapped
+    hl2sbpp-wrapper
   ] ++ desktopItems;
 
   nativeBuildInputs = [
@@ -29,7 +29,7 @@ symlinkJoin rec{
   ];
 
   postBuild = ''
-    ln -s $out/bin/hl2-wrapper $out/bin/${name}
+    ln -s $out/bin/hl2sbpp-wrapper $out/bin/${name}
 
     install -Dm444 ${icon} $out/share/icons/hicolor/scalable/apps/${name}.svg
   '';
@@ -39,8 +39,8 @@ symlinkJoin rec{
       name = "${name}";
       exec = "${name}";
       icon = "${name}";
-      desktopName = "Half-Life 2";
-      comment = "Built from the leaked source code; original by nillerusr on GitHub";
+      desktopName = "Half-Life 2: Sandbox++";
+      comment = "HL2:SB++ is a spiritual successor to HALF-LIFE 2: Sandbox, which aims to add more features than normal HL2:SB and port the game over to Android, PC and more!";
       categories = [ "Game" ];
     })
   ];

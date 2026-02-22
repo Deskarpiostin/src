@@ -1,4 +1,4 @@
-# hl2-unwrapped.nix
+# hl2sbpp-unwrapped.nix
 { stdenv
 , python3
 , wafHook
@@ -19,7 +19,7 @@
 }:
 
 stdenv.mkDerivation {
-  pname = "hl2";
+  pname = "hl2sbpp";
   version = "1.0";
 
   src = ./.;
