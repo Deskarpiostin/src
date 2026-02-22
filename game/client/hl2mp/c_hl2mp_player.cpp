@@ -577,7 +577,7 @@ const QAngle& C_HL2MP_Player::GetRenderAngles()
 	}
 	else
 	{
-#ifndef SBPP
+#ifdef SBPP
 		return m_PlayerAnimState->GetRenderAngles();
 #else
 		return m_PlayerAnimState.GetRenderAngles();
