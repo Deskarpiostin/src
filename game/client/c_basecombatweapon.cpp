@@ -16,6 +16,9 @@
 #include "tier1/KeyValues.h"
 #include "toolframework/itoolframework.h"
 #include "toolframework_client.h"
+#ifdef SBPP
+#include "viewrender.h"
+#endif
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -82,6 +85,23 @@ static inline bool ShouldDrawLocalPlayerViewModel( void )
 {
 #if defined( PORTAL )
 	return false;
+#elif SBPP
+	// We shouldn't draw the viewmodel externally.
+	C_BasePlayer *localplayer = C_BasePlayer::GetLocalPlayer();
+	if (localplayer)
+	{
+		if (localplayer->DrawingPlayerModelExternally() && localplayer->InFirstPersonView())
+		{
+			// If this isn't the main view, draw the weapon.
+			if (!localplayer->InPerspectiveView())
+				return false;
+		}
+
+		// Since we already have the local player, check its own ShouldDrawThisPlayer() to avoid extra checks
+		return !localplayer->ShouldDrawThisPlayer();
+	}
+	else
+		return false;
 #else
 	return !C_BasePlayer::ShouldDrawLocalPlayer();
 #endif
@@ -432,6 +452,12 @@ bool C_BaseCombatWeapon::ShouldDraw( void )
 		if ( !ShouldDrawLocalPlayerViewModel() )
 			return true;
 
+#ifdef SBPP
+		// We're drawing this in non-main views, handle it in DrawModel()
+		if ( pLocalPlayer->DrawingPlayerModelExternally() )
+			return true;
+#endif
+
 		// don't draw active weapon if not in some kind of 3rd person mode, the viewmodel will do that
 		return false;
 	}
@@ -478,8 +504,43 @@ int C_BaseCombatWeapon::DrawModel( int flags )
 	// check if local player chases owner of this weapon in first person
 	C_BasePlayer *localplayer = C_BasePlayer::GetLocalPlayer();
 
+#ifdef SBPP
+	if ( localplayer )
+#else
 	if ( localplayer && localplayer->IsObserver() && GetOwner() )
+#endif
 	{
+#ifdef SBPP
+		if (GetOwner() == localplayer && localplayer->DrawingPlayerModelExternally())
+		{
+			// If this isn't the main view, draw the weapon.
+			if ( (!localplayer->InPerspectiveView() || !localplayer->InFirstPersonView()) && (CurrentViewID() != VIEW_SHADOW_DEPTH_TEXTURE || !localplayer->IsEffectActive(EF_DIMLIGHT)))
+			{
+				// TODO: Is this inefficient?
+				int nModelIndex = GetModelIndex();
+				int nWorldModelIndex = GetWorldModelIndex();
+				if (nModelIndex != nWorldModelIndex)
+				{
+					SetModelIndex(nWorldModelIndex);
+				}
+
+				int iDraw = BaseClass::DrawModel(flags);
+
+				if (nModelIndex != nWorldModelIndex)
+				{
+					SetModelIndex(nModelIndex);
+				}
+
+				return iDraw;
+			}
+			else
+			{
+				return 0;
+			}
+		}
+#endif
+
+#ifndef SBPP
 		// don't draw weapon if chasing this guy as spectator
 		// we don't check that in ShouldDraw() since this may change
 		// without notification 
@@ -487,6 +548,18 @@ int C_BaseCombatWeapon::DrawModel( int flags )
 		if ( localplayer->GetObserverMode() == OBS_MODE_IN_EYE &&
 			 localplayer->GetObserverTarget() == GetOwner() ) 
 			return false;
+#else
+		if ( localplayer->IsObserver() && GetOwner() )
+		{
+			// don't draw weapon if chasing this guy as spectator
+			// we don't check that in ShouldDraw() since this may change
+			// without notification 
+		
+			if ( localplayer->GetObserverMode() == OBS_MODE_IN_EYE &&
+				 localplayer->GetObserverTarget() == GetOwner() ) 
+				return false;
+		}
+#endif
 	}
 
 	return BaseClass::DrawModel( flags );
@@ -514,6 +587,22 @@ int C_BaseCombatWeapon::CalcOverrideModelIndex()
 	}
 }
 
+bool C_BaseCombatWeapon::PredictionErrorShouldResetLatchedForAllPredictables( void )
+{
+#ifdef HL2MP
+	// misyl: Although I have tried to fix many of the pred errors in HL2MP.
+	// Still many remain, and many things remain unpredictable without a rewrite of the weapon code.
+	//
+	// As a workaround, if this weapon is not tangible (ie. has an owner/in inventory).
+	// Don't reset every latched var for every predictable ever if we have a pred error on a weapon.
+	//
+	// This might be useful for other games as well, but needs wider testing there.
+	if ( GetOwner() )
+		return false;
+#endif
+
+	return BaseClass::PredictionErrorShouldResetLatchedForAllPredictables();
+}
 
 //-----------------------------------------------------------------------------
 // tool recording

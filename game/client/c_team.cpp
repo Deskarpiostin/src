@@ -151,7 +151,15 @@ int C_Team::Get_Ping( void )
 //-----------------------------------------------------------------------------
 int C_Team::Get_Number_Players( void )
 {
+#ifndef SBPP
+	int nCount = m_aPlayers.Size();
+	if ( nCount > MAX_PLAYERS )
+		return MAX_PLAYERS;
+
+	return nCount;
+#else
 	return m_aPlayers.Size();
+#endif
 }
 
 //-----------------------------------------------------------------------------

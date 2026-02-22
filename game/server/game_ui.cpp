@@ -170,7 +170,11 @@ void CGameUI::Deactivate( CBaseEntity *pActivator )
 	}
 	else
 	{
+#ifdef SBPP
+		Warning("%s Deactivate(): I have no player when called by %s!\n", GetEntityName().ToCStr(), pActivator ? pActivator->GetEntityName().ToCStr() : NULL);
+#else
 		Warning("%s Deactivate(): I have no player when called by %s!\n", GetEntityName().ToCStr(), pActivator->GetEntityName().ToCStr());
+#endif
 	}
 	
 	// Stop thinking

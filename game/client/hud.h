@@ -164,6 +164,9 @@ public:
 public:
 
 	int							m_iKeyBits;
+#ifdef SBPP
+	bool						m_bSkipClear;
+#endif
 #ifndef _XBOX
 	float						m_flMouseSensitivity;
 	float						m_flMouseSensitivityFactor;

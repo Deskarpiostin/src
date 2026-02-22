@@ -167,7 +167,12 @@ void CItem_ItemCrate::VPhysicsCollision( int index, gamevcollisionevent_t *pEven
 {
 	float flDamageScale = 1.0f;
 	if ( FClassnameIs( pEvent->pEntities[!index], "prop_vehicle_airboat" ) ||
+#ifdef SBPP
+		 FClassnameIs( pEvent->pEntities[!index], "prop_vehicle_jeep" ) ||
+		 FClassnameIs( pEvent->pEntities[!index], "prop_vehicle_jalopy" ) )
+#else
 		 FClassnameIs( pEvent->pEntities[!index], "prop_vehicle_jeep" ) )
+#endif
 	{
 		flDamageScale = 100.0f;
 	}

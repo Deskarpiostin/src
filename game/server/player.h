@@ -261,6 +261,9 @@ public:
 	static CBasePlayer		*CreatePlayer( const char *className, edict_t *ed );
 
 	virtual void			CreateViewModel( int viewmodelindex = 0 );
+#ifdef HL2SB
+	virtual void	        CreateHandModel( int viewmodelindex = 1, int iOtherVm = 0 );
+#endif
 	CBaseViewModel			*GetViewModel( int viewmodelindex = 0, bool bObserverOK = true );
 	void					HideViewModels( void );
 	void					DestroyViewModels( void );
@@ -311,6 +314,10 @@ public:
 
 	// Physics simulation (player executes it's usercmd's here)
 	virtual void			PhysicsSimulate( void );
+#ifdef SBPP
+	// Process new user settings from the engine
+	void					ClientSettingsChanged();
+#endif
 
 	// Forces processing of usercmds (e.g., even if game is paused, etc.)
 	void					ForceSimulation();
@@ -401,6 +408,13 @@ public:
 	bool					IsDead() const;
 #ifdef CSTRIKE_DLL
 	virtual bool			IsRunning( void ) const	{ return false; } // bot support under cstrike (AR)
+#endif
+
+#ifdef HL2SB
+	bool					GetDrawPlayerModelExternally( void ) { return m_bDrawPlayerModelExternally; }
+	void					SetDrawPlayerModelExternally( bool bToggle ) { m_bDrawPlayerModelExternally.Set( bToggle ); }
+
+	CNetworkVar( bool, m_bDrawPlayerModelExternally );
 #endif
 
 	bool					HasPhysicsFlag( unsigned int flag ) { return (m_afPhysicsFlags & flag) != 0; }
@@ -543,6 +557,7 @@ public:
 	bool					ClearUseEntity();
 	CBaseEntity				*DoubleCheckUseNPC( CBaseEntity *pNPC, const Vector &vecSrc, const Vector &vecDir );
 
+	virtual CBaseEntity		*GetHeldObject( void );
 
 	// physics interactions
 	// mass/size limit set to zero for none
@@ -780,6 +795,27 @@ public:
 	uint64		GetSteamIDAsUInt64( void );
 #endif
 
+#ifdef SBPP
+	int GetRemainingMovementTicksForUserCmdProcessing() const { return m_nMovementTicksForUserCmdProcessingRemaining; }
+	int ConsumeMovementTicksForUserCmdProcessing( int nTicks )
+	{
+		if ( m_nMovementTicksForUserCmdProcessingRemaining < 0 )
+		{
+			return 0;
+		}
+		else if ( nTicks < m_nMovementTicksForUserCmdProcessingRemaining )
+		{
+			m_nMovementTicksForUserCmdProcessingRemaining -= nTicks;
+			return nTicks;
+		}
+		else
+		{
+			nTicks = m_nMovementTicksForUserCmdProcessingRemaining;
+			m_nMovementTicksForUserCmdProcessingRemaining = 0;
+			return nTicks;
+		}
+	}
+#else
 	float GetRemainingMovementTimeForUserCmdProcessing() const { return m_flMovementTimeForUserCmdProcessingRemaining; }
 	float ConsumeMovementTimeForUserCmdProcessing( float flTimeNeeded )
 	{
@@ -801,10 +837,15 @@ public:
 			return flTimeNeeded;
 		}
 	}
+#endif
 
 private:
 	// How much of a movement time buffer can we process from this user?
+#ifdef SBPP
+ 	float				m_nMovementTicksForUserCmdProcessingRemaining;
+#else
 	float				m_flMovementTimeForUserCmdProcessingRemaining;
+#endif
 
 	// For queueing up CUserCmds and running them from PhysicsSimulate
 	int					GetCommandContextCount( void ) const;
@@ -876,7 +917,11 @@ public:
 	float					m_fLerpTime;		// users cl_interp
 	bool					m_bLagCompensation;	// user wants lag compenstation
 	bool					m_bPredictWeapons; //  user has client side predicted weapons
-	
+#ifdef SBPP
+	bool					m_bRequestPredict; //  user has client prediction enabled
+	bool					m_bPendingClientSettings; // User client settings changed, but we're not importing them
+#endif
+
 	float		GetDeathTime( void ) { return m_flDeathTime; }
 
 	void		ClearZoomOwner( void );
@@ -1117,6 +1162,20 @@ private:
 
 	EHANDLE					m_hViewEntity;
 
+#ifdef ARGG
+public:
+	// adnan
+	// send the use angles for the current player... set when they press use
+	// UPDATE: this could be improved somehow by only storing these on the server side
+	//  - set a flag on the client and send that, stating that the viewangles shouldnt change
+	//  - ... maybe not
+	CNetworkQAngle( m_vecUseAngles );
+	// end adnan
+
+
+private:
+#endif // ARGG
+
 	// Movement constraints
 	CNetworkHandle( CBaseEntity, m_hConstraintEntity );
 	CNetworkVector( m_vecConstraintCenter );
@@ -1193,6 +1252,9 @@ private:
 
 	bool m_autoKickDisabled;
 
+#ifdef SBPP
+public:
+#endif
 	struct StepSoundCache_t
 	{
 		StepSoundCache_t() : m_usSoundNameIndex( 0 ) {}
@@ -1201,6 +1263,9 @@ private:
 	};
 	// One for left and one for right side of step
 	StepSoundCache_t		m_StepSoundCache[ 2 ];
+#ifdef SBPP
+private:
+#endif
 
 	CUtlLinkedList< CPlayerSimInfo >  m_vecPlayerSimInfo;
 	CUtlLinkedList< CPlayerCmdInfo >  m_vecPlayerCmdInfo;
@@ -1345,6 +1410,9 @@ inline bool CBasePlayer::IsFiringWeapon( void ) const
 }
 
 
+#ifdef HL2SB
+extern CBaseEntity *FindPlayerStart(const char *pszClassName);
+#endif
 
 //-----------------------------------------------------------------------------
 // Converts an entity to a player

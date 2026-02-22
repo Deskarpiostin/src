@@ -181,6 +181,15 @@ public:
 	// Team handlers
 	virtual void	TeamChange( int iNewTeam );
 
+#ifdef SBPP
+	bool						InPerspectiveView() const;	// In a view that renders directly from the player's perspective (and may, for example, render the playermodel)
+	bool						DrawingPlayerModelExternally() const {return true;}
+	bool						DrawingLegs() const {return false;}
+
+	// Allows the player's model to draw on non-main views, like monitors or mirrors.
+	bool			m_bDrawPlayerModelExternally = true;
+#endif
+
 	// Flashlight
 	void	Flashlight( void );
 	void	UpdateFlashlight( void );
@@ -436,6 +445,14 @@ public:
 
 	CUserCmd		*m_pCurrentCommand;
 
+#ifdef ARGG
+	// adnan
+	// store the use angles
+	// set when the player presses use
+	QAngle		m_vecUseAngles;
+	// end adnan
+#endif // ARGG
+
 	// Movement constraints
 	EHANDLE			m_hConstraintEntity;
 	Vector			m_vecConstraintCenter;
@@ -617,8 +634,13 @@ protected:
 	CUtlVector<CHandle<C_EconWearable > >	m_hMyWearables;
 #endif
 
+#ifdef SBPP
+public:
+	//Так делать нельзя, но я разрешаю
+#else
 private:
 
+#endif
 	struct StepSoundCache_t
 	{
 		StepSoundCache_t() : m_usSoundNameIndex( 0 ) {}
@@ -628,7 +650,9 @@ private:
 	// One for left and one for right side of step
 	StepSoundCache_t		m_StepSoundCache[ 2 ];
 
+#ifndef SBPP
 public:
+#endif
 
 	const char *GetLastKnownPlaceName( void ) const	{ return m_szLastPlaceName; }	// return the last nav place name the player occupied
 

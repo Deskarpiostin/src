@@ -391,6 +391,9 @@ public:
 	void PrecacheParticleSystem( const char *pName );
 	void UncacheAllParticleSystems();
 
+#ifdef MOON
+	void RecreateDictionary() { Assert(0); }; // ToDo!
+#endif
 	// Sets the last simulation time, used for particle system sleeping logic
 	void SetLastSimulationTime( float flTime );
 	float GetLastSimulationTime() const;

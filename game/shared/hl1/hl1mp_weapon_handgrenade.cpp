@@ -218,6 +218,7 @@ public:
 
 //	DECLARE_SERVERCLASS();
 	DECLARE_DATADESC();
+	DECLARE_ACTTABLE();
 
 private:
 //	float m_flStartThrow;
@@ -238,6 +239,26 @@ BEGIN_NETWORK_TABLE( CWeaponHandGrenade, DT_WeaponHandGrenade )
 #endif
 END_NETWORK_TABLE()
 
+acttable_t	CWeaponHandGrenade::m_acttable[] =
+{
+	{ ACT_RANGE_ATTACK1, ACT_RANGE_ATTACK_SLAM, true },
+
+	{ ACT_MP_STAND_IDLE,				ACT_HL2MP_IDLE_GRENADE,					false },
+	{ ACT_MP_CROUCH_IDLE,				ACT_HL2MP_IDLE_CROUCH_GRENADE,			false },
+
+	{ ACT_MP_RUN,						ACT_HL2MP_RUN_GRENADE,					false },
+	{ ACT_MP_CROUCHWALK,				ACT_HL2MP_WALK_CROUCH_GRENADE,			false },
+
+	{ ACT_MP_ATTACK_STAND_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_GRENADE,	false },
+	{ ACT_MP_ATTACK_CROUCH_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_GRENADE,	false },
+
+	{ ACT_MP_RELOAD_STAND,				ACT_HL2MP_GESTURE_RELOAD_GRENADE,		false },
+	{ ACT_MP_RELOAD_CROUCH,				ACT_HL2MP_GESTURE_RELOAD_GRENADE,		false },
+
+	{ ACT_MP_JUMP,						ACT_HL2MP_JUMP_GRENADE,					false },
+};
+IMPLEMENT_ACTTABLE(CWeaponHandGrenade);
+
 BEGIN_PREDICTION_DATA( CWeaponHandGrenade )
 #ifdef CLIENT_DLL
 	DEFINE_PRED_FIELD( m_flStartThrow, FIELD_INTEGER, FTYPEDESC_INSENDTABLE ),
@@ -245,9 +266,9 @@ BEGIN_PREDICTION_DATA( CWeaponHandGrenade )
 #endif
 END_PREDICTION_DATA()
 
-LINK_ENTITY_TO_CLASS( weapon_handgrenade, CWeaponHandGrenade );
+LINK_ENTITY_TO_CLASS( weapon_handgrenade_hl1, CWeaponHandGrenade );
 
-PRECACHE_WEAPON_REGISTER( weapon_handgrenade );
+PRECACHE_WEAPON_REGISTER( weapon_handgrenade_hl1 );
 
 //IMPLEMENT_SERVERCLASS_ST( CWeaponHandGrenade, DT_WeaponHandGrenade )
 //END_SEND_TABLE()

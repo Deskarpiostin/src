@@ -71,6 +71,18 @@ public:
 			return m_flDrainRate; 
 	}
 };
+#ifdef SBPP
+
+#include "basemultiplayerplayer.h"
+
+//=============================================================================
+// >> HL2_PLAYER
+//=============================================================================
+class CHL2_Player : public CBaseMultiplayerPlayer
+{
+public:
+	DECLARE_CLASS( CHL2_Player, CBaseMultiplayerPlayer );
+#else
 
 //=============================================================================
 // >> HL2_PLAYER
@@ -79,6 +91,7 @@ class CHL2_Player : public CBasePlayer
 {
 public:
 	DECLARE_CLASS( CHL2_Player, CBasePlayer );
+#endif
 
 	CHL2_Player();
 	~CHL2_Player( void );
@@ -231,6 +244,9 @@ public:
 	void				FlashlightTurnOff( void );
 	bool				IsIlluminatedByFlashlight( CBaseEntity *pEntity, float *flReturnDot );
 	void				SetFlashlightPowerDrainScale( float flScale ) { m_flFlashlightPowerDrainScale = flScale; }
+#ifdef SBPP
+	virtual CBaseEntity	*GetHeldObject( void );
+#endif
 
 	// Underwater breather device
 	virtual void		SetPlayerUnderwater( bool state );

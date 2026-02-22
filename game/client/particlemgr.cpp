@@ -869,6 +869,10 @@ void CParticleEffectBinding::RenderEnd( VMatrix &tempModel, VMatrix &tempView )
 
 void CParticleEffectBinding::DoBucketSort( CEffectMaterial *pMaterial, float *zCoords, int nZCoords, float minZ, float maxZ )
 {
+#ifdef SBPP
+	if (maxZ <= minZ)
+		return;
+#endif
 	// Do an O(N) bucket sort. This helps the sort when there are lots of particles.
 	#define NUM_BUCKETS	32
 	Particle buckets[NUM_BUCKETS];
@@ -897,7 +901,7 @@ void CParticleEffectBinding::DoBucketSort( CEffectMaterial *pMaterial, float *zC
 			flPercent = (zCoords[iCurParticle] - minZ) / (maxZ - minZ);
 
 		int iAddBucket = (int)( flPercent * (NUM_BUCKETS - 0.0001f) );
-		iAddBucket = NUM_BUCKETS - iAddBucket - 1;
+		iAddBucket = clamp(iAddBucket, 0, NUM_BUCKETS - 1);
 		Assert( iAddBucket >= 0 && iAddBucket < NUM_BUCKETS );
 
 		InsertParticleAfter( pCur, &buckets[iAddBucket] );

@@ -53,6 +53,9 @@
 	#include "prop_portal_shared.h"
 	#include "portal_shareddefs.h"
 #endif
+#ifdef HL2SB
+#include "hl2mp_gamerules.h"
+#endif
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -64,7 +67,11 @@ extern int	g_interactionBarnacleVictimReleased;
 extern ConVar weapon_showproficiency;
 
 ConVar ai_show_hull_attacks( "ai_show_hull_attacks", "0" );
+#ifdef SBPP
+ConVar ai_force_serverside_ragdoll( "ai_force_serverside_ragdoll", "1" ); // @ThePixelMoon: gmod gmod gmod gmod
+#else
 ConVar ai_force_serverside_ragdoll( "ai_force_serverside_ragdoll", "0" );
+#endif
 
 ConVar nb_last_area_update_tolerance( "nb_last_area_update_tolerance", "4.0", FCVAR_CHEAT, "Distance a character needs to travel in order to invalidate cached area" ); // 4.0 tested as sweet spot (for wanderers, at least). More resulted in little benefit, less quickly diminished benefit [7/31/2008 tom]
 
@@ -190,9 +197,6 @@ END_SEND_TABLE();
 // This table encodes the CBaseCombatCharacter
 //-----------------------------------------------------------------------------
 IMPLEMENT_SERVERCLASS_ST(CBaseCombatCharacter, DT_BaseCombatCharacter)
-#ifdef GLOWS_ENABLE
-	SendPropBool( SENDINFO( m_bGlowEnabled ) ),
-#endif // GLOWS_ENABLE
 	// Data that only gets sent to the local player.
 	SendPropDataTable( "bcc_localdata", 0, &REFERENCE_SEND_TABLE(DT_BCCLocalPlayerExclusive), SendProxy_SendBaseCombatCharacterLocalDataTable ),
 
@@ -731,7 +735,7 @@ CBaseCombatCharacter::CBaseCombatCharacter( void )
 	}
 
 	// not standing on a nav area yet
-#ifdef MEXT_BOT
+#ifdef NEXT_BOT
 	m_lastNavArea = NULL;
 #endif
 
@@ -746,10 +750,6 @@ CBaseCombatCharacter::CBaseCombatCharacter( void )
 	m_impactEnergyScale = 1.0f;
 
 	m_bForceServerRagdoll = ai_force_serverside_ragdoll.GetBool();
-
-#ifdef GLOWS_ENABLE
-	m_bGlowEnabled.Set( false );
-#endif // GLOWS_ENABLE
 }
 
 //------------------------------------------------------------------------------
@@ -1534,7 +1534,11 @@ bool CBaseCombatCharacter::BecomeRagdoll( const CTakeDamageInfo &info, const Vec
 
 #ifdef HL2_EPISODIC
 	// Burning corpses are server-side in episodic, if we're in darkness mode
+#ifndef HL2SB
 	if ( IsOnFire() && HL2GameRules()->IsAlyxInDarknessMode() )
+#else
+	if ( IsOnFire() && HL2MPRules()->IsAlyxInDarknessMode() )
+#endif
 	{
 		CBaseEntity *pRagdoll = CreateServerRagdoll( this, m_nForceBone, newinfo, COLLISION_GROUP_DEBRIS );
 		FixupBurningServerRagdoll( pRagdoll );
@@ -1547,7 +1551,11 @@ bool CBaseCombatCharacter::BecomeRagdoll( const CTakeDamageInfo &info, const Vec
 
 	bool bMegaPhyscannonActive = false;
 #if !defined( HL2MP )
+#ifndef HL2SB
 	bMegaPhyscannonActive = HL2GameRules()->MegaPhyscannonActive();
+#else
+	bMegaPhyscannonActive = HL2MPRules()->MegaPhyscannonActive();
+#endif
 #endif // !HL2MP
 
 	// Mega physgun requires everything to be a server-side ragdoll
@@ -1556,6 +1564,11 @@ bool CBaseCombatCharacter::BecomeRagdoll( const CTakeDamageInfo &info, const Vec
 		if ( CanBecomeServerRagdoll() == false )
 			return false;
 
+#ifdef SBPP
+		// @ThePixelMoon: quite a hacky one of the hacks of them all uhuhfdsuihgjgxduf
+		if ( IsPlayer() )
+			return false;
+#endif
 		//FIXME: This is fairly leafy to be here, but time is short!
 		CBaseEntity *pRagdoll = CreateServerRagdoll( this, m_nForceBone, newinfo, COLLISION_GROUP_INTERACTIVE_DEBRIS, true );
 		FixupBurningServerRagdoll( pRagdoll );
@@ -3106,7 +3119,11 @@ void CBaseCombatCharacter::VPhysicsShadowCollision( int index, gamevcollisioneve
 	float flOtherAttackerTime = 0.0f;
 
 #if defined( HL2_DLL ) && !defined( HL2MP )
+#ifndef HL2SB
 	if ( HL2GameRules()->MegaPhyscannonActive() == true )
+#else
+	if ( HL2MPRules()->MegaPhyscannonActive() == true )
+#endif
 	{
 		flOtherAttackerTime = 1.0f;
 	}
@@ -3233,33 +3250,6 @@ float CBaseCombatCharacter::GetSpreadBias( CBaseCombatWeapon *pWeapon, CBaseEnti
 	return 1.0;
 }
 
-#ifdef GLOWS_ENABLE
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-void CBaseCombatCharacter::AddGlowEffect( void )
-{
-	SetTransmitState( FL_EDICT_ALWAYS );
-	m_bGlowEnabled.Set( true );
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-void CBaseCombatCharacter::RemoveGlowEffect( void )
-{
-	m_bGlowEnabled.Set( false );
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-bool CBaseCombatCharacter::IsGlowEffectActive( void )
-{
-	return m_bGlowEnabled;
-}
-#endif // GLOWS_ENABLE
-
 //-----------------------------------------------------------------------------
 // Assume everyone is average with every weapon. Override this to make exceptions.
 //-----------------------------------------------------------------------------
@@ -3277,7 +3267,11 @@ CBaseEntity *CBaseCombatCharacter::FindMissTarget( void )
 	CBaseEntity *pMissCandidates[ MAX_MISS_CANDIDATES ];
 	int numMissCandidates = 0;
 
+#ifdef HL2SB
+	CBasePlayer *pPlayer = UTIL_GetNearestPlayer( GetAbsOrigin() );
+#else
 	CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
+#endif
 	CBaseEntity *pEnts[256];
 	Vector		radius( 100, 100, 100);
 	Vector		vecSource = GetAbsOrigin();

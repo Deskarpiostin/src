@@ -54,6 +54,11 @@
 #ifdef PORTAL
 #include "portal_player.h"
 #endif // PORTAL
+#ifdef LUA_SDK
+#include "luamanager.h"
+#include "lbasecombatweapon_shared.h"
+#include "lbaseplayer_shared.h"
+#endif
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -76,19 +81,31 @@ extern ConVar autoaim_max_dist;
 #define TIME_IGNORE_FALL_DAMAGE 10.0
 
 extern int gEvilImpulse101;
+#ifndef SBPP
 
 ConVar sv_autojump( "sv_autojump", "0" );
+#endif
 
 ConVar hl2_walkspeed( "hl2_walkspeed", "150" );
 ConVar hl2_normspeed( "hl2_normspeed", "190" );
+#ifdef SBPP
+ConVar hl2_sprintspeed( "hl2_sprintspeed", "400" );
+#else
 ConVar hl2_sprintspeed( "hl2_sprintspeed", "320" );
+#endif
 
 ConVar hl2_darkness_flashlight_factor ( "hl2_darkness_flashlight_factor", "1" );
 
+#ifndef SBPP
 #ifdef HL2MP
 	#define	HL2_WALK_SPEED 150
 	#define	HL2_NORM_SPEED 190
 	#define	HL2_SPRINT_SPEED 320
+#else
+	#define	HL2_WALK_SPEED hl2_walkspeed.GetFloat()
+	#define	HL2_NORM_SPEED hl2_normspeed.GetFloat()
+	#define	HL2_SPRINT_SPEED hl2_sprintspeed.GetFloat()
+#endif
 #else
 	#define	HL2_WALK_SPEED hl2_walkspeed.GetFloat()
 	#define	HL2_NORM_SPEED hl2_normspeed.GetFloat()
@@ -101,7 +118,11 @@ ConVar player_showpredictedposition_timestep( "player_showpredictedposition_time
 ConVar player_squad_transient_commands( "player_squad_transient_commands", "1", FCVAR_REPLICATED );
 ConVar player_squad_double_tap_time( "player_squad_double_tap_time", "0.25" );
 
+#ifndef HL2SB
 ConVar sv_infinite_aux_power( "sv_infinite_aux_power", "0", FCVAR_CHEAT );
+#else
+ConVar sv_infinite_aux_power( "sv_infinite_aux_power", "0", FCVAR_REPLICATED ); // @ThePixelMoon: hacky hack just to be able to set it in the gamemode
+#endif
 
 ConVar autoaim_unlock_target( "autoaim_unlock_target", "0.8666" );
 
@@ -599,6 +620,7 @@ void CHL2_Player::PreThink(void)
 		WaterMove();	
 		return;
 	}
+#ifndef SBPP
 
 	// This is an experiment of mine- autojumping! 
 	// only affects you if sv_autojump is nonzero.
@@ -642,6 +664,7 @@ void CHL2_Player::PreThink(void)
 			}
 		}
 	}
+#endif
 
 	VPROF_SCOPE_BEGIN( "CHL2_Player::PreThink-Speed" );
 	HandleSpeedChanges();
@@ -2461,6 +2484,16 @@ void CHL2_Player::Event_KilledOther( CBaseEntity *pVictim, const CTakeDamageInfo
 //-----------------------------------------------------------------------------
 void CHL2_Player::Event_Killed( const CTakeDamageInfo &info )
 {
+#ifdef LUA_SDK
+	if (GetActiveWeapon())
+	{
+		if (GetActiveWeapon()->IsScripted())
+		{
+			CBaseCombatWeapon *pWeapon = (CBaseCombatWeapon*)GiveNamedItem("weapon_crowbar");
+			Weapon_Switch( pWeapon );
+		}
+	}
+#endif
 	BaseClass::Event_Killed( info );
 
 	FirePlayerProxyOutput( "PlayerDied", variant_t(), this, this );
@@ -2647,6 +2680,13 @@ bool CHL2_Player::Weapon_CanUse( CBaseCombatWeapon *pWeapon )
 //-----------------------------------------------------------------------------
 void CHL2_Player::Weapon_Equip( CBaseCombatWeapon *pWeapon )
 {
+#if LUA_SDK
+	BEGIN_LUA_CALL_HOOK( "Weapon_Equip" );
+		lua_pushplayer( L, this );
+		lua_pushweapon( L, pWeapon );
+	END_LUA_CALL_HOOK( 2, 0 );
+#endif
+
 #if	HL2_SINGLE_PRIMARY_WEAPON_MODE
 
 	if ( pWeapon->GetSlot() == WEAPON_PRIMARY_SLOT )
@@ -3134,6 +3174,12 @@ void CHL2_Player::PickupObject( CBaseEntity *pObject, bool bLimitMassAndSize )
 
 	PlayerPickupObject( this, pObject );
 }
+#ifdef SBPP
+CBaseEntity	*CHL2_Player::GetHeldObject( void )
+{
+	return PhysCannonGetHeldEntity( GetActiveWeapon() );
+}
+#endif
 
 //-----------------------------------------------------------------------------
 // Purpose: 

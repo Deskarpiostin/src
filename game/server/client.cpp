@@ -45,6 +45,11 @@
 #include "weapon_physcannon.h"
 #endif
 
+#ifdef LUA_SDK
+#include "luamanager.h"
+#include "lbaseplayer_shared.h"
+#endif
+
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
@@ -80,6 +85,32 @@ char * CheckChatText( CBasePlayer *pPlayer, char *text )
 		length -=2;
 		p[length] = 0;
 	}
+
+	// Josh:
+	// Cheaters can send us whatever data they want through this channel
+	// Let's validate they aren't trying to clear the chat.
+	// If we detect any of these blacklisted characters (which players cannot type anyway.)
+	// Let's just end the string here.
+	static const char s_blacklist[] = {
+	//	CLRF   LF    ESC
+		'\r',  '\n', '\x1b'
+	};
+
+	int oldLength = length;
+	for (int i = 0; i < length && oldLength == length; i++) {
+		for (int j = 0; j < ARRAYSIZE(s_blacklist); j++) {
+			if (p[i] == s_blacklist[j]) {
+				p[i] = '\0';
+				length = i;
+			}
+		}
+	}
+
+	// Josh:
+	// If the whole string was garbage characters
+	// Let's just not print anything.
+	if ( !*p )
+		return NULL;
 
 	// cut off after 127 chars
 	if ( length > 127 )
@@ -143,6 +174,31 @@ void Host_Say( edict_t *pEdict, const CCommand &args, bool teamonly )
 	{
 		pPlayer = ((CBasePlayer *)CBaseEntity::Instance( pEdict ));
 		Assert( pPlayer );
+#if defined ( LUA_SDK )
+		BEGIN_LUA_CALL_HOOK( "Host_Say" );
+			lua_pushplayer( L, pPlayer );
+			lua_pushstring( L, p );
+			lua_pushboolean( L, teamonly );
+		END_LUA_CALL_HOOK( 3, 1 );
+
+		// Andrew; this is just a continuation of RETURN_LUA_NONE().
+		if ( lua_isboolean( L, -1 ) )
+		{
+			bool res = (bool)luaL_checkboolean( L, -1 );
+			lua_pop( L, 1 );
+			if ( !res )
+				return;
+		}
+		else if ( lua_isstring( L, -1 ) )
+		{
+			p = (char *)luaL_checkstring( L, -1 );
+			lua_pop( L, 1 );
+		}
+		else
+		{
+			lua_pop( L, 1 );
+		}
+#endif
 
 		// make sure the text has valid content
 		p = CheckChatText( pPlayer, p );
@@ -159,6 +215,12 @@ void Host_Say( edict_t *pEdict, const CCommand &args, bool teamonly )
 		// See if the player wants to modify of check the text
 		pPlayer->CheckChatText( p, 127 );	// though the buffer szTemp that p points to is 256, 
 											// chat text is capped to 127 in CheckChatText above
+
+		// make sure the text has valid content
+		p = CheckChatText( pPlayer, p );
+
+		if ( !p )
+			return;
 
 		Assert( strlen( pPlayer->GetPlayerName() ) > 0 );
 
@@ -270,17 +332,12 @@ void Host_Say( edict_t *pEdict, const CCommand &args, bool teamonly )
 	int userid = 0;
 	const char *networkID = "Console";
 	const char *playerName = "Console";
-	const char *playerTeam = "Console";
+	const char *playerTeam = "";
 	if ( pPlayer )
 	{
 		userid = pPlayer->GetUserID();
 		networkID = pPlayer->GetNetworkIDString();
 		playerName = pPlayer->GetPlayerName();
-		CTeam *team = pPlayer->GetTeam();
-		if ( team )
-		{
-			playerTeam = team->GetName();
-		}
 	}
 		
 	if ( teamonly )
@@ -790,9 +847,13 @@ CON_COMMAND( say_team, "Display player message to team" )
 CON_COMMAND( give, "Give item to player.\n\tArguments: <item_name>" )
 {
 	CBasePlayer *pPlayer = ToBasePlayer( UTIL_GetCommandClient() ); 
+#ifdef SBPP
+	if ( pPlayer && args.ArgC() >= 2 )
+#else
 	if ( pPlayer 
 		&& (gpGlobals->maxClients == 1 || sv_cheats->GetBool()) 
 		&& args.ArgC() >= 2 )
+#endif
 	{
 		char item_to_give[ 256 ];
 		Q_strncpy( item_to_give, args[1], sizeof( item_to_give ) );
@@ -824,7 +885,18 @@ CON_COMMAND( give, "Give item to player.\n\tArguments: <item_name>" )
 		}
 
 		string_t iszItem = AllocPooledString( item_to_give );	// Make a copy of the classname
+#ifdef SBPP
+		CBaseEntity* pEnt = pPlayer->GiveNamedItem(STRING(iszItem));
+
+		if (pEnt && pEnt->IsWeapon())
+		{
+			CBaseCombatWeapon* pWeapon = dynamic_cast<CBaseCombatWeapon*>(pEnt);
+			if (pWeapon && pPlayer->Weapon_CanSwitchTo(pWeapon))
+				pPlayer->Weapon_Switch(pWeapon);
+		}
+#else
 		pPlayer->GiveNamedItem( STRING(iszItem) );
+#endif
 	}
 }
 
@@ -966,7 +1038,9 @@ void CC_Player_PhysSwap( void )
 
 			if ( !Q_stricmp( strWeaponName, "weapon_physcannon" ) )
 			{
+#ifndef HL2SB
 				PhysCannonForceDrop( pWeapon, NULL );
+#endif
 				pPlayer->SelectLastItem();
 			}
 			else
@@ -1068,11 +1142,19 @@ void EnableNoClip( CBasePlayer *pPlayer )
 	ClientPrint( pPlayer, HUD_PRINTCONSOLE, "noclip ON\n");
 	pPlayer->AddEFlags( EFL_NOCLIP_ACTIVE );
 }
+#ifdef SBPP
+ConVar sv_allow_noclip("sv_allow_noclip", "1");
+#endif
 
 void CC_Player_NoClip( void )
 {
+#ifdef SBPP
+	if ( !sv_allow_noclip.GetBool() )
+		return;
+#else
 	if ( !sv_cheats->GetBool() )
 		return;
+#endif
 
 	CBasePlayer *pPlayer = ToBasePlayer( UTIL_GetCommandClient() ); 
 	if ( !pPlayer )
@@ -1123,7 +1205,11 @@ void CC_Player_NoClip( void )
 	}
 }
 
+#ifdef SBPP
+static ConCommand noclip("noclip", CC_Player_NoClip, "Toggle. Player becomes non-solid and flies.");
+#else
 static ConCommand noclip("noclip", CC_Player_NoClip, "Toggle. Player becomes non-solid and flies.", FCVAR_CHEAT);
+#endif
 
 
 //------------------------------------------------------------------------------
@@ -1131,8 +1217,10 @@ static ConCommand noclip("noclip", CC_Player_NoClip, "Toggle. Player becomes non
 //------------------------------------------------------------------------------
 void CC_God_f (void)
 {
+#ifndef SBPP
 	if ( !sv_cheats->GetBool() )
 		return;
+#endif
 
 	CBasePlayer *pPlayer = ToBasePlayer( UTIL_GetCommandClient() ); 
 	if ( !pPlayer )
@@ -1145,8 +1233,10 @@ void CC_God_f (void)
 		   return;
    }
 #else
+#ifndef SBPP
 	if ( gpGlobals->deathmatch )
 		return;
+#endif
 #endif
 
 	pPlayer->ToggleFlag( FL_GODMODE );
@@ -1164,8 +1254,10 @@ static ConCommand god("god", CC_God_f, "Toggle. Player becomes invulnerable.", F
 //------------------------------------------------------------------------------
 CON_COMMAND_F( setpos, "Move player to specified origin (must have sv_cheats).", FCVAR_CHEAT )
 {
+#ifndef SBPP
 	if ( !sv_cheats->GetBool() )
 		return;
+#endif
 
 	CBasePlayer *pPlayer = ToBasePlayer( UTIL_GetCommandClient() ); 
 	if ( !pPlayer )
@@ -1198,8 +1290,10 @@ CON_COMMAND_F( setpos, "Move player to specified origin (must have sv_cheats).",
 //------------------------------------------------------------------------------
 void CC_setang_f (const CCommand &args)
 {
+#ifndef SBPP
 	if ( !sv_cheats->GetBool() )
 		return;
+#endif
 
 	CBasePlayer *pPlayer = ToBasePlayer( UTIL_GetCommandClient() ); 
 	if ( !pPlayer )
@@ -1239,8 +1333,10 @@ static float GetHexFloat( const char *pStr )
 //------------------------------------------------------------------------------
 CON_COMMAND_F( setpos_exact, "Move player to an exact specified origin (must have sv_cheats).", FCVAR_CHEAT )
 {
+#ifndef SBPP
 	if ( !sv_cheats->GetBool() )
 		return;
+#endif
 
 	CBasePlayer *pPlayer = ToBasePlayer( UTIL_GetCommandClient() ); 
 	if ( !pPlayer )
@@ -1273,8 +1369,10 @@ CON_COMMAND_F( setpos_exact, "Move player to an exact specified origin (must hav
 
 CON_COMMAND_F( setang_exact, "Snap player eyes and orientation to specified pitch yaw <roll:optional> (must have sv_cheats).", FCVAR_CHEAT )
 {
+#ifndef SBPP
 	if ( !sv_cheats->GetBool() )
 		return;
+#endif
 
 	CBasePlayer *pPlayer = ToBasePlayer( UTIL_GetCommandClient() ); 
 	if ( !pPlayer )
@@ -1307,15 +1405,19 @@ CON_COMMAND_F( setang_exact, "Snap player eyes and orientation to specified pitc
 //------------------------------------------------------------------------------
 void CC_Notarget_f (void)
 {
+#ifndef SBPP
 	if ( !sv_cheats->GetBool() )
 		return;
+#endif
 
 	CBasePlayer *pPlayer = ToBasePlayer( UTIL_GetCommandClient() ); 
 	if ( !pPlayer )
 		return;
 
+#ifndef SBPP
 	if ( gpGlobals->deathmatch )
 		return;
+#endif
 
 	pPlayer->ToggleFlag( FL_NOTARGET );
 	if ( !(pPlayer->GetFlags() & FL_NOTARGET ) )
@@ -1331,8 +1433,10 @@ ConCommand notarget("notarget", CC_Notarget_f, "Toggle. Player becomes hidden to
 //------------------------------------------------------------------------------
 void CC_HurtMe_f(const CCommand &args)
 {
+#ifndef SBPP
 	if ( !sv_cheats->GetBool() )
 		return;
+#endif
 
 	CBasePlayer *pPlayer = ToBasePlayer( UTIL_GetCommandClient() ); 
 	if ( !pPlayer )

@@ -214,6 +214,61 @@ void CPropData::LevelShutdownPostEntity( void )
 void CPropData::ParsePropDataFile( void )
 {
 	m_pKVPropData = new KeyValues( "PropDatafile" );
+
+#ifdef SBPP
+	// Load propdata like gmod
+	FileFindHandle_t findHandle;
+	for ( const char *pFile = filesystem->FindFirst( "scripts/propdata/*.txt", &findHandle ); pFile && *pFile; pFile = filesystem->FindNext( findHandle ) )
+	{
+		char *propdatafile;
+
+		if ( !filesystem->FileExists( pFile ) )
+		{
+			propdatafile = "scripts/propdata.txt";
+		}
+		else
+		{
+			Q_snprintf( propdatafile, 64, "scripts/propdata/%s", pFile );
+		}
+
+		if ( !m_pKVPropData->LoadFromFile( filesystem, propdatafile ) )
+		{
+			m_pKVPropData->deleteThis();
+			m_pKVPropData = NULL;
+			return;
+		}
+
+		m_bPropDataLoaded = true;
+
+		// Now try and parse out the breakable section
+		KeyValues *pBreakableSection = m_pKVPropData->FindKey( "BreakableModels" );
+		if ( pBreakableSection )
+		{
+			KeyValues *pChunkSection = pBreakableSection->GetFirstSubKey();
+			while ( pChunkSection )
+			{
+				// Create a new chunk section and add it to our list
+				int index = m_BreakableChunks.AddToTail();
+				propdata_breakablechunk_t *pBreakableChunk = &m_BreakableChunks[index];
+				pBreakableChunk->iszChunkType = AllocPooledString( pChunkSection->GetName() );
+
+				// Read in all the model names
+				KeyValues *pModelName = pChunkSection->GetFirstSubKey();
+				while ( pModelName )
+				{
+					const char *pModel = pModelName->GetName();
+					string_t pooledName = AllocPooledString( pModel );
+					pBreakableChunk->iszChunkModels.AddToTail( pooledName );
+					CBaseEntity::PrecacheModel( STRING( pooledName ) );
+
+					pModelName = pModelName->GetNextKey();
+				}
+
+				pChunkSection = pChunkSection->GetNextKey();
+			}
+		}
+	}
+#else
 	if ( !m_pKVPropData->LoadFromFile( filesystem, "scripts/propdata.txt" ) )
 	{
 		m_pKVPropData->deleteThis();
@@ -250,6 +305,7 @@ void CPropData::ParsePropDataFile( void )
 			pChunkSection = pChunkSection->GetNextKey();
 		}
 	}
+#endif
 }	
 
 //-----------------------------------------------------------------------------

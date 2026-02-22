@@ -3744,6 +3744,9 @@ void CNPC_AttackHelicopter::Event_Killed( const CTakeDamageInfo &info )
 			return;
 		}
 	}
+#ifdef SBPP
+	SendOnKilledGameEvent( info );
+#endif
 
 	Chopper_BecomeChunks( this );
 	StopLoopingSounds();
@@ -5564,7 +5567,11 @@ void CGrenadeHelicopter::OnPhysGunDrop( CBasePlayer *pPhysGunUser, PhysGunDrop_t
 bool CGrenadeHelicopter::IsThrownByPlayer()
 {
 	// if player is the owner and we're set to explode on contact, then the player threw this grenade.
+#ifdef HL2SB
+	return ( ( GetOwnerEntity() == UTIL_GetNearestPlayer( GetAbsOrigin() ) ) && m_bExplodeOnContact );
+#else
 	return ( ( GetOwnerEntity() == UTIL_GetLocalPlayer() ) && m_bExplodeOnContact );
+#endif
 }
 
 //-----------------------------------------------------------------------------

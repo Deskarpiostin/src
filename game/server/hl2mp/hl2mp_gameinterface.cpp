@@ -19,7 +19,11 @@
 void CServerGameClients::GetPlayerLimits( int& minplayers, int& maxplayers, int &defaultMaxPlayers ) const
 {
 	minplayers = defaultMaxPlayers = 2; 
+#ifdef SBPP
+	maxplayers = MAX_PLAYERS;
+#else
 	maxplayers = 16;
+#endif
 }
 
 // -------------------------------------------------------------------------------------------- //

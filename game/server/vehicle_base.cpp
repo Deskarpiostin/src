@@ -49,7 +49,7 @@ BEGIN_DATADESC( CPropVehicle )
 	DEFINE_FIELD( m_hPhysicsAttacker, FIELD_EHANDLE ),
 	DEFINE_FIELD( m_flLastPhysicsInfluenceTime, FIELD_TIME ),
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	DEFINE_UTLVECTOR( m_hPhysicsChildren, FIELD_EHANDLE ),
 #endif // HL2_EPISODIC
 
@@ -275,7 +275,7 @@ Vector CPropVehicle::GetSmoothedVelocity( void )
 }
 
 //=============================================================================
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 
 //-----------------------------------------------------------------------------
 // Purpose: Add an entity to a list which receives physics callbacks from the vehicle
@@ -884,7 +884,7 @@ void CPropVehicleDriveable::VPhysicsCollision( int index, gamevcollisionevent_t 
 {
 
 //=============================================================================
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 
 	// Notify all children
 	for ( int i = 0; i < m_hPhysicsChildren.Count(); i++ )
@@ -992,7 +992,7 @@ void CPropVehicleDriveable::TraceAttack( const CTakeDamageInfo &info, const Vect
 			SetNextThink( gpGlobals->curtime );
 		}
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 		// Notify all children
 		for ( int i = 0; i < m_hPhysicsChildren.Count(); i++ )
 		{
@@ -1105,7 +1105,7 @@ CFourWheelServerVehicle::CFourWheelServerVehicle( void )
 	m_ViewSmoothing.flRollCurveLinear	= ROLL_CURVE_LINEAR;
 }
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 ConVar r_JeepFOV( "r_JeepFOV", "82", FCVAR_CHEAT | FCVAR_REPLICATED );
 #else
 ConVar r_JeepFOV( "r_JeepFOV", "90", FCVAR_CHEAT | FCVAR_REPLICATED );

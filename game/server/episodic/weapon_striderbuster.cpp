@@ -270,7 +270,11 @@ void CWeaponStriderBuster::Spawn( void )
 //-----------------------------------------------------------------------------
 void CWeaponStriderBuster::Activate( void )
 {	
+#ifndef SBPP
 	g_iszVehicle = AllocPooledString( "prop_vehicle_jeep" );
+#else
+	g_iszVehicle = AllocPooledString( "prop_vehicle_jalopy" );
+#endif
 	BaseClass::Activate();
 }
 
@@ -500,7 +504,9 @@ bool CWeaponStriderBuster::StickToEntity( CBaseEntity *pOther )
 					return false;
 
 				// Notify the strider we're attaching to him
+#ifndef SBPP
 				pStrider->StriderBusterAttached( this );
+#endif
 				
 				m_OnAttachToStrider.FireOutput( this, this );
 
@@ -646,7 +652,12 @@ void CWeaponStriderBuster::Detonate( void )
 	if ( !m_bDud && pVictim )
 	{
 		// Kill the strider (with magic effect)
+#ifdef HL2SB
+		// Andrew; this is terrible. Find a way to fix this.
+		CBasePlayer *pPlayer = AI_GetNearestPlayer( GetAbsOrigin() );
+#else
 		CBasePlayer *pPlayer = AI_GetSinglePlayer();
+#endif
 		CTakeDamageInfo info( pPlayer, this, RandomVector( -100.0f, 100.0f ), GetAbsOrigin(), pVictim->GetHealth(), DMG_GENERIC );
 		pVictim->TakeDamage( info );
 
@@ -728,7 +739,9 @@ int CWeaponStriderBuster::OnTakeDamage( const CTakeDamageInfo &info )
 
 					CNPC_Strider *pStrider = dynamic_cast<CNPC_Strider *>(GetOwnerEntity());
 					Assert( pStrider != NULL );
+#ifndef SBPP
 					pStrider->StriderBusterDetached( this );
+#endif
 					DestroyConstraint();
 
 					// Amplify some lateral force.

@@ -40,6 +40,18 @@
 #if defined( _X360 )
 #include "xbox/xbox_console.h"
 #endif
+#ifdef LUA_SDK
+#include "weapon_hl2mpbase_scriptedweapon.h"
+#endif
+#ifdef SBPP
+// Fenix: Needed for the custom background loading screens
+#include "GameUI/IGameUI.h"
+#include "sbpp/mapload_background.h"
+#endif
+#ifdef GLOWS_ENABLE
+#include "clienteffectprecachesystem.h"
+#include "c_user_message_register.h"
+#endif
 
 #if defined( REPLAY_ENABLED )
 #include "replay/replaycamera.h"
@@ -55,6 +67,11 @@
 
 extern IClientReplayContext *g_pClientReplayContext;
 extern ConVar replay_rendersetting_renderglow;
+#endif
+#ifdef LUA_SDK
+#include "luamanager.h"
+#include "lbaseentity_shared.h"
+#include "lbaseplayer_shared.h"
 #endif
 
 #if defined USES_ECON_ITEMS
@@ -77,6 +94,20 @@ class CHudVote;
 
 static vgui::HContext s_hVGuiContext = DEFAULT_VGUI_CONTEXT;
 
+#ifdef SBPP
+// Fenix: Needed for the custom background loading screens
+// See interface.h/.cpp for specifics: basically this ensures that we actually Sys_UnloadModule the dll and that we don't call Sys_LoadModule 
+// over and over again.
+static CDllDemandLoader g_GameUI( "GameUI" );
+#endif
+
+#ifdef GLOWS_ENABLE
+CLIENTEFFECT_REGISTER_BEGIN( PrecachePostProcessingEffectsGlow )
+	CLIENTEFFECT_MATERIAL( "dev/glow_color" )
+	CLIENTEFFECT_MATERIAL( "dev/halo_add_to_screen" )
+CLIENTEFFECT_REGISTER_END_CONDITIONAL( engine->GetDXSupportLevel() >= 90 )
+#endif
+
 ConVar cl_drawhud( "cl_drawhud", "1", FCVAR_CHEAT, "Enable the rendering of the hud" );
 ConVar hud_takesshots( "hud_takesshots", "0", FCVAR_CLIENTDLL | FCVAR_ARCHIVE, "Auto-save a scoreboard screenshot at the end of a map." );
 ConVar hud_freezecamhide( "hud_freezecamhide", "0", FCVAR_CLIENTDLL | FCVAR_ARCHIVE, "Hide the HUD during freeze-cam" );
@@ -86,6 +117,11 @@ extern ConVar v_viewmodel_fov;
 extern ConVar voice_modenable;
 
 extern bool IsInCommentaryMode( void );
+#ifdef SBPP
+// Fenix: Needed for the custom background loading screens
+CMapLoadBG *pPanelBg;
+IMaterial *pMatMapBg;
+#endif
 
 #ifdef VOICE_VOX_ENABLE
 void VoxCallback( IConVar *var, const char *oldString, float oldFloat )
@@ -145,6 +181,7 @@ CON_COMMAND( hud_reloadscheme, "Reloads hud layout and animation scripts." )
 	mode->ReloadScheme();
 }
 
+#ifndef SBPP
 CON_COMMAND( messagemode, "Opens chat dialog" )
 {
 	ClientModeShared *mode = ( ClientModeShared * )GetClientModeNormal();
@@ -156,6 +193,7 @@ CON_COMMAND( messagemode2, "Opens chat dialog" )
 	ClientModeShared *mode = ( ClientModeShared * )GetClientModeNormal();
 	mode->StartMessageMode( MM_SAY_TEAM );
 }
+#endif
 
 #ifdef _DEBUG
 CON_COMMAND_F( crash, "Crash the client. Optional parameter -- type of crash:\n 0: read from NULL\n 1: write to NULL\n 2: DmCrashDump() (xbox360 only)", FCVAR_CHEAT )
@@ -285,11 +323,22 @@ static void __MsgFunc_VGUIMenu( bf_read &msg )
 //-----------------------------------------------------------------------------
 ClientModeShared::ClientModeShared()
 {
+#ifdef LUA_SDK
+	m_pScriptedViewport = NULL;
+#endif
 	m_pViewport = NULL;
+#ifdef LUA_SDK
+	m_pClientLuaPanel = NULL;
+#endif
 	m_pChatElement = NULL;
 	m_pWeaponSelection = NULL;
 	m_nRootSize[ 0 ] = m_nRootSize[ 1 ] = -1;
 
+#ifdef SBPP
+	// Fenix: Needed for the custom background loading screens
+	pPanelBg = NULL;
+	pMatMapBg = NULL;
+#endif
 #if defined( REPLAY_ENABLED )
 	m_pReplayReminderPanel = NULL;
 	m_flReplayStartRecordTime = 0.0f;
@@ -302,7 +351,15 @@ ClientModeShared::ClientModeShared()
 //-----------------------------------------------------------------------------
 ClientModeShared::~ClientModeShared()
 {
+#ifdef LUA_SDK
+	// NOTE: Due to the behavior of many crashes, if you end up here from a
+	// .mdmp or debug attach, you might as well ignore this call stack.
+	delete m_pScriptedViewport; 
+#endif
 	delete m_pViewport; 
+#ifdef LUA_SDK
+	delete m_pClientLuaPanel; 
+#endif
 }
 
 void ClientModeShared::ReloadScheme( void )
@@ -379,6 +436,28 @@ void ClientModeShared::Init()
 
 	HOOK_MESSAGE( VGUIMenu );
 	HOOK_MESSAGE( Rumble );
+#ifdef SBPP
+	// Fenix: Custom background loading screens - Injects the custom panel at the loading screen
+	CreateInterfaceFn gameUIFactory = g_GameUI.GetFactory();
+	if ( gameUIFactory )
+	{
+		IGameUI *pGameUI = (IGameUI *)gameUIFactory( GAMEUI_INTERFACE_VERSION, NULL );
+		if ( pGameUI )
+		{
+			// Insert custom loading panel for the loading dialog
+			pPanelBg = new CMapLoadBG( "Background" );
+			pPanelBg->InvalidateLayout( false, true );
+			pPanelBg->SetVisible( false );
+			pPanelBg->MakePopup( true );
+			pGameUI->SetLoadingBackgroundDialog( pPanelBg->GetVPanel() );
+			pPanelBg->MoveToFront();
+
+			ConVarRef hostNameRef("hostname");
+			const char* serverName = hostNameRef.GetString();
+			pPanelBg->setServerName( serverName );
+		}
+	}
+#endif
 }
 
 
@@ -389,8 +468,16 @@ void ClientModeShared::InitViewport()
 
 void ClientModeShared::VGui_Shutdown()
 {
+#ifdef LUA_SDK
+	delete m_pScriptedViewport;
+	m_pScriptedViewport = NULL;
+#endif
 	delete m_pViewport;
 	m_pViewport = NULL;
+#ifdef LUA_SDK
+	delete m_pClientLuaPanel;
+	m_pClientLuaPanel = NULL;
+#endif
 }
 
 
@@ -480,11 +567,33 @@ void ClientModeShared::OverrideView( CViewSetup *pSetup )
 //-----------------------------------------------------------------------------
 bool ClientModeShared::ShouldDrawEntity(C_BaseEntity *pEnt)
 {
+#ifdef LUA_SDK
+	BEGIN_LUA_CALL_HOOK( "ShouldDrawEntity" );
+		lua_pushentity( L, pEnt );
+	END_LUA_CALL_HOOK( 1, 1 );
+
+	RETURN_LUA_BOOLEAN();
+#endif
 	return true;
 }
 
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
 bool ClientModeShared::ShouldDrawParticles( )
 {
+#ifdef LUA_SDK
+	BEGIN_LUA_CALL_HOOK( "ShouldDrawParticles" );
+	END_LUA_CALL_HOOK( 0, 1 );
+
+	RETURN_LUA_BOOLEAN();
+#endif
+
+#ifdef TF_CLIENT_DLL
+	C_TFPlayer *pTFPlayer = C_TFPlayer::GetLocalTFPlayer();
+	if ( pTFPlayer && !pTFPlayer->ShouldPlayerDrawParticles() )
+		return false;
+#endif // TF_CLIENT_DLL
 	return true;
 }
 
@@ -499,17 +608,48 @@ void ClientModeShared::OverrideMouseInput( float *x, float *y )
 		pWeapon->OverrideMouseInput( x, y );
 	}
 }
+#ifdef ARGG
+//-----------------------------------------------------------------------------
+// Purpose: Allow weapons to override mouse input to view angles (for orbiting)
+//-----------------------------------------------------------------------------
+// adnan
+// control the mouse input in the grav gun through this
+bool ClientModeShared::OverrideViewAngles( void )
+{
+	C_BaseCombatWeapon *pWeapon = GetActiveWeapon();
+	if ( pWeapon )
+	{
+		// adnan
+		return pWeapon->OverrideViewAngles();
+	}
+
+	return false;
+}
+// end adnan
+#endif
 
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
 bool ClientModeShared::ShouldDrawViewModel()
 {
+#ifdef LUA_SDK
+	BEGIN_LUA_CALL_HOOK( "ShouldDrawViewModel" );
+	END_LUA_CALL_HOOK( 0, 1 );
+
+	RETURN_LUA_BOOLEAN();
+#endif
 	return true;
 }
 
 bool ClientModeShared::ShouldDrawDetailObjects( )
 {
+#ifdef LUA_SDK
+	BEGIN_LUA_CALL_HOOK( "ShouldDrawDetailObjects" );
+	END_LUA_CALL_HOOK( 0, 1 );
+
+	RETURN_LUA_BOOLEAN();
+#endif
 	return true;
 }
 
@@ -547,6 +687,13 @@ bool ClientModeShared::ShouldDrawCrosshair( void )
 //-----------------------------------------------------------------------------
 bool ClientModeShared::ShouldDrawLocalPlayer( C_BasePlayer *pPlayer )
 {
+#ifdef LUA_SDK
+	BEGIN_LUA_CALL_HOOK( "ShouldDrawLocalPlayer" );
+		lua_pushplayer( L, pPlayer );
+	END_LUA_CALL_HOOK( 1, 1 );
+
+	RETURN_LUA_BOOLEAN();
+#endif
 	if ( ( pPlayer->index == render->GetViewEntity() ) && !C_BasePlayer::ShouldDrawLocalPlayer() )
 		return false;
 
@@ -559,6 +706,13 @@ bool ClientModeShared::ShouldDrawLocalPlayer( C_BasePlayer *pPlayer )
 //-----------------------------------------------------------------------------
 bool ClientModeShared::ShouldDrawFog( void )
 {
+#ifdef LUA_SDK
+	BEGIN_LUA_CALL_HOOK( "ShouldDrawFog" );
+	END_LUA_CALL_HOOK( 0, 1 );
+
+	RETURN_LUA_BOOLEAN();
+#endif
+
 	return true;
 }
 
@@ -567,6 +721,25 @@ bool ClientModeShared::ShouldDrawFog( void )
 //-----------------------------------------------------------------------------
 void ClientModeShared::AdjustEngineViewport( int& x, int& y, int& width, int& height )
 {
+#ifdef LUA_SDK
+	BEGIN_LUA_CALL_HOOK( "AdjustEngineViewport" );
+		lua_pushinteger( L, x );
+		lua_pushinteger( L, y );
+		lua_pushinteger( L, width );
+		lua_pushinteger( L, height );
+	END_LUA_CALL_HOOK( 4, 4 );
+
+	if ( lua_isnumber( L, -4 ) )
+		x = luaL_checkint( L, -4 );
+	if ( lua_isnumber( L, -3 ) )
+		y = luaL_checkint( L, -3 );
+	if ( lua_isnumber( L, -2 ) )
+		width = luaL_checkint( L, -2 );
+	if ( lua_isnumber( L, -1 ) )
+		height = luaL_checkint( L, -1 );
+
+	lua_pop( L, 4 );
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -636,15 +809,60 @@ void ClientModeShared::ProcessInput(bool bActive)
 {
 	gHUD.ProcessInput( bActive );
 }
+#ifdef SBPP
+void __MsgFunc_StartMessageMode( bf_read &msg )
+{
+    int mode = msg.ReadByte();
+
+    GetClientModeNormal()->StartMessageMode( MM_SAY );
+}
+
+USER_MESSAGE_REGISTER( StartMessageMode );
+#endif
 
 //-----------------------------------------------------------------------------
 // Purpose: We've received a keypress from the engine. Return 1 if the engine is allowed to handle it.
 //-----------------------------------------------------------------------------
 int	ClientModeShared::KeyInput( int down, ButtonCode_t keynum, const char *pszCurrentBinding )
 {
+#ifdef LUA_SDK
+	if ( g_bLuaInitialized )
+	{
+		BEGIN_LUA_CALL_HOOK( "KeyInput" );
+			lua_pushinteger( L, down );
+			lua_pushinteger( L, keynum );
+			lua_pushstring( L, pszCurrentBinding );
+		END_LUA_CALL_HOOK( 3, 1 );
+
+		RETURN_LUA_INTEGER();
+	}
+#endif
 	if ( engine->Con_IsVisible() )
 		return 1;
 	
+#ifdef SBPP
+	// Should we start typing a message?
+	if ( pszCurrentBinding &&
+		( Q_strcmp( pszCurrentBinding, "messagemode" ) == 0 ||
+		  Q_strcmp( pszCurrentBinding, "say" ) == 0 ) )
+	{
+		if ( down )
+		{
+			StartMessageMode( MM_SAY );
+		}
+		return 0;
+	}
+	else if ( pszCurrentBinding &&
+				( Q_strcmp( pszCurrentBinding, "messagemode2" ) == 0 ||
+				  Q_strcmp( pszCurrentBinding, "say_team" ) == 0 ) )
+	{
+		if ( down )
+		{
+			StartMessageMode( MM_SAY_TEAM );
+		}
+		return 0;
+	}
+#endif
 	// If we're voting...
 #ifdef VOTING_ENABLED
 	CHudVote *pHudVote = GET_HUDELEMENT( CHudVote );
@@ -759,6 +977,9 @@ bool ClientModeShared::DoPostScreenSpaceEffects( const CViewSetup *pSetup )
 			return false;
 	}
 #endif 
+#ifdef GLOWS_ENABLE
+	g_GlowObjectManager.RenderGlowEffects( pSetup, 0 );
+#endif
 	return true;
 }
 
@@ -780,10 +1001,12 @@ vgui::Panel *ClientModeShared::GetMessagePanel()
 void ClientModeShared::StartMessageMode( int iMessageModeType )
 {
 	// Can only show chat UI in multiplayer!!!
+#ifndef SBPP
 	if ( gpGlobals->maxClients == 1 )
 	{
 		return;
 	}
+#endif
 	if ( m_pChatElement )
 	{
 		m_pChatElement->StartMessageMode( iMessageModeType );
@@ -881,10 +1104,22 @@ void ClientModeShared::Disable()
 	// Remove our viewport from the root panel.
 	if( pRoot != 0 )
 	{
+#ifdef LUA_SDK
+		m_pScriptedViewport->SetParent( (vgui::VPANEL)NULL );
+#endif
 		m_pViewport->SetParent( (vgui::VPANEL)NULL );
+#ifdef LUA_SDK
+		m_pClientLuaPanel->SetParent( (vgui::VPANEL)NULL );
+#endif
 	}
 
+#ifdef LUA_SDK
+	m_pScriptedViewport->SetVisible( false );
+#endif
 	m_pViewport->SetVisible( false );
+#ifdef LUA_SDK
+	m_pClientLuaPanel->SetVisible( false );
+#endif
 }
 
 
@@ -902,7 +1137,13 @@ void ClientModeShared::Layout()
 		m_nRootSize[ 0 ] = wide;
 		m_nRootSize[ 1 ] = tall;
 
+#ifdef LUA_SDK
+		//m_pScriptedViewport->SetBounds(0, 0, wide, tall);
+#endif
 		m_pViewport->SetBounds(0, 0, wide, tall);
+#ifdef LUA_SDK
+		//m_pClientLuaPanel->SetBounds(0, 0, wide, tall);
+#endif
 		if ( changed )
 		{
 			ReloadScheme();
@@ -912,6 +1153,33 @@ void ClientModeShared::Layout()
 
 float ClientModeShared::GetViewModelFOV( void )
 {
+#ifdef SBPP
+	if (GetActiveWeapon())
+	{
+		if (GetActiveWeapon()->IsScripted())
+		{
+			CHL2MPScriptedWeapon *pWeapon = dynamic_cast< CHL2MPScriptedWeapon* >(GetActiveWeapon());
+			return pWeapon->flViewModelFOV;
+		}
+
+		/// aaa im retard
+		// - ItzVladik
+		char szWeap[256];
+		Q_snprintf( szWeap, sizeof(szWeap), "%s", GetActiveWeapon()->GetClassname() );
+		if ( FStrEq( "weapon_rpg_hl1", szWeap )   || FStrEq( "weapon_satchel_hl1", szWeap )  || FStrEq( "weapon_shotgun_hl1", szWeap ) ||
+			 FStrEq( "weapon_357_hl1", szWeap )   || FStrEq( "weapon_crossbow_hl1", szWeap ) || FStrEq( "weapon_egon_hl1", szWeap ) 	   ||
+			 FStrEq( "weapon_gauss_hl1", szWeap ) || FStrEq( "weapon_glock_hl1", szWeap )    || FStrEq( "grenade_hand_hl1", szWeap ) 	   || 
+			 FStrEq( "weapon_hornetgun_hl1", szWeap ) || FStrEq( "weapon_mp5_hl1", szWeap )      || FStrEq("weapon_crowbar_hl1", szWeap )  ||
+			 FStrEq( "weapon_handgrenade_hl1", szWeap ) 	  || FStrEq( "weapon_tripmine_hl1", szWeap) 	 || FStrEq( "weapon_snark_hl1", szWeap ) )
+		{
+			return 84;
+		}
+		else
+		{
+			return v_viewmodel_fov.GetFloat();
+		}
+	}
+#endif
 	return v_viewmodel_fov.GetFloat();
 }
 

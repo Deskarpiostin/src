@@ -79,10 +79,23 @@ public:
 	Vector m_vCrouchTraceMax;	
 };
 
+#ifdef SBPP
+class CHL2MPRules : public CMultiplayRules
+{
+public:
+	DECLARE_CLASS( CHL2MPRules, CMultiplayRules );
+
+private:
+	// Rules change for the mega physgun
+	CNetworkVar( bool, m_bMegaPhysgun );
+
+public:
+#else
 class CHL2MPRules : public CTeamplayRules
 {
 public:
 	DECLARE_CLASS( CHL2MPRules, CTeamplayRules );
+#endif
 
 #ifdef CLIENT_DLL
 
@@ -108,8 +121,18 @@ public:
 	virtual void CreateStandardEntities( void );
 	virtual void ClientSettingsChanged( CBasePlayer *pPlayer );
 	virtual int PlayerRelationship( CBaseEntity *pPlayer, CBaseEntity *pTarget );
+#ifdef LUA_SDK
+#ifndef CLIENT_DLL
+	virtual bool PlayerCanHearChat( CBasePlayer *pListener, CBasePlayer *pSpeaker );
+	virtual bool ClientConnected( edict_t *pEntity, const char *pszName, const char *pszAddress, char *reject, int maxrejectlen );
+	virtual void InitHUD( CBasePlayer *pl );
+#endif
+#endif
 	virtual void GoToIntermission( void );
 	virtual void DeathNotice( CBasePlayer *pVictim, const CTakeDamageInfo &info );
+#ifdef SBPP
+	void NPCDeathNotice( CBaseEntity *pVictim, const CTakeDamageInfo &info );
+#endif
 	virtual const char *GetGameDescription( void );
 	// derive this function if you mod uses encrypted weapon info files
 	virtual const unsigned char *GetEncryptionKey( void ) { return (unsigned char *)"x9Ke0BY7"; }
@@ -120,14 +143,21 @@ public:
 	void CleanUpMap();
 	void CheckRestartGame();
 	void RestartGame();
-	
+
 #ifndef CLIENT_DLL
 	virtual Vector VecItemRespawnSpot( CItem *pItem );
 	virtual QAngle VecItemRespawnAngles( CItem *pItem );
 	virtual float	FlItemRespawnTime( CItem *pItem );
+#ifdef LUA_SDK
+	virtual void PlayerGotItem( CBasePlayer *pPlayer, CItem *pItem );
+	virtual int ItemShouldRespawn( CItem *pItem );
+#endif
 	virtual bool	CanHavePlayerItem( CBasePlayer *pPlayer, CBaseCombatWeapon *pItem );
 	virtual bool FShouldSwitchWeapon( CBasePlayer *pPlayer, CBaseCombatWeapon *pWeapon );
 
+#ifdef SBPP
+	void 	InitDefaultAIRelationships( void );
+#endif
 	void	AddLevelDesignerPlacedObject( CBaseEntity *pEntity );
 	void	RemoveLevelDesignerPlacedObject( CBaseEntity *pEntity );
 	void	ManageObjectRelocation( void );
@@ -137,19 +167,56 @@ public:
 #endif
 	virtual void ClientDisconnected( edict_t *pClient );
 
+#ifdef LUA_SDK
+#ifndef CLIENT_DLL
+	virtual float FlPlayerFallDamage( CBasePlayer *pPlayer );
+#endif
+#endif
+
 	bool CheckGameOver( void );
 	bool IsIntermission( void );
 
 	void PlayerKilled( CBasePlayer *pVictim, const CTakeDamageInfo &info );
 
 	
+#ifdef SBPP
+	bool	IsTeamplay( void ) { return false;	}
+#else
 	bool	IsTeamplay( void ) { return m_bTeamPlayEnabled;	}
+#endif
+#ifdef LUA_SDK
+#ifndef CLIENT_DLL
+	bool	FPlayerCanTakeDamage( CBasePlayer *pPlayer, CBaseEntity *pAttacker );
+	bool	AllowDamage( CBaseEntity *pVictim, const CTakeDamageInfo &info );
+
+	void	PlayerSpawn( CBasePlayer *pPlayer );
+	void	PlayerThink( CBasePlayer *pPlayer );
+	bool	FPlayerCanRespawn( CBasePlayer *pPlayer );
+	float	FlPlayerSpawnTime( CBasePlayer *pPlayer );
+#endif
+#endif
+#ifdef HL2SB
+#ifndef CLIENT_DLL
+	bool	NPC_ShouldDropGrenade( CBasePlayer *pRecipient );
+	bool	NPC_ShouldDropHealth( CBasePlayer *pRecipient );
+	void	NPC_DroppedHealth( void );
+	void	NPC_DroppedGrenade( void );
+	bool	MegaPhyscannonActive( void ) { return m_bMegaPhysgun;	}
+	virtual bool IsAlyxInDarknessMode();
+#endif
+#endif
 	void	CheckAllPlayersReady( void );
 
 	virtual bool IsConnectedUserInfoChangeAllowed( CBasePlayer *pPlayer );
 	
 private:
 	
+#ifdef HL2SB
+#ifndef CLIENT_DLL
+	float	m_flLastHealthDropTime;
+	float	m_flLastGrenadeDropTime;
+#endif
+#endif
 	CNetworkVar( bool, m_bTeamPlayEnabled );
 	CNetworkVar( float, m_flGameStartTime );
 	CUtlVector<EHANDLE> m_hRespawnableItemsAndWeapons;

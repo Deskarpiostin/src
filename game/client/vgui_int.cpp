@@ -29,6 +29,13 @@
 #include "sixense/in_sixense.h"
 #endif
 
+#ifdef SBPP
+#include "menu/creatempdialog.h"
+#include "sbpp/mapload_background.h"
+#include "sbpp/vgui/advanced_options.h"
+#include "menu/spawnmenu_new.h"
+#endif
+
 #if defined( TF_CLIENT_DLL )
 #include "tf_gamerules.h"
 #endif
@@ -122,6 +129,9 @@ static void VGui_VideoMode_AdjustForModeChange( void )
 	// Kill all our panels. We need to do this in case any of them
 	//	have pointers to objects (eg: iborders) that will get freed
 	//	when schemes get destroyed and recreated (eg: mode change).
+#ifdef SBPP
+	extern CMapLoadBG *pPanelBg;
+#endif
 	netgraphpanel->Destroy();
 	debugoverlaypanel->Destroy();
 #if defined( TRACK_BLOCKING_IO )
@@ -141,6 +151,9 @@ static void VGui_VideoMode_AdjustForModeChange( void )
 
 	loadingdisc->Create( gameToolParent );
 	messagechars->Create( gameToolParent );
+#ifdef SBPP
+	pPanelBg->InvalidateLayout( false, true );
+#endif
 
 	// Debugging or related tool
 	fps->Create( toolParent );
@@ -178,6 +191,10 @@ bool VGui_Startup( CreateInterfaceFn appSystemFactory )
 	{
 		return false; // c_vguiscreen.cpp needs this!
 	}
+#if defined( LUA_SDK )
+	// Create the root panel for our scripted GameUI state
+	VGUI_CreateGameUIRootPanel();
+#endif
 
 	VGui_OneTimeInit();
 
@@ -200,6 +217,10 @@ void VGui_CreateGlobalPanels( void )
 {
 	VPANEL gameToolParent = enginevgui->GetPanel( PANEL_CLIENTDLL_TOOLS );
 	VPANEL toolParent = enginevgui->GetPanel( PANEL_TOOLS );
+#ifdef SBPP
+	VPANEL gameParent = enginevgui->GetPanel( PANEL_CLIENTDLL );
+	VPANEL GameUiDll = enginevgui->GetPanel( PANEL_GAMEUIDLL );
+#endif
 #if defined( TRACK_BLOCKING_IO )
 	VPANEL gameDLLPanel = enginevgui->GetPanel( PANEL_GAMEDLL );
 #endif
@@ -211,6 +232,12 @@ void VGui_CreateGlobalPanels( void )
 	// Debugging or related tool
 	fps->Create( toolParent );
 	touch_panel->Create( toolParent );
+
+#ifdef SBPP
+	maplist->Create(GameUiDll);
+	spawnmenu->Create(gameParent);
+	advancedoptpanel->Create(GameUiDll);
+#endif
 
 #if defined( TRACK_BLOCKING_IO )
 	iopanel->Create( gameDLLPanel );
@@ -242,6 +269,10 @@ void VGui_Shutdown()
 #endif
 	fps->Destroy();
 	touch_panel->Destroy();
+#ifdef SBPP
+	advancedoptpanel->Destroy();
+	maplist->Destroy();
+#endif
 
 	messagechars->Destroy();
 	loadingdisc->Destroy();

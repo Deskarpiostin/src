@@ -19,11 +19,18 @@
 #include "client_virtualreality.h"
 #include "../hud_crosshair.h"
 #include "sourcevr/isourcevirtualreality.h"
+#ifdef SBPP
+#include "vgui/IInput.h"
+#endif
 // NVNT haptic utils
 #include "haptics/haptic_utils.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
+
+#ifdef SBPP
+void ToggleThirdPerson( bool bValue );
+#endif
 
 int ScreenTransform( const Vector& point, Vector& screen );
 
@@ -76,7 +83,12 @@ C_PropVehicleDriveable::C_PropVehicleDriveable() :
 
 	m_ViewSmoothingData.pVehicle = this;
 	m_ViewSmoothingData.bClampEyeAngles = true;
+#ifdef SBPP
+	//m_ViewSmoothingData.bDampenEyePosition = true; //Sub-Zero removed Multiplayer Vehicle Fix.
+	m_ViewSmoothingData.bDampenEyePosition = false; //Sub-Zero Added Multiplayer Vehicle Fix.
+#else
 	m_ViewSmoothingData.bDampenEyePosition = true;
+#endif
 
 	m_ViewSmoothingData.flPitchCurveZero = PITCH_CURVE_ZERO;
 	m_ViewSmoothingData.flPitchCurveLinear = PITCH_CURVE_LINEAR;
@@ -203,12 +215,20 @@ void C_PropVehicleDriveable::DampenEyePosition( Vector &vecVehicleEyePos, QAngle
 //-----------------------------------------------------------------------------
 void C_PropVehicleDriveable::GetVehicleViewPosition( int nRole, Vector *pAbsOrigin, QAngle *pAbsAngles, float *pFOV /*=NULL*/ )
 {
+#ifdef SBPP
+	//Sub-Zero Multiplayer Vehicle Fix.
+	if( m_hPlayer->IsLocalPlayer() )
+	{
+		SharedVehicleViewSmoothing( m_hPlayer, pAbsOrigin, pAbsAngles, m_bEnterAnimOn, m_bExitAnimOn, m_vecEyeExitEndpoint, &m_ViewSmoothingData, pFOV );
+	}
+#else
 	SharedVehicleViewSmoothing( m_hPlayer,
 								pAbsOrigin, pAbsAngles,
 								m_bEnterAnimOn, m_bExitAnimOn,
 								m_vecEyeExitEndpoint, 
 								&m_ViewSmoothingData,
 								pFOV );
+#endif
 }
 
 
@@ -243,6 +263,17 @@ void C_PropVehicleDriveable::DrawHudElements( )
 {
 	CHudTexture *pIcon;
 	int iIconX, iIconY;
+
+#ifdef SBPP
+	// HACK!!
+	if ( m_hPlayer && m_hPlayer.Get() == C_BasePlayer::GetLocalPlayer() )
+	{
+		if ( vgui::input()->IsKeyDown( KEY_LCONTROL ) )
+			ToggleThirdPerson( true );
+		else
+			ToggleThirdPerson( false );
+	}
+#endif
 
 	if (m_bHasGun)
 	{
@@ -414,6 +445,10 @@ void C_PropVehicleDriveable::OnEnteredVehicle( C_BaseCombatCharacter *pPassenger
 // NVNT - added function
 void C_PropVehicleDriveable::OnExitedVehicle( C_BaseCombatCharacter *pPassenger )
 {
+#ifdef SBPP
+	ToggleThirdPerson( false );
+#endif
+
 #if defined( WIN32 ) && !defined( _X360 )
 	// NVNT notify haptics system of navigation exit
 	HapticsExitedVehicle(this,pPassenger);

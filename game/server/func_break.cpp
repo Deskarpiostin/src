@@ -143,7 +143,12 @@ BEGIN_DATADESC( CBreakable )
 
 	// Don't need to save/restore these because we precache after restore
 	//DEFINE_FIELD( m_idShard, FIELD_INTEGER ),
+#ifdef SBPP
+	DEFINE_FIELD( m_savedAngles, FIELD_VECTOR ),
+	DEFINE_FIELD( m_gibYaw, FIELD_FLOAT ),
+#else
 	DEFINE_FIELD( m_angle, FIELD_FLOAT ),
+#endif
 	DEFINE_FIELD( m_iszGibModel, FIELD_STRING ),
 	DEFINE_FIELD( m_iszSpawnObject, FIELD_STRING ),
 	DEFINE_KEYFIELD( m_ExplosionMagnitude, FIELD_INTEGER, "explodemagnitude" ),
@@ -280,8 +285,13 @@ void CBreakable::Spawn( void )
     SetMoveType( MOVETYPE_PUSH );
 	
 	// this is a hack to shoot the gibs in a specific yaw/direction
+#ifdef SBPP
+    m_savedAngles = GetLocalAngles();
+    m_gibYaw = m_savedAngles.y;
+#else
 	m_angle = GetLocalAngles().y;
 	SetLocalAngles( vec3_angle );
+#endif
 	
 	SetModel( STRING( GetModelName() ) );//set size and link into world.
 
@@ -724,9 +734,11 @@ void CBreakable::Break( CBaseEntity *pBreaker )
 {
 	if ( IsBreakable() )
 	{
+#ifndef SBPP
 		QAngle angles = GetLocalAngles();
 		angles.y = m_angle;
 		SetLocalAngles( angles );
+#endif
 		m_hBreaker = pBreaker;
 		Die();
 	}

@@ -166,7 +166,11 @@ void PrecacheFileWeaponInfoDatabase( IFileSystem *filesystem, const unsigned cha
 		return;
 
 	KeyValues *manifest = new KeyValues( "weaponscripts" );
+#ifdef SBPP
+	if ( manifest->LoadFromFile( filesystem, "scripts/weapons/weapon_manifest.txt", "GAME" ) )
+#else
 	if ( manifest->LoadFromFile( filesystem, "scripts/weapon_manifest.txt", "GAME" ) )
+#endif
 	{
 		for ( KeyValues *sub = manifest->GetFirstSubKey(); sub != NULL ; sub = sub->GetNextKey() )
 		{
@@ -283,7 +287,11 @@ bool ReadWeaponDataFromFileForSlot( IFileSystem* filesystem, const char *szWeapo
 		return true;
 
 	char sz[128];
+#ifdef SBPP
+	Q_snprintf( sz, sizeof( sz ), "scripts/weapons/%s", szWeaponName );
+#else
 	Q_snprintf( sz, sizeof( sz ), "scripts/%s", szWeaponName );
+#endif
 
 	KeyValues *pKV = ReadEncryptedKVFile( filesystem, sz, pICEKey,
 #if defined( DOD_DLL )
@@ -347,6 +355,12 @@ FileWeaponInfo_t::FileWeaponInfo_t()
 	bShowUsageHint = false;
 	m_bAllowFlipping = true;
 	m_bBuiltRightHanded = true;
+#ifdef SBPP
+	iViewModelFOV = 0;
+	m_bPrimaryAutomatic = true;
+	m_bSecondaryAutomatic = true;
+	fDeploySpeed = 1.0f;
+#endif
 }
 
 #ifdef CLIENT_DLL
@@ -367,6 +381,9 @@ void FileWeaponInfo_t::Parse( KeyValues *pKeyValuesData, const char *szWeaponNam
 	Q_strncpy( szWorldModel, pKeyValuesData->GetString( "playermodel" ), MAX_WEAPON_STRING );
 	Q_strncpy( szAnimationPrefix, pKeyValuesData->GetString( "anim_prefix" ), MAX_WEAPON_PREFIX );
 	iSlot = pKeyValuesData->GetInt( "bucket", 0 );
+#ifdef SBPP
+	iViewModelFOV = pKeyValuesData->GetInt( "viewmodel_fov", 0 );
+#endif
 	iPosition = pKeyValuesData->GetInt( "bucket_position", 0 );
 	
 	// Use the console (X360) buckets if hud_fastswitch is set to 2.
@@ -404,6 +421,40 @@ void FileWeaponInfo_t::Parse( KeyValues *pKeyValuesData, const char *szWeaponNam
 		}
 	}
 
+#ifdef SBPP
+	KeyValues *pSights = pKeyValuesData->FindKey( "IronSight" );
+	if (pSights)
+	{
+		vecIronsightPosOffset.x		= pSights->GetFloat( "forward", 0.0f );
+		vecIronsightPosOffset.y		= pSights->GetFloat( "right", 0.0f );
+		vecIronsightPosOffset.z		= pSights->GetFloat( "up", 0.0f );
+
+		angIronsightAngOffset[PITCH]	= pSights->GetFloat( "pitch", 0.0f );
+		angIronsightAngOffset[YAW]		= pSights->GetFloat( "yaw", 0.0f );
+		angIronsightAngOffset[ROLL]		= pSights->GetFloat( "roll", 0.0f );
+
+		flIronsightFOVOffset		= pSights->GetFloat( "fov", 0.0f );
+	}
+	else
+	{
+		//note: you can set a bool here if you'd like to disable ironsights for weapons with no IronSight-key
+		vecIronsightPosOffset = vec3_origin;
+		angIronsightAngOffset.Init();
+		flIronsightFOVOffset = 0.0f;
+	}
+
+	KeyValues* pCanSight = pKeyValuesData->FindKey("CanUseIronsight");
+	if (pCanSight)
+	{
+		// 0 means the weapon can't use the iron sight function, 1 means it can
+		bCanUseIronsight = (pCanSight->GetInt(nullptr, 1) != 0);
+	}
+	else
+	{
+		// The weapon can use the ironsight function if the key value doesn't exist in the weapon script.
+		bCanUseIronsight = false;
+	}
+#endif
 
 	bShowUsageHint = ( pKeyValuesData->GetInt( "showusagehint", 0 ) != 0 ) ? true : false;
 	bAutoSwitchTo = ( pKeyValuesData->GetInt( "autoswitchto", 1 ) != 0 ) ? true : false;

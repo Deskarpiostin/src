@@ -53,6 +53,10 @@ enum ImageFormat
 	IMAGE_FORMAT_DXT1,
 	IMAGE_FORMAT_DXT3,
 	IMAGE_FORMAT_DXT5,
+#ifdef MOON
+	IMAGE_FORMAT_ETC2_RGB8,
+	IMAGE_FORMAT_ETC2_RGBA8,
+#endif
 	IMAGE_FORMAT_BGRX8888,
 	IMAGE_FORMAT_BGR565,
 	IMAGE_FORMAT_BGRX5551,
@@ -158,6 +162,14 @@ typedef enum _D3DFORMAT
 		// ATI 1N and 2N compressed tex
 		D3DFMT_ATI_2N		= 0x32495441,	// MAKEFOURCC('A', 'T', 'I', '2')
 		D3DFMT_ATI_1N		= 0x31495441,	// MAKEFOURCC('A', 'T', 'I', '1')
+#ifdef MOON
+		// ETC2 compressed tex
+		// These are used for the ToGL(ES) abstraction layer, so they are
+		// not the same as the D3DFORMAT enum used by Direct3D
+		// They are used to represent ETC2 formats in the ImageFormat enum.
+		D3DFMT_ETC2_RGB8,	// MAKEFOURCC('E', 'T', 'C', 'N') // N - no alpha
+		D3DFMT_ETC2_RGBA8,	// MAKEFOURCC('E', 'T', 'C', 'A') // A - alpha present
+#endif
 		
 		D3DFMT_UNKNOWN
 	} D3DFORMAT;

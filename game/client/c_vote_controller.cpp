@@ -151,6 +151,7 @@ void C_VoteController::ClientThink()
 //-----------------------------------------------------------------------------
 void C_VoteController::FireGameEvent( IGameEvent *event )
 {
+#ifndef SBPP
 	CHudVote *pHudVote = GET_HUDELEMENT( CHudVote );
 	if ( pHudVote && pHudVote->IsVisible() )
 	{
@@ -186,4 +187,5 @@ void C_VoteController::FireGameEvent( IGameEvent *event )
 			}
 		}
 	}
+#endif
 }

@@ -618,6 +618,8 @@ void CSave::WriteInterval( const interval_t *value, int count )
 
 bool CSave::ShouldSaveField( const void *pData, typedescription_t *pField )
 {
+	// no to autosaves!
+#ifndef SBPP
 	if ( !(pField->flags & FTYPEDESC_SAVE) || pField->fieldType == FIELD_VOID )
 		return false;
 
@@ -708,6 +710,9 @@ bool CSave::ShouldSaveField( const void *pData, typedescription_t *pField )
 		}
 		return true;
 	}
+#else
+	return false;
+#endif
 }
 
 //-------------------------------------

@@ -52,6 +52,9 @@ void RegisterUserMessages( void )
 	usermessages->Register("MatchStatsUpdate", -1);
 	usermessages->Register("PlayerStatsUpdate", -1); //Processes stats update
 #endif // MOON
+#ifdef SBPP
+	usermessages->Register( "StartMessageMode", -1 );
+#endif
 
 #ifndef _X360
 	// NVNT register haptic user messages

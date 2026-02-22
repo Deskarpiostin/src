@@ -600,5 +600,6 @@ bool				UTIL_IsHolidayActive( /*EHoliday*/ int eHoliday );
 // holidays overlapping, the list order will act as priority.
 const char		   *UTIL_GetActiveHolidayString();
 
+const char *GetCleanMapName( const char *pszUnCleanMapName, char (&pszTmp)[256] );
 
 #endif // UTIL_SHARED_H

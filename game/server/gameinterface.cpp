@@ -115,6 +115,11 @@ extern ConVar tf_mm_servermode;
 #ifdef USES_ECON_ITEMS
 #include "econ_item_system.h"
 #endif // USES_ECON_ITEMS
+#ifdef LUA_SDK
+#include "luamanager.h"
+#include "luacachefile.h"
+#include "mountaddons.h"
+#endif
 
 #ifdef CSTRIKE_DLL // BOTPORT: TODO: move these ifdefs out
 #include "bot/bot.h"
@@ -633,6 +638,78 @@ bool CServerGameDLL::DLLInit( CreateInterfaceFn appSystemFactory,
 #endif
 	}
 
+#ifdef LUA_SDK
+	char pFullPath[MAX_PATH];
+	engine->GetGameDir(pFullPath, MAX_PATH);
+
+	DevMsg("full path: %s\n", pFullPath);
+
+    const char* relativeTargets[] = {
+        "hl2mp/hl2mp_english_dir.vpk",
+        "hl2mp/hl2mp_pak_dir.vpk",
+        "lostcoast/lostcoast_sound_vo_english_dir.vpk",
+        "lostcoast/lostcoast_pak_dir.vpk",
+        "cstrike/cstrike_pak_dir.vpk",
+        "dod/dod_pak_dir.vpk",
+        "hl1/hl1_pak_dir.vpk",
+        "episodic/ep1_pak_dir.vpk",
+        "ep2/ep2_pak_dir.vpk",
+        "garrysmod/garrysmod_dir.vpk",
+        "portal/portal_sound_vo_english_dir.vpk",
+        "portal/portal_pak_dir.vpk",
+        "cstrike/cstrike_english_dir.vpk",
+        "dod/dod_english_dir.vpk",
+        "hl1_hd/hl1_hd_pak_dir.vpk",
+        "hl1/hl1_sound_vo_english_dir.vpk",
+        "hl1/hl1_pak_dir.vpk",
+        "hl1mp/hl1mp_pak_dir.vpk",
+        "episodic/ep1_sound_vo_english_dir.vpk",
+        "ep2/ep2_sound_vo_english_dir.vpk",
+
+        "episodic",
+        "ep2",
+        "hl2mp",
+        "hl1",
+        "dod",
+        "portal",
+        "cstrike",
+        "garrysmod"
+    };
+
+    for (int i = 0; i < ARRAYSIZE(relativeTargets); ++i)
+    {
+        char candidate[MAX_PATH * 3];
+        Q_snprintf(candidate, sizeof(candidate), "%s/../%s", pFullPath, relativeTargets[i]);
+
+        // normalize
+        V_FixSlashes(candidate);
+
+        const char *lastSlash = Q_strrchr(candidate, '/');
+        const char *lastName = lastSlash ? lastSlash + 1 : candidate;
+        bool isDir = (candidate[Q_strlen(candidate) - 1] == '/') || (Q_strrchr(lastName, '.') == NULL);
+
+        if (isDir)
+            V_AppendSlash(candidate, sizeof(candidate));
+
+        if (g_pFullFileSystem->FileExists(candidate, "GAME"))
+        {
+			if (!isDir)
+			{
+				DevMsg("Mounting VPK: %s\n", candidate);
+				g_pFullFileSystem->AddSearchPath(candidate, "GAME", PATH_ADD_TO_TAIL);
+			}
+			else
+			{
+				DevMsg("Mounting directory: %s\n", candidate);
+				g_pFullFileSystem->AddSearchPath(candidate, "GAME", PATH_ADD_TO_TAIL);
+			}
+        }
+        else
+            DevMsg("Skipping missing: %s\n", candidate);
+    }
+
+	MountAddons();
+#endif
 	// Yes, both the client and game .dlls will try to Connect, the soundemittersystem.dll will handle this gracefully
 	if ( !soundemitterbase->Connect( appSystemFactory ) )
 		return false;
@@ -776,6 +853,9 @@ void CServerGameDLL::DLLShutdown( void )
 
 #ifdef CSTRIKE_DLL // BOTPORT: TODO: move these ifdefs out
 	RemoveBotControl();
+#endif
+#ifdef LUA_SDK
+	UnMountAddons();
 #endif
 
 #ifndef _XBOX
@@ -950,6 +1030,34 @@ bool CServerGameDLL::LevelInit( const char *pMapName, char const *pMapEntities, 
 		pItemSchema->BInitFromDelayedBuffer();
 	}
 #endif // USES_ECON_ITEMS
+#ifdef LUA_SDK
+	lcf_recursivedeletefile( LUA_PATH_CACHE );
+
+	// Add Lua environment
+	luasrc_init();
+
+	luasrc_dofolder( L, LUA_PATH_EXTENSIONS );
+	luasrc_dofolder( L, LUA_PATH_MODULES );
+	luasrc_dofolder( L, LUA_PATH_GAME_SHARED );
+	luasrc_dofolder( L, LUA_PATH_GAME_SERVER );
+	luasrc_dofolder( L, LUA_PATH_HANDMODELS );
+
+	luasrc_LoadWeapons();
+	luasrc_LoadEntities();
+	//luasrc_LoadEffects();
+
+	//Andrew; loadup base gamemode.
+	luasrc_LoadGamemode( LUA_BASE_GAMEMODE );
+
+	luasrc_LoadGamemode( gamemode.GetString() );
+	luasrc_SetGamemode( gamemode.GetString() );
+
+	if ( gpGlobals->maxClients > 1 )
+	{
+		// load LCF into stringtable
+		lcf_preparecachefile();
+	}
+#endif
 
 	ResetWindspeed();
 	UpdateChapterRestrictions( pMapName );
@@ -1055,6 +1163,16 @@ bool CServerGameDLL::LevelInit( const char *pMapName, char const *pMapEntities, 
 	// clear any pending autosavedangerous
 	m_fAutoSaveDangerousTime = 0.0f;
 	m_fAutoSaveDangerousMinHealthToCommit = 0.0f;
+#if defined ( LUA_SDK )
+	BEGIN_LUA_CALL_HOOK( "LevelInit" );
+		lua_pushstring( L, pMapName );
+		lua_pushstring( L, pMapEntities );
+		lua_pushstring( L, pOldLevel );
+		lua_pushstring( L, pLandmarkName );
+		lua_pushboolean( L, loadGame );
+		lua_pushboolean( L, background );
+	END_LUA_CALL_HOOK( 6, 0 );
+#endif
 	return true;
 }
 
@@ -1330,7 +1448,11 @@ void CServerGameDLL::Think( bool finalTick )
 	if ( m_fAutoSaveDangerousTime != 0.0f && m_fAutoSaveDangerousTime < gpGlobals->curtime )
 	{
 		// The safety timer for a dangerous auto save has expired
+#ifdef HL2SB
+		CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
+#else
 		CBasePlayer *pPlayer = UTIL_PlayerByIndex( 1 );
+#endif
 
 		if ( pPlayer && ( pPlayer->GetDeathTime() == 0.0f || pPlayer->GetDeathTime() > gpGlobals->curtime )
 			&& !pPlayer->IsSinglePlayerGameEnding()
@@ -1356,6 +1478,14 @@ void CServerGameDLL::OnQueryCvarValueFinished( QueryCvarCookie_t iCookie, edict_
 // Called when a level is shutdown (including changing levels)
 void CServerGameDLL::LevelShutdown( void )
 {
+#if defined ( LUA_SDK )
+	if (g_bLuaInitialized)
+	{
+		BEGIN_LUA_CALL_HOOK( "LevelShutdown" );
+		END_LUA_CALL_HOOK( 0, 0 );
+	}
+#endif
+
 #ifndef NO_STEAM
 	IGameSystem::LevelShutdownPreClearSteamAPIContextAllSystems();
 
@@ -1380,6 +1510,12 @@ void CServerGameDLL::LevelShutdown( void )
 	// In case we quit out during initial load
 	CBaseEntity::SetAllowPrecache( false );
 
+	// Josh: Uncache all the particle systems on level shutdown
+	// otherwise we leak them constantly on changelevel in the
+	// particle precache stringtable list.
+	g_pParticleSystemMgr->UncacheAllParticleSystems();
+	g_pParticleSystemMgr->RecreateDictionary();
+
 	g_nCurrentChapterIndex = -1;
 
 #ifndef _XBOX
@@ -1390,6 +1526,10 @@ void CServerGameDLL::LevelShutdown( void )
 		TheNavMesh->Reset();
 	}
 #endif
+#endif
+
+#if defined ( LUA_SDK )
+	luasrc_shutdown();
 #endif
 }
 
@@ -1816,6 +1956,16 @@ void CServerGameDLL::PreSaveGameLoaded( char const *pSaveName, bool bInGame )
 //-----------------------------------------------------------------------------
 bool CServerGameDLL::ShouldHideServer( void )
 {
+#if defined ( LUA_SDK )
+	if ( g_bLuaInitialized )
+	{
+		BEGIN_LUA_CALL_HOOK( "ShouldHideServer" );
+		END_LUA_CALL_HOOK( 0, 1 );
+
+		RETURN_LUA_BOOLEAN();
+	}
+#endif
+
 	if ( g_pcv_commentary && g_pcv_commentary->GetBool() )
 		return true;
 
@@ -2690,8 +2840,16 @@ void CServerGameClients::ClientActive( edict_t *pEdict, bool bLoadGame )
 
 	// Tell the sound controller to check looping sounds
 	CBasePlayer *pPlayer = ( CBasePlayer * )CBaseEntity::Instance( pEdict );
+#ifndef SBPP
 	CSoundEnvelopeController::GetController().CheckLoopingSoundsForPlayer( pPlayer );
 	SceneManager_ClientActive( pPlayer );
+#else
+	if( pPlayer )
+	{
+		CSoundEnvelopeController::GetController().CheckLoopingSoundsForPlayer( pPlayer );
+		SceneManager_ClientActive( pPlayer );
+	}
+#endif
 
 	#if defined( TF_DLL )
 		Assert( pPlayer );
@@ -3061,6 +3219,7 @@ void CServerGameClients::ClientSetupVisibility( edict_t *pViewEntity, edict_t *p
 // Output : float
 //-----------------------------------------------------------------------------
 #define CMD_MAXBACKUP 64
+static ConVar sv_max_usercmd_move_magnitude( "sv_max_usercmd_move_magnitude", "1000", 0, "Maximum move magnitude that can be requested by client." );
 
 float CServerGameClients::ProcessUsercmds( edict_t *player, bf_read *buf, int numcmds, int totalcmds,
 	int dropped_packets, bool ignore, bool paused )
@@ -3084,7 +3243,7 @@ float CServerGameClients::ProcessUsercmds( edict_t *player, bf_read *buf, int nu
 		pPlayer = static_cast< CBasePlayer * >( pEnt );
 	}
 	// Too many commands?
-	if ( totalcmds < 0 || totalcmds >= ( CMD_MAXBACKUP - 1 ) )
+	if ( totalcmds < 0 || totalcmds >= ( CMD_MAXBACKUP - 1 ) || numcmds < 0 || numcmds > totalcmds )
 	{
 		const char *name = "unknown";
 		if ( pPlayer )
@@ -3107,10 +3266,19 @@ float CServerGameClients::ProcessUsercmds( edict_t *player, bf_read *buf, int nu
 		to = &cmds[ i ];
 		ReadUsercmd( buf, to, from );
 		from = to;
+
+		if ( ( fabs( to->forwardmove ) > sv_max_usercmd_move_magnitude.GetFloat() ) ||
+			( fabs( to->sidemove ) > sv_max_usercmd_move_magnitude.GetFloat() ) ||
+			( fabs( to->upmove ) > sv_max_usercmd_move_magnitude.GetFloat() ) )
+		{
+			to->forwardmove = 0;
+			to->sidemove = 0;
+			to->upmove = 0;
+		}
 	}
 
 	// Client not fully connected or server has gone inactive  or is paused, just ignore
-	if ( ignore || !pPlayer )
+	if ( ignore || ( paused && !sv_noclipduringpause.GetBool() ) || !pPlayer )
 	{
 		return 0.0f;
 	}
@@ -3226,6 +3394,12 @@ void CServerGameClients::GetBugReportInfo( char *buf, int buflen )
 //-----------------------------------------------------------------------------
 void CServerGameClients::NetworkIDValidated( const char *pszUserName, const char *pszNetworkID )
 {
+#if defined ( LUA_SDK )
+	BEGIN_LUA_CALL_HOOK( "NetworkIDValidated" );
+		lua_pushstring( L, pszUserName );
+		lua_pushstring( L, pszNetworkID );
+	END_LUA_CALL_HOOK( 2, 0 );
+#endif
 }
 
 // The client has submitted a keyvalues command

@@ -371,8 +371,13 @@ void CPropVehiclePrisonerPod::InputOpen( inputdata_t &inputdata )
 void CPropVehiclePrisonerPod::InputClose( inputdata_t &inputdata )
 {
 	// The enter anim closes the pod, so don't do this redundantly!
+#ifdef SBPP
+	if ( m_bEnterAnimOn )
+		return;
+#else
 	if ( m_bLocked || m_bEnterAnimOn )
 		return;
+#endif
 
 	int nSequence = LookupSequence( "close" );
 
@@ -407,7 +412,11 @@ void CPropVehiclePrisonerPod::HandleAnimEvent( animevent_t *pEvent )
 	else if ( pEvent->event == AE_POD_CLOSE )
 	{
 		m_OnClose.FireOutput( this, this );
+#ifdef SBPP
+		m_bLocked = false;
+#else
 		m_bLocked = true;
+#endif
 	}
 }
 
@@ -570,7 +579,11 @@ CBaseEntity *CPropVehiclePrisonerPod::GetDriver( void )
 //-----------------------------------------------------------------------------
 void CPropVehiclePrisonerPod::InputLock( inputdata_t &inputdata )
 {
+#ifndef SBPP
+	m_bLocked = false;
+#else
 	m_bLocked = true;
+#endif
 }
 
 

@@ -51,8 +51,8 @@ $Configuration
 	$Compiler
 	{
 		$AdditionalIncludeDirectories	".\;$BASE;$SRCDIR\vgui2\include;$SRCDIR\vgui2\controls;$SRCDIR\game\shared;.\game_controls;$SRCDIR\thirdparty\sixensesdk\include"
-		$PreprocessorDefinitions		"$BASE;NO_STRING_T;CLIENT_DLL;VECTOR;VERSION_SAFE_STEAM_API_INTERFACES;PROTECTED_THINGS_ENABLE;strncpy=use_Q_strncpy_instead;_snprintf=use_Q_snprintf_instead" 
-		$PreprocessorDefinitions		"$BASE;ENABLE_CHROMEHTMLWINDOW;fopen=dont_use_fopen" [$WIN32]
+		$PreprocessorDefinitions		"$BASE;NO_STRING_T;CLIENT_DLL;VECTOR;VERSION_SAFE_STEAM_API_INTERFACES;PROTECTED_THINGS_ENABLE"
+		$PreprocessorDefinitions		"$BASE;ENABLE_CHROMEHTMLWINDOW;" [$WIN32]
 		$PreprocessorDefinitions		"$BASE;ENABLE_CHROMEHTMLWINDOW;" [$OSXALL]
 		$PreprocessorDefinitions		"$BASE;ENABLE_CHROMEHTMLWINDOW;USE_WEBM_FOR_REPLAY;" [$LINUXALL]
 		$PreprocessorDefinitions		"$BASE;CURL_STATICLIB" [$WIN32 && $BUILD_REPLAY]
@@ -230,6 +230,8 @@ $Project
 		$File	"c_fire_smoke.cpp"
 		$File	"c_fish.cpp"
 		$File	"c_func_areaportalwindow.cpp"
+		$File	"worldlight.cpp"
+		$File	"worldlight.h"
 		$File	"c_func_breakablesurf.cpp"
 		$File	"c_func_conveyor.cpp"
 		$File	"c_func_dust.cpp"
@@ -498,7 +500,6 @@ $Project
 		$File	"$SRCDIR\public\haptics\haptic_utils.cpp"	[$WIN32&&!$X360]
 
 		$File	"$SRCDIR\game\client\touch.cpp"
-		$File	"worldlight.cpp"
 
 		$Folder	"Sixense"
 		{

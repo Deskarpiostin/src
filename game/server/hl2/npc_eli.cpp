@@ -114,7 +114,11 @@ void CNPC_Eli::Spawn()
 
 	AddEFlags( EFL_NO_DISSOLVE | EFL_NO_MEGAPHYSCANNON_RAGDOLL | EFL_NO_PHYSCANNON_INTERACTION );
 	SetBloodColor( BLOOD_COLOR_RED );
+#ifdef SBPP
+	m_iHealth			= 60;
+#else
 	m_iHealth			= 8;
+#endif
 	m_flFieldOfView		= 0.5;// indicates the width of this NPC's forward view cone ( as a dotproduct result )
 	m_NPCState			= NPC_STATE_NONE;
 

@@ -1572,6 +1572,9 @@ void CPropAirboat::FireGun( )
 	Vector	vecGunPosition;
 	Vector vecForward;
 	GetAttachment( m_nGunBarrelAttachment, vecGunPosition, &vecForward );
+#ifdef HL2SB
+	CDisablePredictionFiltering disabler;
+#endif
 	
 	// NOTE: For the airboat, unable to fire really means the aim is clamped
 	Vector vecAimPoint;
@@ -1639,6 +1642,15 @@ void CPropAirboat::FireGun( )
 
 	DoMuzzleFlash();
 
+#ifdef SBPP
+	Vector endPos = vecGunPosition + (vecRay * MAX_TRACE_LENGTH);
+
+	//Shoot a shot straight out
+	trace_t	tr;
+	UTIL_TraceLine(vecGunPosition, endPos, MASK_SHOT, this, COLLISION_GROUP_NONE, &tr);
+
+	DoImpactEffect(tr, 0);
+#endif
 	// NOTE: This must occur after FireBullets
 	if ( gpGlobals->curtime >= m_flNextHeavyShotTime )
 	{

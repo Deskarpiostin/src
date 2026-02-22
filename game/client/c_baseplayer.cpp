@@ -49,6 +49,9 @@
 #include "steam/steam_api.h"
 #include "sourcevr/isourcevirtualreality.h"
 #include "client_virtualreality.h"
+#ifdef SBPP
+#include "viewrender.h"
+#endif
 
 #if defined USES_ECON_ITEMS
 #include "econ_wearable.h"
@@ -89,7 +92,7 @@ static C_BasePlayer *s_pLocalPlayer = NULL;
 
 static ConVar	cl_customsounds ( "cl_customsounds", "1", 0, "Enable customized player sound playback" );
 static ConVar	spec_track		( "spec_track", "0", 0, "Tracks an entity in spec mode" );
-static ConVar	cl_smooth		( "cl_smooth", "1", 0, "Smooth view/eye origin after prediction errors" );
+static ConVar	cl_smooth		( "cl_smooth", "0", 0, "Smooth view/eye origin after prediction errors" );
 static ConVar	cl_smoothtime	( 
 	"cl_smoothtime", 
 	"0.1", 
@@ -242,6 +245,16 @@ END_RECV_TABLE()
 
 		RecvPropFloat		( RECVINFO( m_flDeathTime )),
 
+#ifdef ARGG
+		// adnan
+		// get the use angles
+		RecvPropVector		( RECVINFO( m_vecUseAngles ) ),
+		// end adnan
+#endif
+#ifdef SBPP
+		RecvPropBool		( RECVINFO( m_bDrawPlayerModelExternally ) ),
+#endif
+
 		RecvPropInt			( RECVINFO( m_nWaterLevel ) ),
 		RecvPropFloat		( RECVINFO( m_flLaggedMovementValue )),
 
@@ -285,6 +298,12 @@ END_RECV_TABLE()
 		RecvPropFloat	(RECVINFO(m_flMaxspeed)),
 		RecvPropInt		(RECVINFO(m_fFlags)),
 
+#ifdef ARGG
+		// adnan
+		// get the use angles
+		RecvPropVector		( RECVINFO( m_vecUseAngles ) ),
+		// end adnan
+#endif // ARGG
 
 		RecvPropInt		(RECVINFO(m_iObserverMode), 0, RecvProxy_ObserverMode ),
 		RecvPropEHandle	(RECVINFO(m_hObserverTarget), RecvProxy_ObserverTarget ),
@@ -514,12 +533,12 @@ bool C_BasePlayer::IsReplay() const
 CBaseEntity	*C_BasePlayer::GetObserverTarget() const	// returns players target or NULL
 {
 #ifndef _XBOX
-	if ( IsHLTV() )
+	if ( IsHLTV() && HLTVCamera() )
 	{
 		return HLTVCamera()->GetPrimaryTarget();
 	}
 #if defined( REPLAY_ENABLED )
-	if ( IsReplay() )
+	if ( IsReplay() && ReplayCamera() )
 	{
 		return ReplayCamera()->GetPrimaryTarget();
 	}
@@ -614,12 +633,12 @@ void C_BasePlayer::SetObserverMode ( int iNewMode )
 int C_BasePlayer::GetObserverMode() const 
 { 
 #ifndef _XBOX
-	if ( IsHLTV() )
+	if ( IsHLTV() && HLTVCamera() )
 	{
 		return HLTVCamera()->GetMode();
 	}
 #if defined( REPLAY_ENABLED )
-	if ( IsReplay() )
+	if ( IsReplay() && ReplayCamera() )
 	{
 		return ReplayCamera()->GetMode();
 	}
@@ -691,15 +710,29 @@ surfacedata_t* C_BasePlayer::GetGroundSurface()
 	VectorCopy( start, end );
 
 	// Straight down
+#ifdef SBPP
+	start.z += 1;
+#endif
 	end.z -= 64;
 
 	// Fill in default values, just in case.
 	
 	Ray_t ray;
+#ifdef SBPP
+	Vector mins = GetPlayerMins();
+	Vector maxs = GetPlayerMaxs();
+	maxs.z = mins.z + 1;
+	ray.Init( start, end, mins, maxs);
+#else
 	ray.Init( start, end, GetPlayerMins(), GetPlayerMaxs() );
+#endif
 
 	trace_t	trace;
+#ifdef SBPP
+	UTIL_TraceRay( ray, MASK_PLAYERSOLID, this, COLLISION_GROUP_PLAYER_MOVEMENT, &trace );
+#else
 	UTIL_TraceRay( ray, MASK_PLAYERSOLID_BRUSHONLY, this, COLLISION_GROUP_PLAYER_MOVEMENT, &trace );
+#endif
 
 	if ( trace.fraction == 1.0f )
 		return NULL;	// no ground
@@ -1367,6 +1400,23 @@ void C_BasePlayer::CreateWaterEffects( void )
 //-----------------------------------------------------------------------------
 void C_BasePlayer::OverrideView( CViewSetup *pSetup )
 {
+#ifdef ARGG
+	// adnan
+	// OVERRIDING THE VIEW
+	// need to override the angles too
+	C_BaseCombatWeapon *pWeapon = GetActiveWeapon();
+	if ( pWeapon )
+	{
+		// adnan
+		if(pWeapon->OverrideViewAngles()) {
+			// use the useAngles!
+				// override with the angles the server sends to us as useAngles
+				// use the useAngles only if we're holding and rotating with the grav gun
+			pSetup->angles = m_vecUseAngles;
+		}
+	}
+	// end adnan
+#endif
 }
 
 bool C_BasePlayer::ShouldInterpolate()
@@ -1382,14 +1432,51 @@ bool C_BasePlayer::ShouldInterpolate()
 	return BaseClass::ShouldInterpolate();
 }
 
+#ifdef SBPP
+bool C_BasePlayer::InPerspectiveView() const
+{
+	// VIEW_NONE is used by the water intersection view, see CAboveWaterView::CIntersectionView::Draw()
+	// (TODO: Consider changing the view ID at the source to VIEW_REFRACTION? VIEW_NONE could be an oversight)
+	view_id_t viewID = CurrentViewID();
+	return (viewID == VIEW_MAIN || viewID == VIEW_INTRO_CAMERA || viewID == VIEW_REFRACTION || viewID == VIEW_NONE);
+}
+#endif
 
 bool C_BasePlayer::ShouldDraw()
 {
+#ifdef SBPP
+	// We have to "always draw" a player with m_bDrawPlayerModelExternally in order to show up in whatever rendering list all of the views use, 
+	// but we can't put this in ShouldDrawThisPlayer() because we would have no way of knowing if it stomps the other checks that draw the player model anyway.
+	// As a result, we have to put it here in the central ShouldDraw() function. DrawModel() makes sure we only draw in non-main views and nothing's drawing the model anyway.
+	return (ShouldDrawThisPlayer() || DrawingPlayerModelExternally() || DrawingLegs()) && BaseClass::ShouldDraw();
+#else
 	return ShouldDrawThisPlayer() && BaseClass::ShouldDraw();
+#endif
 }
 
 int C_BasePlayer::DrawModel( int flags )
 {
+#ifdef SBPP
+	if (DrawingLegs() && InFirstPersonView() && InPerspectiveView())
+	{
+		return BaseClass::DrawModel( flags );
+	}
+
+	if (DrawingPlayerModelExternally())
+	{
+		// Draw the player in any view except the main or "intro" view, both of which are default first-person views.
+		// HACKHACK: Also don't draw in shadow depth textures if the player's flashlight is on, as that causes the playermodel to block it.
+		if (InPerspectiveView() || (CurrentViewID() == VIEW_SHADOW_DEPTH_TEXTURE && IsEffectActive(EF_DIMLIGHT)))
+		{
+			// Make sure the player model wouldn't draw anyway...
+			if (!ShouldDrawThisPlayer())
+				return 0;
+		}
+
+		return BaseClass::DrawModel( flags );
+	}
+#endif
+
 #ifndef PORTAL
 	// In Portal this check is already performed as part of
 	// C_Portal_Player::DrawModel()
@@ -1854,6 +1941,14 @@ void C_BasePlayer::ThirdPersonSwitch( bool bThirdperson )
 				}
 			}
 		}
+#ifdef SBPP
+		//Notify weapon.
+		CBaseCombatWeapon *pWeapon = GetActiveWeapon();
+		if ( pWeapon )
+		{
+			pWeapon->ThirdPersonSwitch( bThirdperson );
+		}
+#endif
 	}
 }
 
@@ -2866,13 +2961,21 @@ void C_BasePlayer::BuildFirstPersonMeathookTransformations( CStudioHdr *hdr, Vec
 		return;
 	}
 
+#ifdef SBPP
+	if ( !ShouldDrawThisPlayer() && !DrawingPlayerModelExternally() && !DrawingLegs() )
+#else
 	if ( !DrawingMainView() )
+#endif
 	{
 		return;
 	}
 
 	// If we aren't drawing the player anyway, don't mess with the bones. This can happen in Portal.
+#ifdef SBPP
+	if ( !ShouldDrawThisPlayer() && !DrawingPlayerModelExternally() && !DrawingLegs() )
+#else
 	if( !ShouldDrawThisPlayer() )
+#endif
 	{
 		return;
 	}

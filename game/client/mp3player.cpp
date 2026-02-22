@@ -6,9 +6,9 @@
 
 #include "cbase.h"
 
-#if 0
+#if 1
 #include "mp3player.h"
-#include "KeyValues.h"
+#include "tier1/KeyValues.h"
 #include "filesystem.h"
 
 #include "vgui_controls/MenuButton.h"
@@ -41,8 +41,6 @@ using namespace vgui;
 // Singleton
 static CMP3Player *g_pPlayer = NULL;
 
-vgui::Panel *GetSDKRootPanel();
-
 // Time between songs
 #define END_GAP_TIME	1.0f
 
@@ -56,7 +54,7 @@ vgui::Panel *GetSDKRootPanel();
 #define DB_FILENAME			"resource/mp3player_db.txt"
 #define MP3_SETTINGS_FILE	"resource/mp3settings.txt"
 
-#define MP3_DEFAULT_MP3DIR "c:\\my music"
+#define MP3_DEFAULT_MP3DIR  "sound/music"
 
 CMP3Player *GetMP3Player()
 {
@@ -1314,12 +1312,6 @@ void CMP3Player::PopulateTree()
 	PopulateLists();
 }
 
-// Instead of including windows.h
-extern "C"
-{
-	extern int __stdcall CopyFileA( char *pszSource, char *pszDest, int bFailIfExists );
-};
-
 void CMP3Player::GetLocalCopyOfSong( const MP3File_t &mp3, char *outsong, size_t outlen )
 {
 	outsong[ 0 ] = 0;
@@ -1371,14 +1363,6 @@ void CMP3Player::GetLocalCopyOfSong( const MP3File_t &mp3, char *outsong, size_t
 		SoundDirectory_t *sdir = m_SoundDirectories[ mp3.dirnum ];
 		Q_snprintf( sourcepath, sizeof( sourcepath ), "%s/%s", sdir->m_Root.String(), fn );
 		Q_FixSlashes( sourcepath );
-
-		// !!!HACK HACK:
-		// Total hack right now, using windows OS calls to copy file to full destination
-		int success = ::CopyFileA( sourcepath, destpath, TRUE );
-		if ( success > 0 )
-		{
-			Q_snprintf( outsong, outlen, "_mp3/%s.mp3", hexname );
-		}
 	}
 
 	Q_FixSlashes( outsong );

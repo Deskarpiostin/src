@@ -77,6 +77,12 @@ public:
 	virtual bool	ShouldDrawEntity(C_BaseEntity *pEnt) = 0;
 	virtual bool	ShouldDrawLocalPlayer( C_BasePlayer *pPlayer ) = 0;
 	virtual bool	ShouldDrawParticles( ) = 0;
+#ifdef ARGG
+	// adnan
+	// does this weapon need to override the view angles?
+	virtual bool	OverrideViewAngles( void ) = 0;
+	// end adnan
+#endif // AS_DLL
 
 	// The mode can choose to not draw fog
 	virtual bool	ShouldDrawFog( void ) = 0;

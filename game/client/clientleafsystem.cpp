@@ -189,32 +189,32 @@ private:
 	void RemoveShadowFromLeaves( ClientLeafShadowHandle_t handle );
 
 	// Methods associated with the various bi-directional sets
-	static unsigned short& FirstRenderableInLeaf( int leaf ) 
+	static unsigned int& FirstRenderableInLeaf( int leaf ) 
 	{ 
 		return s_ClientLeafSystem.m_Leaf[leaf].m_FirstElement;
 	}
 
-	static unsigned short& FirstLeafInRenderable( unsigned short renderable ) 
+	static unsigned int& FirstLeafInRenderable( unsigned int renderable ) 
 	{ 
 		return s_ClientLeafSystem.m_Renderables[renderable].m_LeafList;
 	}
 
-	static unsigned short& FirstShadowInLeaf( int leaf ) 
+	static unsigned int& FirstShadowInLeaf( int leaf ) 
 	{ 
 		return s_ClientLeafSystem.m_Leaf[leaf].m_FirstShadow;
 	}
 
-	static unsigned short& FirstLeafInShadow( ClientLeafShadowHandle_t shadow ) 
+	static unsigned int& FirstLeafInShadow( ClientLeafShadowHandle_t shadow ) 
 	{ 
 		return s_ClientLeafSystem.m_Shadows[shadow].m_FirstLeaf;
 	}
 
-	static unsigned short& FirstShadowOnRenderable( unsigned short renderable ) 
+	static unsigned int& FirstShadowOnRenderable( unsigned int renderable ) 
 	{ 
 		return s_ClientLeafSystem.m_Renderables[renderable].m_FirstShadow;
 	}
 
-	static unsigned short& FirstRenderableInShadow( ClientLeafShadowHandle_t shadow ) 
+	static unsigned int& FirstRenderableInShadow( ClientLeafShadowHandle_t shadow ) 
 	{ 
 		return s_ClientLeafSystem.m_Shadows[shadow].m_FirstRenderable;
 	}
@@ -248,11 +248,11 @@ private:
 		int					m_RenderFrame2;
 		int					m_EnumCount;	// Have I been added to a particular shadow yet?
 		int					m_TranslucencyCalculated;
-		unsigned short		m_LeafList;		// What leafs is it in?
-		unsigned short		m_RenderLeaf;	// What leaf do I render in?
+		unsigned int		m_LeafList;		// What leafs is it in?
+		unsigned int		m_RenderLeaf;	// What leaf do I render in?
 		unsigned char		m_Flags;		// rendering flags
 		unsigned char		m_RenderGroup;	// RenderGroup_t type
-		unsigned short		m_FirstShadow;	// The first shadow caster that cast on it
+		unsigned int		m_FirstShadow;	// The first shadow caster that cast on it
 		short m_Area;	// -1 if the renderable spans multiple areas.
 		signed char			m_TranslucencyCalculatedView;
 	};
@@ -260,11 +260,11 @@ private:
 	// The leaf contains an index into a list of renderables
 	struct ClientLeaf_t
 	{
-		unsigned short	m_FirstElement;
-		unsigned short	m_FirstShadow;
+		unsigned int	m_FirstElement;
+		unsigned int	m_FirstShadow;
 
-		unsigned short	m_FirstDetailProp;
-		unsigned short	m_DetailPropCount;
+		unsigned int	m_FirstDetailProp;
+		unsigned int	m_DetailPropCount;
 		int				m_DetailPropRenderFrame;
 		CClientLeafSubSystemData *m_pSubSystemData[N_CLSUBSYSTEMS];
 
@@ -273,11 +273,11 @@ private:
 	// Shadow information
 	struct ShadowInfo_t
 	{
-		unsigned short	m_FirstLeaf;
-		unsigned short	m_FirstRenderable;
+		unsigned int	m_FirstLeaf;
+		unsigned int	m_FirstRenderable;
 		int				m_EnumCount;
 		ClientShadowHandle_t	m_Shadow;
-		unsigned short	m_Flags;
+		unsigned int	m_Flags;
 	};
 
 	struct EnumResult_t
@@ -302,13 +302,13 @@ private:
 	CUtlLinkedList< ShadowInfo_t, ClientLeafShadowHandle_t, false, unsigned int >	m_Shadows;
 
 	// Maintains the list of all renderables in a particular leaf
-	CBidirectionalSet< int, ClientRenderHandle_t, unsigned short, unsigned int >	m_RenderablesInLeaf;
+	CBidirectionalSet< int, ClientRenderHandle_t, unsigned int, unsigned int >	m_RenderablesInLeaf;
 
 	// Maintains a list of all shadows in a particular leaf 
-	CBidirectionalSet< int, ClientLeafShadowHandle_t, unsigned short, unsigned int >	m_ShadowsInLeaf;
+	CBidirectionalSet< int, ClientLeafShadowHandle_t, unsigned int, unsigned int >	m_ShadowsInLeaf;
 
 	// Maintains a list of all shadows cast on a particular renderable
-	CBidirectionalSet< ClientRenderHandle_t, ClientLeafShadowHandle_t, unsigned short, unsigned int >	m_ShadowsOnRenderable;
+	CBidirectionalSet< ClientRenderHandle_t, ClientLeafShadowHandle_t, unsigned int, unsigned int >	m_ShadowsOnRenderable;
 
 	// Dirty list of renderables
 	CUtlVector< ClientRenderHandle_t >	m_DirtyRenderables;
@@ -986,7 +986,7 @@ void CClientLeafSystem::AddShadowToLeaf( int leaf, ClientLeafShadowHandle_t shad
 	m_ShadowsInLeaf.AddElementToBucket( leaf, shadow ); 
 
 	// Add the shadow exactly once to all renderables in the leaf
-	unsigned short i = m_RenderablesInLeaf.FirstElement( leaf );
+	unsigned int i = m_RenderablesInLeaf.FirstElement( leaf );
 	while ( i != m_RenderablesInLeaf.InvalidIndex() )
 	{
 		ClientRenderHandle_t renderable = m_RenderablesInLeaf.Element(i);
@@ -1066,7 +1066,7 @@ void CClientLeafSystem::EnumerateShadowsInLeaves( int leafCount, LeafIndex_t* pL
 	{
 		int leaf = pLeaves[i];
 
-		unsigned short j = m_ShadowsInLeaf.FirstElement( leaf );
+		unsigned int j = m_ShadowsInLeaf.FirstElement( leaf );
 		while ( j != m_ShadowsInLeaf.InvalidIndex() )
 		{
 			ClientLeafShadowHandle_t shadow = m_ShadowsInLeaf.Element(j);
@@ -1098,7 +1098,7 @@ void CClientLeafSystem::AddRenderableToLeaf( int leaf, ClientRenderHandle_t rend
 		return;
 
 	// Add all shadows in the leaf to the renderable...
-	unsigned short i = m_ShadowsInLeaf.FirstElement( leaf );
+	unsigned int i = m_ShadowsInLeaf.FirstElement( leaf );
 	while (i != m_ShadowsInLeaf.InvalidIndex() )
 	{
 		ClientLeafShadowHandle_t shadow = m_ShadowsInLeaf.Element(i);
@@ -1344,7 +1344,7 @@ void CClientLeafSystem::ComputeTranslucentRenderLeaf( int count, const LeafIndex
 		orderedList.AddToTail( LeafToMarker( leaf ) );
 
 		// iterate over all elements in this leaf
-		unsigned short idx = m_RenderablesInLeaf.FirstElement(leaf);
+		unsigned int idx = m_RenderablesInLeaf.FirstElement(leaf);
 		while (idx != m_RenderablesInLeaf.InvalidIndex())
 		{
 			RenderableInfo_t& info = m_Renderables[m_RenderablesInLeaf.Element(idx)];
@@ -1512,7 +1512,7 @@ void CClientLeafSystem::CollateRenderablesInLeaf( int leaf, int worldListLeafInd
 	AddRenderableToRenderList( *info.m_pRenderList, NULL, worldListLeafIndex, RENDER_GROUP_OPAQUE_ENTITY, NULL );
 
 	// Collate everything.
-	unsigned short idx = m_RenderablesInLeaf.FirstElement(leaf);
+	unsigned int idx = m_RenderablesInLeaf.FirstElement(leaf);
 	for ( ;idx != m_RenderablesInLeaf.InvalidIndex(); idx = m_RenderablesInLeaf.NextElement(idx) )
 	{
 		ClientRenderHandle_t handle = m_RenderablesInLeaf.Element(idx);

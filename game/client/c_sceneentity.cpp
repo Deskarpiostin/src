@@ -204,11 +204,11 @@ void C_SceneEntity::SetupClientOnlyScene( const char *pszFilename, C_BaseFlex *p
 	m_hOwner = pOwner;
 	m_bClientOnly = true;
 
-	char szFilename[128];
-	Assert( V_strlen( pszFilename ) < 128 );
+	char szFilename[MAX_PATH];
+	Assert( V_strlen( pszFilename ) < MAX_PATH );
 	V_strcpy( szFilename, pszFilename );
 
-	char szSceneHWM[128];
+	char szSceneHWM[MAX_PATH];
 	if ( GetHWMorphSceneFileName( szFilename, szSceneHWM ) )
 	{
 		V_strcpy( szFilename, szSceneHWM );
@@ -804,6 +804,54 @@ CChoreoStringPool g_ChoreoStringPool;
 
 CChoreoScene *C_SceneEntity::LoadScene( const char *filename )
 {
+#ifdef SBPP
+	char loadfile[MAX_PATH];
+	Q_strncpy( loadfile, filename, sizeof( loadfile ) );
+	Q_SetExtension( loadfile, ".vcd", sizeof( loadfile ) );
+	Q_FixSlashes( loadfile );
+
+	void *pBuffer = 0;
+	CChoreoScene *pScene;
+
+	int fileSize = filesystem->ReadFileEx( loadfile, "GAME", &pBuffer, true );
+	if (fileSize)
+	{
+		g_TokenProcessor.SetBuffer((char*)pBuffer);
+		pScene = ChoreoLoadScene( loadfile, this, &g_TokenProcessor, Scene_Printf );
+	}
+	else
+	{
+		fileSize = scenefilecache->GetSceneBufferSize( loadfile );
+		if ( fileSize <= 0 )
+			return NULL;
+
+		pBuffer = new char[ fileSize ];
+		if ( !scenefilecache->GetSceneData( filename, (byte *)pBuffer, fileSize ) )
+		{
+			delete[] pBuffer;
+			return NULL;
+		}
+
+	
+		if ( IsBufferBinaryVCD( (char*)pBuffer, fileSize ) )
+		{
+			pScene = new CChoreoScene( this );
+			CUtlBuffer buf( pBuffer, fileSize, CUtlBuffer::READ_ONLY );
+			if ( !pScene->RestoreFromBinaryBuffer( buf, loadfile, &g_ChoreoStringPool ) )
+			{
+				Warning( "Unable to restore scene '%s'\n", loadfile );
+				delete pScene;
+				pScene = NULL;
+			}
+		}
+	}
+
+	if(pScene)
+	{
+		pScene->SetPrintFunc( Scene_Printf );
+		pScene->SetEventCallbackInterface( this );
+	}
+#else
 	char loadfile[ 512 ];
 	Q_strncpy( loadfile, filename, sizeof( loadfile ) );
 	Q_SetExtension( loadfile, ".vcd", sizeof( loadfile ) );
@@ -843,6 +891,7 @@ CChoreoScene *C_SceneEntity::LoadScene( const char *filename )
 		g_TokenProcessor.SetBuffer( pBuffer );
 		pScene = ChoreoLoadScene( loadfile, this, &g_TokenProcessor, Scene_Printf );
 	}
+#endif
 
 	delete[] pBuffer;
 	return pScene;

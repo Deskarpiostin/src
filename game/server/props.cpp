@@ -79,7 +79,7 @@ ConVar func_breakdmg_explosive( "func_breakdmg_explosive", "1.25" );
 
 ConVar sv_turbophysics( "sv_turbophysics", "0", FCVAR_REPLICATED, "Turns on turbo physics" );
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	#define PROP_FLARE_LIFETIME 30.0f
 	#define PROP_FLARE_IGNITE_SUBSTRACT 5.0f
 	CBaseEntity *CreateFlare( Vector vOrigin, QAngle Angles, CBaseEntity *pOwner, float flDuration );
@@ -204,9 +204,26 @@ void CBaseProp::Spawn( void )
 			// If we don't have data, but we're a prop_physics, fail
 			if ( FClassnameIs( this, "prop_physics" ) )
 			{
+#ifdef SBPP
+				CBaseEntity *pEntity = CreateEntityByName( "prop_physics_override" );
+				if ( pEntity )
+				{
+					pEntity->SetAbsOrigin( GetAbsOrigin() );
+					pEntity->PrecacheModel( szModel );
+					pEntity->SetModel( szModel );
+					DispatchSpawn( pEntity );
+					pEntity->Activate();
+				}
+
+				DevWarning( "%s at %.0f %.0f %0.f uses model %s, which has no propdata which means it must be used on a prop_static. I make prop_physics_override variant for you :').\n", GetClassname(), GetAbsOrigin().x, GetAbsOrigin().y, GetAbsOrigin().z, szModel );
+				Msg( "Removed prop_physics and spawned prop_physics_override" );
+				UTIL_Remove( this );
+				return;
+#else					
 				DevWarning( "%s at %.0f %.0f %0.f uses model %s, which has no propdata which means it must be used on a prop_static. DELETED.\n", GetClassname(), GetAbsOrigin().x, GetAbsOrigin().y, GetAbsOrigin().z, szModel );
 				UTIL_Remove( this );
 				return;
+#endif
 			}
 		}
 		else if ( iResult == PARSE_SUCCEEDED )
@@ -246,7 +263,7 @@ void CBaseProp::Precache( void )
 	PrecacheScriptSound( "Metal.SawbladeStick" );
 	PrecacheScriptSound( "PropaneTank.Burst" );
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	UTIL_PrecacheOther( "env_flare" );
 #endif
 
@@ -1008,7 +1025,7 @@ void CBreakableProp::BreakablePropTouch( CBaseEntity *pOther )
 		}
 	}
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	if ( m_hFlareEnt )
 	{
 		CAI_BaseNPC *pNPC = pOther->MyNPCPointer();
@@ -1463,7 +1480,7 @@ void CBreakableProp::OnPhysGunPickup( CBasePlayer *pPhysGunUser, PhysGunPickup_t
 	m_bOriginalBlockLOS = BlocksLOS();
 	SetBlocksLOS( false );
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	if ( HasInteraction( PROPINTER_PHYSGUN_CREATE_FLARE ) )
 	{
 		CreateFlare( PROP_FLARE_LIFETIME );
@@ -1472,7 +1489,7 @@ void CBreakableProp::OnPhysGunPickup( CBasePlayer *pPhysGunUser, PhysGunPickup_t
 }
 
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 //-----------------------------------------------------------------------------
 // Purpose: Create a flare at the attachment point
 //-----------------------------------------------------------------------------
@@ -1506,7 +1523,7 @@ void CBreakableProp::CreateFlare( float flLifetime )
 		AddEffects( EF_NOSHADOW );
 	}
 }
-#endif // HL2_EPISODIC
+#endif // HL2SB
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -5427,6 +5444,40 @@ void CPropDoorRotating::InputSetRotationDistance( inputdata_t &inputdata )
 	CalculateDoorVolume( GetLocalAngles(), m_angRotationOpenBack, &m_vecBackBoundsMin, &m_vecBackBoundsMax );
 }
 
+#ifdef SBPP
+class CPhysSphere : public CPhysicsProp
+{
+	DECLARE_CLASS( CPhysSphere, CPhysicsProp );
+	DECLARE_DATADESC();
+public:
+
+	float m_fRadius;
+
+	bool CreateVPhysics()
+	{
+		SetSolid( SOLID_BBOX );
+		SetCollisionBounds( -Vector(m_fRadius), Vector(m_fRadius) );
+		objectparams_t params = g_PhysDefaultObjectParams;
+		params.pGameData = static_cast<void *>(this);
+		IPhysicsObject *pPhysicsObject = physenv->CreateSphereObject( m_fRadius, GetModelPtr()->GetRenderHdr()->textureindex, GetAbsOrigin(), GetAbsAngles(), &params, false );
+
+		if ( pPhysicsObject )
+		{
+			VPhysicsSetObject( pPhysicsObject );
+			SetMoveType( MOVETYPE_VPHYSICS );
+			pPhysicsObject->Wake();
+		}
+	
+		return true;
+	}
+};
+
+LINK_ENTITY_TO_CLASS( prop_sphere, CPhysSphere );
+
+BEGIN_DATADESC( CPhysSphere )
+	DEFINE_KEYFIELD( m_fRadius, FIELD_FLOAT, "radius"),
+END_DATADESC()
+#else
 // Debug sphere
 class CPhysSphere : public CPhysicsProp
 {
@@ -5450,6 +5501,7 @@ public:
 		return true;
 	}
 };
+#endif
 
 void CPropDoorRotating::InputSetSpeed(inputdata_t &inputdata)
 {
@@ -5457,9 +5509,11 @@ void CPropDoorRotating::InputSetSpeed(inputdata_t &inputdata)
 	m_flSpeed = inputdata.value.Float();
 	DoorResume();
 }
+#ifndef SBPP
 
 LINK_ENTITY_TO_CLASS( prop_sphere, CPhysSphere );
 
+#endif
 
 // ------------------------------------------------------------------------------------------ //
 // Special version of func_physbox.
@@ -5864,9 +5918,7 @@ void CC_Prop_Dynamic_Create( const CCommand &args )
 	CBaseEntity::SetAllowPrecache( bAllowPrecache );
 }
 
-static ConCommand prop_dynamic_create("prop_dynamic_create", CC_Prop_Dynamic_Create, "Creates a dynamic prop with a specific .mdl aimed away from where the player is looking.\n\tArguments: {.mdl name}", FCVAR_CHEAT);
-
-
+static ConCommand prop_dynamic_create("prop_dynamic_create", CC_Prop_Dynamic_Create, "Creates a dynamic prop with a specific .mdl aimed away from where the player is looking.\n\tArguments: {.mdl name}", FCVAR_NONE);
 
 //------------------------------------------------------------------------------
 // Purpose: Create a prop of the given type
@@ -5885,11 +5937,89 @@ void CC_Prop_Physics_Create( const CCommand &args )
 	Vector forward;
 	pPlayer->EyeVectors( &forward );
 
+#ifdef SBPP
+	CreatePhysicsProp( pModelName, pPlayer->EyePosition(), pPlayer->EyePosition() + forward * MAX_TRACE_LENGTH, pPlayer, true, "physics_prop" );
+#else
 	CreatePhysicsProp( pModelName, pPlayer->EyePosition(), pPlayer->EyePosition() + forward * MAX_TRACE_LENGTH, pPlayer, true );
+#endif
 }
 
+#ifdef SBPP
+static ConCommand prop_physics_create("prop_physics_create", CC_Prop_Physics_Create, "Creates a physics prop with a specific .mdl aimed away from where the player is looking.\n\tArguments: {.mdl name}");
+#else
 static ConCommand prop_physics_create("prop_physics_create", CC_Prop_Physics_Create, "Creates a physics prop with a specific .mdl aimed away from where the player is looking.\n\tArguments: {.mdl name}", FCVAR_CHEAT);
 
+#endif
+
+#ifdef SBPP
+void CreateRagdoll( const char *pModelName, const Vector &vTraceStart, const Vector &vTraceEnd, const IHandleEntity *pTraceIgnore, bool bRequireVCollide )
+{
+	MDLCACHE_CRITICAL_SECTION();
+
+	MDLHandle_t h = mdlcache->FindMDL( pModelName );
+	if ( h == MDLHANDLE_INVALID )
+		return;
+
+	// Must have vphysics to place as a physics prop
+	studiohdr_t *pStudioHdr = mdlcache->GetStudioHdr( h );
+	if ( !pStudioHdr )
+		return;
+
+	// Must have vphysics to place as a physics prop
+	if ( bRequireVCollide && !mdlcache->GetVCollide( h ) )
+		return;
+
+	QAngle angles( 0.0f, 0.0f, 0.0f );
+	Vector vecSweepMins = pStudioHdr->hull_min;
+	Vector vecSweepMaxs = pStudioHdr->hull_max;
+
+	trace_t tr;
+	UTIL_TraceHull( vTraceStart, vTraceEnd,
+		vecSweepMins, vecSweepMaxs, MASK_NPCSOLID, pTraceIgnore, COLLISION_GROUP_NONE, &tr );
+		    
+	// No hit? We're done.
+	if ( (tr.fraction == 1.0 && (vTraceEnd-vTraceStart).Length() > 0.01) || tr.allsolid )
+		return;
+		    
+	VectorMA( tr.endpos, 1.0f, tr.plane.normal, tr.endpos );
+
+	bool bAllowPrecache = CBaseEntity::IsPrecacheAllowed();
+	CBaseEntity::SetAllowPrecache( true );
+				  
+	// Try to create entity
+	CBaseEntity *pEntity = CreateEntityByName( "prop_ragdoll" );
+	if ( pEntity )
+	{
+		pEntity->SetLocalAngles(angles);
+		pEntity->SetLocalOrigin( tr.endpos );
+		pEntity->PrecacheModel( pModelName );
+		pEntity->SetModel( pModelName );
+		DispatchSpawn( pEntity );
+		pEntity->Activate();
+	}
+	
+	CBaseEntity::SetAllowPrecache( bAllowPrecache );
+}
+
+void CC_Prop_Ragdoll_Create( const CCommand &args )
+{
+	if ( args.ArgC() != 2 )
+		return;
+
+	char pModelName[512];
+	Q_snprintf( pModelName, sizeof(pModelName), "models/%s", args[1] );
+	Q_DefaultExtension( pModelName, ".mdl", sizeof(pModelName) );
+
+	// Figure out where to place it
+	CBasePlayer* pPlayer = UTIL_GetCommandClient();
+	Vector forward;
+	pPlayer->EyeVectors( &forward );
+	
+	CreateRagdoll( pModelName, pPlayer->EyePosition(), pPlayer->EyePosition() + forward * MAX_TRACE_LENGTH, pPlayer, true );
+}
+
+static ConCommand prop_ragdoll_create("prop_ragdoll_create", CC_Prop_Ragdoll_Create, "Creates a ragdoll prop with a specific .mdl aimed away from where the player is looking.\n\tArguments: {.mdl name}");
+#endif
 
 CPhysicsProp* CreatePhysicsProp( const char *pModelName, const Vector &vTraceStart, const Vector &vTraceEnd, const IHandleEntity *pTraceIgnore, bool bRequireVCollide, const char *pClassName )
 {
@@ -6127,7 +6257,11 @@ void CC_Ent_Rotate( const CCommand &args )
 	pEntity->SetLocalAngles( angles );
 }
 
+#ifdef SBPP
+static ConCommand ent_rotate("ent_rotate", CC_Ent_Rotate, "Rotates an entity by a specified # of degrees", FCVAR_NONE);
+#else
 static ConCommand ent_rotate("ent_rotate", CC_Ent_Rotate, "Rotates an entity by a specified # of degrees", FCVAR_CHEAT);
+#endif
 
 // This is a dummy. The entity is entirely clientside.
 LINK_ENTITY_TO_CLASS( func_proprrespawnzone, CBaseEntity );

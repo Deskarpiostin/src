@@ -46,7 +46,7 @@ ConVar	g_debug_antlionguard( "g_debug_antlionguard", "0" );
 ConVar	sk_antlionguard_dmg_charge( "sk_antlionguard_dmg_charge", "0" );
 ConVar	sk_antlionguard_dmg_shove( "sk_antlionguard_dmg_shove", "0" );
 
-#if HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 // When enabled, add code to have the antlion bleed profusely as it is badly injured.
 #define ANTLIONGUARD_BLOOD_EFFECTS 2
 ConVar	g_antlionguard_hemorrhage( "g_antlionguard_hemorrhage", "1", FCVAR_NONE, "If 1, guard will emit a bleeding particle effect when wounded." );
@@ -84,9 +84,7 @@ ConVar	g_antlionguard_hemorrhage( "g_antlionguard_hemorrhage", "1", FCVAR_NONE, 
 #define	ANTLIONGUARD_FOV_NORMAL			-0.4f
 
 // cavern guard's poisoning behavior
-#if HL2_EPISODIC
 #define ANTLIONGUARD_POISON_TO			12 // we only poison Gordon down to twelve to give him a chance to regen up to 20 by the next charge
-#endif
 
 #define	ANTLIONGUARD_CHARGE_MIN			256
 #define	ANTLIONGUARD_CHARGE_MAX			2048
@@ -683,7 +681,7 @@ void CNPC_AntlionGuard::Precache( void )
 		PrecacheScriptSound( "NPC_AntlionGuard.StepHeavy" );
 	}
 
-#if HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	PrecacheScriptSound( "NPC_AntlionGuard.NearStepLight" );
 	PrecacheScriptSound( "NPC_AntlionGuard.NearStepHeavy" );
 	PrecacheScriptSound( "NPC_AntlionGuard.FarStepLight" );
@@ -1482,7 +1480,7 @@ void CNPC_AntlionGuard::Shove( void )
 			pHurt->ApplyAbsVelocityImpulse( forward * 400 + up * 150 );
 
 			// in the episodes, the cavern guard poisons the player
-#if HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 			// If I am a cavern guard attacking the player, and he still lives, then poison him too.
 			if ( m_bInCavern && pHurt->IsPlayer() && pHurt->IsAlive() && pHurt->m_iHealth > ANTLIONGUARD_POISON_TO)
 			{
@@ -1604,7 +1602,11 @@ public:
 //-----------------------------------------------------------------------------
 void CNPC_AntlionGuard::Footstep( bool bHeavy )
 {
+#ifdef HL2SB
+	CBasePlayer *pPlayer = AI_GetNearestPlayer( GetAbsOrigin() );
+#else
 	CBasePlayer *pPlayer = AI_GetSinglePlayer();
+#endif
 	Assert( pPlayer != NULL );
 	if ( pPlayer == NULL )
 		return;
@@ -2564,7 +2566,7 @@ void ApplyChargeDamage( CBaseEntity *pAntlionGuard, CBaseEntity *pTarget, float 
 	CTakeDamageInfo	info( pAntlionGuard, pAntlionGuard, vecForce, offset, flDamage, DMG_CLUB );
 	pTarget->TakeDamage( info );
 
-#if HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	// If I am a cavern guard attacking the player, and he still lives, then poison him too.
 	Assert( dynamic_cast<CNPC_AntlionGuard *>(pAntlionGuard) );
 
@@ -2653,6 +2655,9 @@ inline void TraceHull_SkipPhysics( const Vector &vecAbsStart, const Vector &vecA
 //-----------------------------------------------------------------------------
 bool CNPC_AntlionGuard::EnemyIsRightInFrontOfMe( CBaseEntity **pEntity )
 {
+#ifdef SBPP
+	*pEntity = nullptr;
+#endif
 	if ( !GetEnemy() )
 		return false;
 
@@ -2721,7 +2726,7 @@ bool CNPC_AntlionGuard::HandleChargeImpact( Vector vecImpact, CBaseEntity *pEnti
 		EnemyIsRightInFrontOfMe( &pEntity );
 
 		// Did we manage to find him? If not, increment our charge miss count and abort.
-		if ( pEntity->IsWorld() )
+		if ( !pEntity || pEntity->IsWorld() )
 		{
 			m_iChargeMisses++;
 			return true;
@@ -4413,7 +4418,7 @@ bool CNPC_AntlionGuard::OverrideMoveFacing( const AILocalMoveGoal_t &move, float
 		pFaceTarget = m_hChargeTarget;
 		bFaceTarget = true;
 	}
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	else if ( GetEnemy() && IsCurSchedule( SCHED_ANTLIONGUARD_CANT_ATTACK ) )
 	{
 		// Always face our enemy when randomly patrolling around

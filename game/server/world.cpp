@@ -476,10 +476,18 @@ CWorld::~CWorld( )
 	if ( g_pGameRules )
 	{
 		g_pGameRules->LevelShutdown();
+#ifdef SBPP
+		if ( g_pGameRules )
+			g_pGameRules = NULL;
+	}
+	if (g_WorldEntity)
+		g_WorldEntity = NULL;
+#else
 		delete g_pGameRules;
 		g_pGameRules = NULL;
 	}
 	g_WorldEntity = NULL;
+#endif
 }
 
 

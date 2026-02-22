@@ -35,6 +35,12 @@
 #include "c_te_effect_dispatch.h"
 #include "c_props.h"
 #include "c_basedoor.h"
+#ifdef LUA_SDK
+#include "weapon_hl2mpbase_scriptedweapon.h"
+#include "luamanager.h"
+#include "lbasecombatweapon_shared.h"
+#include "mathlib/lvector.h"
+#endif
 
 // NOTE: Always include this last!
 #include "tier0/memdbgon.h"
@@ -96,7 +102,7 @@ C_LocalTempEntity::C_LocalTempEntity()
 }
 
 
-#if defined( CSTRIKE_DLL ) || defined (SDK_DLL )
+#if defined( CSTRIKE_DLL ) || defined (SDK_DLL ) || defined( HL2SB )
 
 #define TE_RIFLE_SHELL 1024
 #define TE_PISTOL_SHELL 2048
@@ -1808,6 +1814,28 @@ void CTempEnts::MuzzleFlash( const Vector& pos1, const QAngle& angles, int type,
 	return;
 
 #else
+#if defined ( LUA_SDK )
+	CBasePlayer *pPlayer = dynamic_cast<CBasePlayer *>((CBaseEntity*)hEntity.Get());
+	if ( pPlayer != NULL )
+	{
+		CBaseCombatWeapon *pWeapon = dynamic_cast<CHL2MPScriptedWeapon *>(pPlayer->GetActiveWeapon());
+
+		if ( pWeapon != NULL )
+		{
+			Vector pos = pos1;
+			QAngle ang = angles;
+
+			BEGIN_LUA_CALL_WEAPON_HOOK( "MuzzleFlash", pWeapon );
+				lua_pushvector( L, pos );
+				lua_pushangle( L, ang );
+				lua_pushinteger( L, type );
+				lua_pushboolean( L, firstPerson );
+			END_LUA_CALL_WEAPON_HOOK( 4, 1 );
+
+			RETURN_LUA_NONE();
+		}
+	}
+#endif
 
 	//NOTENOTE: This function is becoming obsolete as the muzzles are moved over to being local to attachments
 
@@ -2191,7 +2219,7 @@ void CTempEnts::PlaySound ( C_LocalTempEntity *pTemp, float damp )
 		}
 		break;
 
-#ifdef CSTRIKE_DLL
+#if defined( CSTRIKE_DLL ) || defined( SBPP )
 
 		case TE_PISTOL_SHELL:
 		{
@@ -2412,7 +2440,7 @@ void CTempEnts::LevelInit()
 	m_pHL1ShotgunShell	= (model_t *)engine->LoadModel( "models/shotgunshell.mdl" );
 #endif
 
-#if defined( CSTRIKE_DLL ) || defined ( SDK_DLL )
+#if defined( CSTRIKE_DLL ) || defined ( SDK_DLL ) || defined( SBPP )
 	m_pCS_9MMShell		= (model_t *)engine->LoadModel( "models/Shells/shell_9mm.mdl" );
 	m_pCS_57Shell		= (model_t *)engine->LoadModel( "models/Shells/shell_57.mdl" );
 	m_pCS_12GaugeShell	= (model_t *)engine->LoadModel( "models/Shells/shell_12gauge.mdl" );
@@ -2449,7 +2477,7 @@ void CTempEnts::Init (void)
 	m_pHL1ShotgunShell	= NULL;
 #endif
 
-#if defined( CSTRIKE_DLL ) || defined ( SDK_DLL )
+#if defined( CSTRIKE_DLL ) || defined ( SDK_DLL ) || defined( SBPP )
 	m_pCS_9MMShell		= NULL;
 	m_pCS_57Shell		= NULL;
 	m_pCS_12GaugeShell	= NULL;
@@ -3332,7 +3360,7 @@ void CTempEnts::CSEjectBrass( const Vector &vecPosition, const QAngle &angVeloci
 	const model_t *pModel = NULL;
 	int hitsound = TE_BOUNCE_SHELL;
 
-#if defined ( CSTRIKE_DLL ) || defined ( SDK_DLL )
+#if defined ( CSTRIKE_DLL ) || defined ( SDK_DLL ) || defined( SBPP )
 
 	switch( shellType )
 	{

@@ -80,7 +80,7 @@ public:
 
 	bool	IsHangingFromCeiling( void ) 
 	{ 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 		return m_bHangingFromCeiling;	
 #else
 		return false;
@@ -268,7 +268,7 @@ public:
 	virtual void AlertSound( void );
 	virtual void ImpactSound( void );
 	virtual void TelegraphSound( void );
-#if HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	virtual bool FInViewCone( CBaseEntity *pEntity );
 #endif
 

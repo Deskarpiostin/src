@@ -13,6 +13,12 @@
 #include "hl2mp_player_shared.h"
 #include "basecombatweapon_shared.h"
 #include "hl2mp_weapon_parse.h"
+#if defined( HL2SB )
+//Andrew; see https://developer.valvesoftware.com/wiki/Fixing_AI_in_multiplayer#Weapons
+#ifndef CLIENT_DLL
+	#include "ai_basenpc.h"
+#endif
+#endif
 
 #if defined( CLIENT_DLL )
 	#define CWeaponHL2MPBase C_WeaponHL2MPBase
@@ -41,10 +47,8 @@ public:
 	#ifdef GAME_DLL
 		DECLARE_DATADESC();
 
-		void SendReloadSoundEvent( void );
-
 		void Materialize( void );
-		virtual	int ObjectCaps( void );
+		virtual	int	ObjectCaps( void );
 		virtual	void FallThink( void );
 	#endif
 
@@ -61,6 +65,7 @@ public:
 
 	virtual void FireBullets( const FireBulletsInfo_t &info );
 	virtual void FallInit( void );
+	virtual bool Reload();
 	
 public:
 	#if defined( CLIENT_DLL )

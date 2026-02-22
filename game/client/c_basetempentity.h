@@ -55,6 +55,9 @@ public:
 	virtual void					NotifyShouldTransmit( ShouldTransmitState_t state );
 	virtual void					PreDataUpdate( DataUpdateType_t updateType );
 	virtual void					PostDataUpdate( DataUpdateType_t updateType );
+#ifdef LUA_SDK
+	virtual void					OnDataUnchangedInPVS( void ) { }
+#endif
 	virtual void					OnPreDataChanged( DataUpdateType_t updateType );
 	virtual void					OnDataChanged( DataUpdateType_t updateType );
 	virtual void					SetDormant( bool bDormant );
@@ -70,6 +73,10 @@ public:
 	void NetworkStateChanged() {}
 	void NetworkStateChanged( void *pVar ) {}
 
+#ifdef LUA_SDK
+	// Dummy for scripted weapons.
+	void SetClassname( const char *classname ) {}
+#endif
 	virtual bool					Init(int entnum, int iSerialNum);
 
 	virtual void					Precache( void );

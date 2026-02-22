@@ -14,6 +14,13 @@
 #include "decals.h"
 #include "coordsize.h"
 #include "rumble_shared.h"
+#ifdef SBPP
+#ifdef GAME_DLL
+#include "hl2mp_player.h"
+#else
+#include "c_hl2mp_player.h"
+#endif
+#endif
 
 #if defined(HL2_DLL) || defined(HL2_CLIENT_DLL)
 	#include "hl_movedata.h"
@@ -50,6 +57,12 @@ ConVar xc_uncrouch_on_jump( "xc_uncrouch_on_jump", "1", FCVAR_ARCHIVE, "Uncrouch
 ConVar player_limit_jump_speed( "player_limit_jump_speed", "1", FCVAR_REPLICATED );
 #endif
 
+ConVar mov_2004("mov_2004", "0", FCVAR_REPLICATED);
+ConVar mov_afh("mov_afh", "0", FCVAR_REPLICATED);
+ConVar mov_jumpforwardscale("mov_jumpforwardscale", "0.5", FCVAR_REPLICATED);
+ConVar mov_jumpforwardsprintscale("mov_jumpforwardsprintscale", "0.1", FCVAR_REPLICATED);
+ConVar mov_scale("mov_scale", "0", FCVAR_REPLICATED);
+
 // option_duck_method is a carrier convar. Its sole purpose is to serve an easy-to-flip
 // convar which is ONLY set by the X360 controller menu to tell us which way to bind the
 // duck controls. Its value is meaningless anytime we don't have the options window open.
@@ -62,7 +75,9 @@ ConVar debug_latch_reset_onduck( "debug_latch_reset_onduck", "1", FCVAR_CHEAT );
 #endif
 
 // [MD] I'll remove this eventually. For now, I want the ability to A/B the optimizations.
-bool g_bMovementOptimizations = true;
+bool g_bMovementOptimizations = false;
+
+ConVar sv_autojump( "sv_autojump", "1", FCVAR_REPLICATED );
 
 // Roughly how often we want to update the info about the ground surface we're on.
 // We don't need to do this very often.
@@ -2259,14 +2274,24 @@ void CGameMovement::FullNoClipMove( float factor, float maxacceleration )
 	Vector forward, right, up;
 	Vector wishdir;
 	float wishspeed;
+#ifdef SBPP
+	// @ThePixelMoon: quite a hack, but we have to change the speed BEFORE the maxspeed definition in order for it to work
+	if ( mv->m_nButtons & IN_SPEED )
+		factor *= 2.0f;
+
+	if ( mv->m_nButtons & IN_DUCK )
+		factor /= 2.0f;
+#endif
 	float maxspeed = sv_maxspeed.GetFloat() * factor;
 
 	AngleVectors (mv->m_vecViewAngles, &forward, &right, &up);  // Determine movement angles
 
+#ifndef SBPP
 	if ( mv->m_nButtons & IN_SPEED )
 	{
 		factor /= 2.0f;
 	}
+#endif
 	
 	// Copy movement amounts
 	float fmove = mv->m_flForwardMove * factor;
@@ -2405,7 +2430,14 @@ bool CGameMovement::CheckJumpButton( void )
 #endif
 
 	if ( mv->m_nOldButtons & IN_JUMP )
+#ifdef SBPP
+	{
+		if ( !sv_autojump.GetBool() )
+			return false;
+	}
+#else
 		return false;		// don't pogo stick
+#endif
 
 	// Cannot jump will in the unduck transition.
 	if ( player->m_Local.m_bDucking && (  player->GetFlags() & FL_DUCKING ) )
@@ -2421,7 +2453,11 @@ bool CGameMovement::CheckJumpButton( void )
 	
 	player->PlayStepSound( (Vector &)mv->GetAbsOrigin(), player->m_pSurfaceData, 1.0, true );
 	
+#ifdef SBPP
+	ToHL2MPPlayer( player )->DoAnimationEvent( PLAYERANIMEVENT_JUMP );
+#else
 	MoveHelper()->PlayerSetAnimation( PLAYER_JUMP );
+#endif
 
 	float flGroundFactor = 1.0f;
 	if (player->m_pSurfaceData)
@@ -2474,6 +2510,59 @@ bool CGameMovement::CheckJumpButton( void )
 		vecForward.z = 0;
 		VectorNormalize( vecForward );
 		
+#ifdef SBPP
+		if ( mov_2004.GetBool() )
+		{
+			if ( !pMoveData->m_bIsSprinting && !player->m_Local.m_bDucked )
+			{
+				for ( int iAxis = 0; iAxis < 2 ; ++iAxis )
+				{
+					vecForward[iAxis] *= ( mv->m_flForwardMove * mov_jumpforwardscale.GetFloat() );
+				}
+			}
+			else
+			{
+				for ( int iAxis = 0; iAxis < 2 ; ++iAxis )
+				{
+					vecForward[iAxis] *= ( mv->m_flForwardMove * mov_jumpforwardsprintscale.GetFloat() );
+				}
+			}
+			VectorAdd( vecForward, mv->m_vecVelocity, mv->m_vecVelocity );
+		}
+		else 
+		{
+			// We give a certain percentage of the current forward movement as a bonus to the jump speed.  That bonus is clipped
+			// to not accumulate over time.
+			float flSpeedBoostPerc = ( !pMoveData->m_bIsSprinting && !player->m_Local.m_bDucked ) ? 0.5f : 0.1f;
+			float flSpeedAddition = fabs( mv->m_flForwardMove * flSpeedBoostPerc );
+			float flMaxSpeed = mv->m_flMaxSpeed + ( mv->m_flMaxSpeed * flSpeedBoostPerc );
+			float flNewSpeed = ( flSpeedAddition + mv->m_vecVelocity.Length2D() );
+
+			// If we're over the maximum, we want to only boost as much as will get us to the goal speed
+			if ( flNewSpeed > flMaxSpeed )
+			{
+				if ( mov_afh.GetBool() )
+					flSpeedAddition += flNewSpeed + flMaxSpeed + mov_scale.GetFloat();
+				else
+					flSpeedAddition -= flNewSpeed - flMaxSpeed + mov_scale.GetFloat();
+			}
+
+			if ( mov_afh.GetBool() )
+			{ 
+				{
+					flSpeedAddition *= 1.0f + mov_scale.GetFloat();
+				}
+	 		}
+	 		else
+	 		{
+	 			if ( mv->m_flForwardMove < 0.0f )
+					flSpeedAddition *= -1.0f;
+	 		}
+			
+			// Add it on
+			VectorAdd( (vecForward*flSpeedAddition), mv->m_vecVelocity, mv->m_vecVelocity );
+		}
+#else
 		// We give a certain percentage of the current forward movement as a bonus to the jump speed.  That bonus is clipped
 		// to not accumulate over time.
 		float flSpeedBoostPerc = ( !pMoveData->m_bIsSprinting && !player->m_Local.m_bDucked ) ? 0.5f : 0.1f;
@@ -2492,6 +2581,7 @@ bool CGameMovement::CheckJumpButton( void )
 
 		// Add it on
 		VectorAdd( (vecForward*flSpeedAddition), mv->m_vecVelocity, mv->m_vecVelocity );
+#endif
 	}
 #endif
 
@@ -2504,12 +2594,14 @@ bool CGameMovement::CheckJumpButton( void )
 
 	OnJump(mv->m_outJumpVel.z);
 
+#ifndef SBPP
 	// Set jump time.
 	if ( gpGlobals->maxClients == 1 )
 	{
 		player->m_Local.m_flJumpTime = GAMEMOVEMENT_JUMP_TIME;
 		player->m_Local.m_bInDuckJump = true;
 	}
+#endif
 
 #if defined( HL2_DLL )
 

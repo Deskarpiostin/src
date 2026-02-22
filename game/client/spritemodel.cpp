@@ -423,7 +423,15 @@ IMaterial *CEngineSprite::GetMaterial( RenderMode_t nRenderMode, int nFrame )
 	IMaterialVar* pFrameVar = pMaterial->FindVarFast( "$frame", &frameCache );
 	if ( pFrameVar )
 	{
+#ifdef SBPP
+		IMaterialVar* pFrameVar = pMaterial->FindVarFast( "$frame", &frameCache );
+		if ( pFrameVar )
+		{
+#endif
 		pFrameVar->SetIntValue( nFrame );
+#ifdef SBPP
+		}
+#endif
 	}
 
 	return pMaterial;

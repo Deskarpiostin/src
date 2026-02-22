@@ -76,6 +76,9 @@
 
 // Projective textures
 #include "C_Env_Projected_Texture.h"
+#ifdef SBPP
+#include "sbpp/dynamicsky.h"
+#endif
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -109,7 +112,9 @@ ConVar r_entityclips( "r_entityclips", "1" ); //FIXME: Nvidia drivers before 81.
 static ConVar r_drawopaqueworld( "r_drawopaqueworld", "1", FCVAR_CHEAT );
 static ConVar r_drawtranslucentworld( "r_drawtranslucentworld", "1", FCVAR_CHEAT );
 static ConVar r_3dsky( "r_3dsky","1", 0, "Enable the rendering of 3d sky boxes" );
+#ifndef SBPP
 static ConVar r_skybox( "r_skybox","1", FCVAR_CHEAT, "Enable the rendering of sky boxes" );
+#endif
 #ifdef TF_CLIENT_DLL
 ConVar r_drawviewmodel( "r_drawviewmodel","1", FCVAR_ARCHIVE );
 #else
@@ -478,6 +483,10 @@ protected:
 
 	void			SSAO_DepthPass();
 	void			DrawDepthOfField();
+#ifdef SBPP
+	virtual ITexture	*GetRefractionTexture() { return GetWaterRefractionTexture(); }
+	virtual ITexture	*GetReflectionTexture() { return GetWaterReflectionTexture(); }
+#endif
 };
 
 
@@ -664,6 +673,10 @@ public:
 	void Draw();
 
 	cplane_t m_ReflectionPlane;
+#ifdef SBPP
+	ITexture	*GetReflectionTexture() { return m_pRenderTarget; }
+	ITexture *m_pRenderTarget;
+#endif
 };
 
 class CRefractiveGlassView : public CSimpleWorldView
@@ -681,6 +694,10 @@ public:
 	void Draw();
 
 	cplane_t m_ReflectionPlane;
+#ifdef SBPP
+	ITexture	*GetRefractionTexture() { return m_pRenderTarget; }
+	ITexture *m_pRenderTarget;
+#endif
 };
 
 
@@ -1347,7 +1364,11 @@ void CViewRender::ViewDrawScene( bool bDrew3dSkybox, SkyboxVisibility_t nSkyboxV
 		SetClearColorToFogColor( );
 	}
 
+#ifndef SBPP
 	bool drawSkybox = r_skybox.GetBool();
+#else
+	bool drawSkybox = false;
+#endif
 	if ( bDrew3dSkybox || ( nSkyboxVisible == SKYBOX_NOT_VISIBLE ) )
 	{
 		drawSkybox = false;
@@ -1913,6 +1934,10 @@ void CViewRender::RenderView( const CViewSetup &view, int nClearFlags, int whatT
 
 	m_CurrentView = view;
 
+#ifdef SBPP
+	if ( building_cubemaps.GetBool() )
+		m_CurrentView.fov = RAD2DEG( 2.0f * atanf( 64.0f / ( 64 - 0.5f ) ) );
+#endif
 	C_BaseAnimating::AutoAllowBoneAccess boneaccess( true, true );
 	VPROF( "CViewRender::RenderView" );
 	tmZone( TELEMETRY_LEVEL0, TMZF_NONE, "%s", __FUNCTION__ );
@@ -1977,6 +2002,9 @@ void CViewRender::RenderView( const CViewSetup &view, int nClearFlags, int whatT
 			 	  
 		bool bDrew3dSkybox = false;
 		SkyboxVisibility_t nSkyboxVisible = SKYBOX_NOT_VISIBLE;
+#ifdef SBPP
+		s_bCanAccessCurrentView = true;
+#endif
 
 		// if the 3d skybox world is drawn, then don't draw the normal skybox
 		CSkyboxView *pSkyView = new CSkyboxView( this );
@@ -1985,6 +2013,10 @@ void CViewRender::RenderView( const CViewSetup &view, int nClearFlags, int whatT
 			AddViewToScene( pSkyView );
 		}
 		SafeRelease( pSkyView );
+
+#ifdef HL2SB
+		s_bCanAccessCurrentView = false;
+#endif
 
 		// Force it to clear the framebuffer if they're in solid space.
 		if ( ( nClearFlags & VIEW_CLEAR_COLOR ) == 0 )
@@ -2556,6 +2588,34 @@ void CViewRender::DrawWorldAndEntities( bool bDrawSkybox, const CViewSetup &view
 	{		     
 		tmZone( TELEMETRY_LEVEL0, TMZF_NONE, "bCheapWater" );
 		cplane_t glassReflectionPlane;
+#ifdef SBPP
+		// New expansions allow for custom render targets and multiple mirror renders
+		Frustum_t frustum;
+		GeneratePerspectiveFrustum( viewIn.origin, viewIn.angles, viewIn.zNear, viewIn.zFar, viewIn.fov, viewIn.m_flAspectRatio, frustum );
+
+		ITexture *pTextureTargets[2];
+		C_BaseEntity *pReflectiveGlass = NextReflectiveGlass( NULL, viewIn, glassReflectionPlane, frustum, pTextureTargets );
+		while ( pReflectiveGlass != NULL )
+		{		
+			if (pTextureTargets[0])
+			{
+				CRefPtr<CReflectiveGlassView> pGlassReflectionView = new CReflectiveGlassView( this );
+				pGlassReflectionView->m_pRenderTarget = pTextureTargets[0];
+				pGlassReflectionView->Setup( viewIn, VIEW_CLEAR_DEPTH | VIEW_CLEAR_COLOR, bDrawSkybox, fogVolumeInfo, info, glassReflectionPlane );
+				AddViewToScene( pGlassReflectionView );
+			}
+
+			if (pTextureTargets[1])
+			{
+				CRefPtr<CRefractiveGlassView> pGlassRefractionView = new CRefractiveGlassView( this );
+				pGlassRefractionView->Setup( viewIn, VIEW_CLEAR_DEPTH | VIEW_CLEAR_COLOR, bDrawSkybox, fogVolumeInfo, info, glassReflectionPlane );
+				pGlassRefractionView->m_pRenderTarget = pTextureTargets[1];
+				AddViewToScene( pGlassRefractionView );
+			}
+
+			pReflectiveGlass = NextReflectiveGlass( pReflectiveGlass, viewIn, glassReflectionPlane, frustum, pTextureTargets );
+		}
+#else
 		if ( IsReflectiveGlassInView( viewIn, glassReflectionPlane ) )
 		{								    
 			CRefPtr<CReflectiveGlassView> pGlassReflectionView = new CReflectiveGlassView( this );
@@ -2566,6 +2626,7 @@ void CViewRender::DrawWorldAndEntities( bool bDrawSkybox, const CViewSetup &view
 			pGlassRefractionView->Setup( viewIn, VIEW_CLEAR_DEPTH | VIEW_CLEAR_COLOR, bDrawSkybox, fogVolumeInfo, info, glassReflectionPlane );
 			AddViewToScene( pGlassRefractionView );
 		}
+#endif
 
 		CRefPtr<CSimpleWorldView> pNoWaterView = new CSimpleWorldView( this );
 		pNoWaterView->Setup( viewIn, nClearFlags, bDrawSkybox, fogVolumeInfo, info, pCustomVisibility );
@@ -4756,6 +4817,9 @@ void CSkyboxView::DrawInternal( view_id_t iSkyBoxViewID, bool bInvokePreAndPostR
 	render->EndUpdateLightmaps();
 
 	g_pClientShadowMgr->ComputeShadowTextures( (*this), m_pWorldListInfo->m_LeafCount, m_pWorldListInfo->m_pLeafList );
+#ifdef SBPP
+	R_DrawSkyBox( view->GetZFar() );
+#endif
 
 	DrawWorld( 0.0f );
 
@@ -4803,6 +4867,9 @@ bool CSkyboxView::Setup( const CViewSetup &view, int *pClearFlags, SkyboxVisibil
 
 	if ( !m_pSky3dParams )
 	{
+#ifdef SBPP
+		R_DrawSkyBox( view.zFar );
+#endif
 		return false;
 	}
 
@@ -4813,10 +4880,12 @@ bool CSkyboxView::Setup( const CViewSetup &view, int *pClearFlags, SkyboxVisibil
 	*pClearFlags |= VIEW_CLEAR_DEPTH; // Need to clear depth after rednering the skybox
 
 	m_DrawFlags = DF_RENDER_UNDERWATER | DF_RENDER_ABOVEWATER | DF_RENDER_WATER;
+#ifndef HL2SB
 	if( r_skybox.GetBool() )
 	{
 		m_DrawFlags |= DF_DRAWSKYBOX;
 	}
+#endif
 
 	return true;
 }
@@ -6102,7 +6171,11 @@ void CReflectiveGlassView::Setup( const CViewSetup &view, int nClearFlags, bool 
 
 bool CReflectiveGlassView::AdjustView( float flWaterHeight )
 {
+#ifdef HL2SB
+	ITexture *pTexture = GetReflectionTexture();
+#else
 	ITexture *pTexture = GetWaterReflectionTexture();
+#endif
 		   
 	// Use the aspect ratio of the main view! So, don't recompute it here
 	x = y = 0;
@@ -6128,7 +6201,11 @@ bool CReflectiveGlassView::AdjustView( float flWaterHeight )
 
 void CReflectiveGlassView::PushView( float waterHeight )
 {
+#ifdef HL2SB
+	render->Push3DView( *this, m_ClearFlags, GetReflectionTexture(), GetFrustum() );
+#else
 	render->Push3DView( *this, m_ClearFlags, GetWaterReflectionTexture(), GetFrustum() );
+#endif
 	 
 	Vector4D plane;
 	VectorCopy( m_ReflectionPlane.normal, plane.AsVector3D() );
@@ -6155,6 +6232,11 @@ void CReflectiveGlassView::Draw()
 
 	CMatRenderContextPtr pRenderContext( materials );
 	PIXEVENT( pRenderContext, "CReflectiveGlassView::Draw" );
+#ifdef SBPP
+	// Store off view origin and angles and set the new view
+	int nSaveViewID = CurrentViewID();
+	SetupCurrentView( origin, angles, VIEW_REFLECTION );
+#endif
 
 	// Disable occlusion visualization in reflection
 	bool bVisOcclusion = r_visocclusion.GetInt();
@@ -6163,6 +6245,10 @@ void CReflectiveGlassView::Draw()
 	BaseClass::Draw();
 
 	r_visocclusion.SetValue( bVisOcclusion );
+#ifdef SBPP
+	// finish off the view.  restore the previous view.
+	SetupCurrentView( origin, angles, (view_id_t)nSaveViewID );
+#endif
 
 	pRenderContext->ClearColor4ub( 0, 0, 0, 255 );
 	pRenderContext->Flush();
@@ -6183,7 +6269,11 @@ void CRefractiveGlassView::Setup( const CViewSetup &view, int nClearFlags, bool 
 
 bool CRefractiveGlassView::AdjustView( float flWaterHeight )
 {
+#ifdef HL2SB
+	ITexture *pTexture = GetRefractionTexture();
+#else
 	ITexture *pTexture = GetWaterRefractionTexture();
+#endif
 
 	// Use the aspect ratio of the main view! So, don't recompute it here
 	x = y = 0;
@@ -6195,7 +6285,11 @@ bool CRefractiveGlassView::AdjustView( float flWaterHeight )
 
 void CRefractiveGlassView::PushView( float waterHeight )
 {
+#ifdef SBPP
+	render->Push3DView( *this, m_ClearFlags, GetRefractionTexture(), GetFrustum() );
+#else
 	render->Push3DView( *this, m_ClearFlags, GetWaterRefractionTexture(), GetFrustum() );
+#endif
 
 	Vector4D plane;
 	VectorMultiply( m_ReflectionPlane.normal, -1, plane.AsVector3D() );
@@ -6224,8 +6318,17 @@ void CRefractiveGlassView::Draw()
 
 	CMatRenderContextPtr pRenderContext( materials );
 	PIXEVENT( pRenderContext, "CRefractiveGlassView::Draw" );
+#ifdef SBPP
+	// Store off view origin and angles and set the new view
+	int nSaveViewID = CurrentViewID();
+	SetupCurrentView( origin, angles, VIEW_REFRACTION );
+#endif
 
 	BaseClass::Draw();
+#ifdef SBPP
+	// finish off the view.  restore the previous view.
+	SetupCurrentView( origin, angles, (view_id_t)nSaveViewID );
+#endif
 
 	pRenderContext->ClearColor4ub( 0, 0, 0, 255 );
 	pRenderContext->Flush();

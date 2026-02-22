@@ -386,8 +386,16 @@ bool CFourWheelVehiclePhysics::Initialize( const char *pVehicleScript, unsigned 
 	vehicleparams_t vehicle;
 	if (!ParseVehicleScript( pVehicleScript, solid, vehicle ))
 	{
+#ifdef SBPP
+		// hacky hack
+		if (!ParseVehicleScript( "scripts/vehicles/jeep_test.txt", solid, vehicle ))
+		{
+#endif
 		UTIL_Remove(m_pOuter);
 		return false;
+#ifdef SBPP
+		}
+#endif
 	}
 
 	// NOTE: this needs to be greater than your max framerate (so zero is still instant)

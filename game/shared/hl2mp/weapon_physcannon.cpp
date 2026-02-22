@@ -47,7 +47,7 @@
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
-
+extern ConVar physcannon_mega_enabled;
 #define	SPRITE_SCALE	128.0f
 
 static const char *s_pWaitForUpgradeContext = "WaitForUpgrade";
@@ -63,7 +63,10 @@ ConVar physcannon_pullforce( "physcannon_pullforce", "4000", FCVAR_REPLICATED | 
 ConVar physcannon_cone( "physcannon_cone", "0.97", FCVAR_REPLICATED | FCVAR_CHEAT );
 ConVar physcannon_ball_cone( "physcannon_ball_cone", "0.997", FCVAR_REPLICATED | FCVAR_CHEAT );
 ConVar player_throwforce( "player_throwforce", "1000", FCVAR_REPLICATED | FCVAR_CHEAT );
-
+#define FCVAR_SERVER FCVAR_REPLICATED
+ConVar physcannon_mega_pullforce("physcannon_mega_pullforce", "8000", FCVAR_NOTIFY | FCVAR_SERVER);
+ConVar physcannon_mega_tracelength("physcannon_mega_tracelength", "850", FCVAR_NOTIFY | FCVAR_SERVER);
+//#define SP_LIKE_PHYSCANNON
 #ifndef CLIENT_DLL
 extern ConVar hl2_normspeed;
 extern ConVar hl2_walkspeed;
@@ -76,6 +79,17 @@ extern ConVar hl2_walkspeed;
 #define PHYSCANNON_CENTER_GLOW "sprites/orangecore1"
 #define PHYSCANNON_BLAST_SPRITE "sprites/orangecore2"
 
+#define MEGACANNON_BEAM_SPRITE "sprites/lgtning_noz.vmt"
+#define MEGACANNON_GLOW_SPRITE "sprites/blueflare1_noz.vmt"
+#define MEGACANNON_ENDCAP_SPRITE "sprites/blueflare1_noz.vmt"
+#define MEGACANNON_CENTER_GLOW "effects/fluttercore.vmt"
+#define MEGACANNON_BLAST_SPRITE "effects/fluttercore.vmt"
+
+#define MEGACANNON_RAGDOLL_BOOGIE_SPRITE "sprites/lgtning_noz.vmt"
+
+#define	MEGACANNON_MODEL "models/weapons/c_superphyscannon.mdl"
+#define	MEGACANNON_SKIN	1
+
 #ifdef CLIENT_DLL
 
 	//Precahce the effects
@@ -86,6 +100,10 @@ extern ConVar hl2_walkspeed;
 	CLIENTEFFECT_MATERIAL( PHYSCANNON_ENDCAP_SPRITE )
 	CLIENTEFFECT_MATERIAL( PHYSCANNON_CENTER_GLOW )
 	CLIENTEFFECT_MATERIAL( PHYSCANNON_BLAST_SPRITE )
+	CLIENTEFFECT_MATERIAL( MEGACANNON_GLOW_SPRITE )
+	CLIENTEFFECT_MATERIAL( MEGACANNON_ENDCAP_SPRITE )
+	CLIENTEFFECT_MATERIAL( MEGACANNON_CENTER_GLOW )
+	CLIENTEFFECT_MATERIAL( MEGACANNON_BLAST_SPRITE )
 	CLIENTEFFECT_REGISTER_END()
 
 #endif	// CLIENT_DLL
@@ -99,7 +117,14 @@ void PhysCannonBeginUpgrade( CBaseAnimating *pAnim )
 
 bool PlayerHasMegaPhysCannon( void )
 {
-	return false;
+	if (physcannon_mega_enabled.GetBool() || GlobalEntity_GetState("super_phys_gun"))
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 bool PhysCannonAccountableForObject( CBaseCombatWeapon *pPhysCannon, CBaseEntity *pObject )
@@ -160,6 +185,7 @@ static void MatrixOrthogonalize( matrix3x4_t &matrix, int column )
 }
 
 #define SIGN(x) ( (x) < 0 ? -1 : 1 )
+//bool PlayerPickup2 = false;
 
 static QAngle AlignAngles( const QAngle &angles, float cosineAlignAngle )
 {
@@ -283,7 +309,7 @@ public:
 
 	CGrabController( void );
 	~CGrabController( void );
-	void AttachEntity( CBasePlayer *pPlayer, CBaseEntity *pEntity, IPhysicsObject *pPhys, bool bIsMegaPhysCannon, const Vector &vGrabPosition, bool bUseGrabPosition );
+	void AttachEntity( CBasePlayer *pPlayer, CBaseEntity *pEntity, IPhysicsObject *pPhys, bool bIsMegaPhysCannon, const Vector& vGrabPosition, bool bUseGrabPosition);
 	void DetachEntity( bool bClearVelocity );
 	void OnRestore();
 
@@ -905,10 +931,12 @@ bool CPlayerPickupController::IsHoldingEntity( CBaseEntity *pEnt )
 {
 	return ( m_grabController.GetAttached() == pEnt );
 }
-
+#ifndef CLIENT_DLL
+#include "player_pickup.h"
+#endif
 void PlayerPickupObject( CBasePlayer *pPlayer, CBaseEntity *pObject )
 {
-	
+	//PlayerPickup2 = PlayerPickup;
 #ifndef CLIENT_DLL
 	
 	//Don't pick up if we don't have a phys object.
@@ -1064,7 +1092,7 @@ private:
 #ifdef CLIENT_DLL
 #define CWeaponPhysCannon C_WeaponPhysCannon
 #endif
-
+#include "hl2_gamerules.h"
 class CWeaponPhysCannon : public CBaseHL2MPCombatWeapon
 {
 public:
@@ -1072,8 +1100,85 @@ public:
 
 	DECLARE_NETWORKCLASS(); 
 	DECLARE_PREDICTABLE();
+	DECLARE_DATADESC();
 
 	CWeaponPhysCannon( void );
+
+	void PuntRagdoll(CBaseEntity* pEntity, const Vector& vecForward, trace_t& tr)
+	{
+#ifndef CLIENT_DLL
+		CBasePlayer* pOwner = ToBasePlayer(GetOwner());
+		Pickup_OnPhysGunDrop(pEntity, pOwner, LAUNCHED_BY_CANNON);
+
+		CTakeDamageInfo	info;
+
+		Vector forward = vecForward;
+		info.SetAttacker(GetOwner());
+		info.SetInflictor(this);
+		info.SetDamage(0.0f);
+		info.SetDamageType(DMG_PHYSGUN);
+		pEntity->DispatchTraceAttack(info, forward, &tr);
+		ApplyMultiDamage();
+
+		if (Pickup_OnAttemptPhysGunPickup(pEntity, pOwner, PUNTED_BY_CANNON))
+		{
+			Physgun_OnPhysGunPickup(pEntity, pOwner, PUNTED_BY_CANNON);
+
+			if (forward.z < 0)
+			{
+				//reflect, but flatten the trajectory out a bit so it's easier to hit standing targets
+				forward.z *= -0.65f;
+			}
+
+			Vector			vVel = forward * 1500;
+			AngularImpulse	aVel = Pickup_PhysGunLaunchAngularImpulse(pEntity, PHYSGUN_FORCE_PUNTED);
+
+			CRagdollProp* pRagdoll = dynamic_cast<CRagdollProp*>(pEntity);
+			ragdoll_t* pRagdollPhys = pRagdoll->GetRagdoll();
+
+			int j;
+			for (j = 0; j < pRagdollPhys->listCount; ++j)
+			{
+				pRagdollPhys->list[j].pObject->AddVelocity(&vVel, NULL);
+			}
+		}
+
+		// Add recoil
+		QAngle	recoil = QAngle(random->RandomFloat(1.0f, 2.0f), random->RandomFloat(-1.0f, 1.0f), 0);
+		pOwner->ViewPunch(recoil);
+
+		//Explosion effect
+		DoEffect(4, &tr.endpos);
+
+		PrimaryFireEffect();
+		SendWeaponAnim(ACT_VM_SECONDARYATTACK);
+
+		m_nChangeState = 1;
+		m_flElementDebounce = gpGlobals->curtime + 0.5f;
+		m_flCheckSuppressTime = gpGlobals->curtime + 0.25f;
+
+		// Don't allow the gun to regrab a thrown object!!
+		m_flNextSecondaryAttack = m_flNextPrimaryAttack = gpGlobals->curtime + 0.5f;
+#endif
+	}
+
+	void Spawn(void)
+	{
+		BaseClass::Spawn();
+
+		// Need to get close to pick it up
+		CollisionProp()->UseTriggerBounds(false);
+
+		//m_bPhyscannonState = IsMegaPhysCannon();
+
+		// The megacannon uses a different skin
+		if (IsMegaPhysCannon())
+		{
+			m_nSkin = MEGACANNON_SKIN;
+		}
+
+		//m_flTimeForceView = -1;
+	}
 
 	void	Drop( const Vector &vecVelocity );
 	void	Precache();
@@ -1086,7 +1191,7 @@ public:
 	void	ItemPreFrame();
 	void	ItemPostFrame();
 
-	void	ForceDrop( void );
+	void	ForceDrop( bool isholster = false );
 	bool	DropIfEntityHeld( CBaseEntity *pTarget );	// Drops its held entity if it matches the entity passed in
 	CGrabController &GetGrabController() { return m_grabController; }
 
@@ -1111,6 +1216,64 @@ public:
 
 	EHANDLE m_hOldAttachedObject;
 
+	CNetworkVar(bool,	PlayerSetMega);
+	void	InputBecomeMegaCannon(inputdata_t& inputdata)
+	{
+		if (PlayerSetMega)
+		{
+			PlayerSetMega = false;
+		}
+		else
+		{
+			PlayerSetMega = true;
+		}
+}
+
+//-----------------------------------------------------------------------------
+// Wait until we're done upgrading
+//-----------------------------------------------------------------------------
+#ifndef CLIENT_DLL
+	void WaitForUpgradeThink()
+	{
+		Assert(m_bIsCurrentlyUpgrading);
+
+		StudioFrameAdvance();
+		if (!IsActivityFinished())
+		{
+			SetContextThink(&CWeaponPhysCannon::WaitForUpgradeThink, gpGlobals->curtime + 0.1f, s_pWaitForUpgradeContext);
+			return;
+		}
+
+		if (!GlobalEntity_IsInTable("super_phys_gun"))
+		{
+			GlobalEntity_Add(MAKE_STRING("super_phys_gun"), gpGlobals->mapname, GLOBAL_ON);
+		}
+		else
+		{
+			GlobalEntity_SetState(MAKE_STRING("super_phys_gun"), GLOBAL_ON);
+		}
+		m_bIsCurrentlyUpgrading = false;
+
+		// This is necessary to get the effects to look different
+		DestroyEffects();
+
+		// HACK: Hacky notification back to the level that we've finish upgrading
+		CBaseEntity* pEnt = gEntList.FindEntityByName(NULL, "script_physcannon_upgrade");
+		if (pEnt)
+		{
+			variant_t emptyVariant;
+			pEnt->AcceptInput("Trigger", this, this, emptyVariant, 0);
+		}
+
+		StopSound("WeaponDissolve.Charge");
+
+		// Re-enable weapon pickup
+		AddSolidFlags(FSOLID_TRIGGER);
+
+		SetContextThink(NULL, gpGlobals->curtime, s_pWaitForUpgradeContext);
+	}
+	bool	m_bIsCurrentlyUpgrading = false;
+#endif
 protected:
 	enum FindObjectResult_t
 	{
@@ -1121,8 +1284,160 @@ protected:
 
 	void	DoEffect( int effectType, Vector *pos = NULL );
 
+	void DoMegaEffectClosed(void)
+	{
+		DoEffectClosed();
+	}
+
+	void DoMegaEffectReady(void)
+	{
+
+#ifdef CLIENT_DLL
+
+#define	NUM_GLOW_SPRITES ((CWeaponPhysCannon::PHYSCANNON_GLOW6-CWeaponPhysCannon::PHYSCANNON_GLOW1)+1)
+#define NUM_ENDCAP_SPRITES ((CWeaponPhysCannon::PHYSCANNON_ENDCAP3-CWeaponPhysCannon::PHYSCANNON_ENDCAP1)+1)
+
+#define	NUM_PHYSCANNON_BEAMS	3
+
+		// Special POV case
+		if (ShouldDrawUsingViewModel())
+		{
+			//Turn on the center sprite
+			m_Parameters[PHYSCANNON_CORE].GetScale().InitFromCurrent(0.15f, 0.2f);
+			m_Parameters[PHYSCANNON_CORE].GetAlpha().InitFromCurrent(128, 0.2f);
+			m_Parameters[PHYSCANNON_CORE].SetVisible();
+		}
+		else
+		{
+			//Turn off the center sprite
+			m_Parameters[PHYSCANNON_CORE].GetScale().InitFromCurrent(0.15f, 0.2f);
+			m_Parameters[PHYSCANNON_CORE].GetAlpha().InitFromCurrent(128, 0.2f);
+			m_Parameters[PHYSCANNON_CORE].SetVisible(false);
+		}
+
+		// Turn on the glow sprites
+		for (int i = PHYSCANNON_GLOW1; i < (PHYSCANNON_GLOW1 + NUM_GLOW_SPRITES); i++)
+		{
+			m_Parameters[i].GetScale().InitFromCurrent(0.2f * SpriteScaleFactor(), 0.2f);
+			m_Parameters[i].GetAlpha().InitFromCurrent(24.0f, 0.2f);
+			m_Parameters[i].SetVisible();
+		}
+
+		// Turn on the glow sprites
+		for (int i = PHYSCANNON_ENDCAP1; i < (PHYSCANNON_ENDCAP1 + NUM_ENDCAP_SPRITES); i++)
+		{
+			m_Parameters[i].SetVisible(false);
+		}
+
+#endif
+
+	}
+
+	void DoMegaEffectHolding()
+	{
+
+#ifdef CLIENT_DLL
+
+		if (ShouldDrawUsingViewModel())
+		{
+			// Scale up the center sprite
+			m_Parameters[PHYSCANNON_CORE].GetScale().InitFromCurrent(0.2f, 0.2f);
+			m_Parameters[PHYSCANNON_CORE].GetAlpha().InitFromCurrent(255, 0.1f);
+			m_Parameters[PHYSCANNON_CORE].SetVisible();
+
+			// Prepare for scale up
+			m_Parameters[PHYSCANNON_BLAST].SetVisible(false);
+
+			// Turn on the glow sprites
+			for (int i = PHYSCANNON_GLOW1; i < (PHYSCANNON_GLOW1 + NUM_GLOW_SPRITES); i++)
+			{
+				m_Parameters[i].GetScale().InitFromCurrent(0.25f * SpriteScaleFactor(), 0.2f);
+				m_Parameters[i].GetAlpha().InitFromCurrent(32.0f, 0.2f);
+				m_Parameters[i].SetVisible();
+			}
+
+			// Turn on the glow sprites
+			// NOTE: The last glow is left off for first-person
+			for (int i = PHYSCANNON_ENDCAP1; i < (PHYSCANNON_ENDCAP1 + NUM_ENDCAP_SPRITES - 1); i++)
+			{
+				m_Parameters[i].SetVisible();
+			}
+
+			// Create our beams
+			CBasePlayer* pOwner = ToBasePlayer(GetOwner());
+			CBaseEntity* pBeamEnt = pOwner->GetViewModel();
+
+			// Setup the beams
+			m_Beams[0].Init(LookupAttachment("fork1t"), 1, pBeamEnt, true);
+			m_Beams[1].Init(LookupAttachment("fork2t"), 1, pBeamEnt, true);
+
+			// Set them visible
+			m_Beams[0].SetVisible();
+			m_Beams[1].SetVisible();
+		}
+		else
+		{
+			// Scale up the center sprite
+			m_Parameters[PHYSCANNON_CORE].GetScale().InitFromCurrent(14.0f, 0.2f);
+			m_Parameters[PHYSCANNON_CORE].GetAlpha().InitFromCurrent(255.0f, 0.1f);
+			m_Parameters[PHYSCANNON_CORE].SetVisible();
+
+			// Prepare for scale up
+			m_Parameters[PHYSCANNON_BLAST].SetVisible(false);
+
+			// Turn on the glow sprites
+			for (int i = PHYSCANNON_GLOW1; i < (PHYSCANNON_GLOW1 + NUM_GLOW_SPRITES); i++)
+			{
+				m_Parameters[i].GetScale().InitFromCurrent(0.5f * SPRITE_SCALE, 0.2f);
+				m_Parameters[i].GetAlpha().InitFromCurrent(64.0f, 0.2f);
+				m_Parameters[i].SetVisible();
+			}
+
+			// Turn on the glow sprites
+			for (int i = PHYSCANNON_ENDCAP1; i < (PHYSCANNON_ENDCAP1 + NUM_ENDCAP_SPRITES); i++)
+			{
+				m_Parameters[i].SetVisible();
+			}
+
+			// Setup the beams
+			m_Beams[0].Init(LookupAttachment("fork1t"), 1, this, false);
+			m_Beams[1].Init(LookupAttachment("fork2t"), 1, this, false);
+			m_Beams[2].Init(LookupAttachment("fork3t"), 1, this, false);
+
+			// Set them visible
+			m_Beams[0].SetVisible();
+			m_Beams[1].SetVisible();
+			m_Beams[2].SetVisible();
+		}
+
+#endif
+
+	}
+
+	void DoMegaEffect(int effectType, Vector* pos)
+	{
+		switch (effectType)
+		{
+		case 1:
+			DoMegaEffectClosed();
+			break;
+
+		case 2:
+			DoMegaEffectReady();
+			break;
+
+		case 3:
+			DoMegaEffectHolding();
+			break;
+
+		default:
+		case 0:
+			break;
+		}
+	}
+
 	void	OpenElements( void );
-	void	CloseElements( void );
+	void	CloseElements( bool isholster = false );
 
 	// Pickup and throw objects.
 	bool	CanPickupObject( CBaseEntity *pTarget );
@@ -1132,6 +1447,8 @@ protected:
 	bool	AttachObject( CBaseEntity *pObject, const Vector &vPosition );
 	FindObjectResult_t		FindObject( void );
 	CBaseEntity *FindObjectInCone( const Vector &vecOrigin, const Vector &vecDir, float flCone );
+	CBaseEntity *MegaPhysCannonFindObjectInCone(const Vector& vecOrigin,
+		const Vector& vecDir, float flCone, float flCombineBallCone, bool bOnlyCombineBalls );
 #endif	// !CLIENT_DLL
 
 	void	UpdateObject( void );
@@ -1246,13 +1563,32 @@ protected:
 
 	float	m_flRepuntObjectTime;
 	EHANDLE m_hLastPuntedObject;
+#ifdef CLIENT_DLL
+	bool m_bIsMega;
+#else
+	CNetworkVar(bool, m_bIsMega);
+#endif
+
+	inline bool	IsMegaPhysCannon()
+	{
+#ifndef CLIENT_DLL
+		if (physcannon_mega_enabled.GetBool() || GlobalEntity_GetState("super_phys_gun") || PlayerSetMega)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+#else
+		return m_bIsMega;
+#endif
+	}
 
 private:
 	CWeaponPhysCannon( const CWeaponPhysCannon & );
 
-#ifndef CLIENT_DLL
 	DECLARE_ACTTABLE();
-#endif
 };
 
 IMPLEMENT_NETWORKCLASS_ALIASED( WeaponPhysCannon, DT_WeaponPhysCannon )
@@ -1267,6 +1603,7 @@ BEGIN_NETWORK_TABLE( CWeaponPhysCannon, DT_WeaponPhysCannon )
 	RecvPropFloat( RECVINFO( m_attachedAnglesPlayerSpace[2] ) ),
 	RecvPropInt( RECVINFO( m_EffectState ) ),
 	RecvPropBool( RECVINFO( m_bOpen ) ),
+	RecvPropBool( RECVINFO( m_bIsMega ) ),
 #else
 	SendPropBool( SENDINFO( m_bActive ) ),
 	SendPropEHandle( SENDINFO( m_hAttachedObject ) ),
@@ -1276,6 +1613,7 @@ BEGIN_NETWORK_TABLE( CWeaponPhysCannon, DT_WeaponPhysCannon )
 	SendPropAngle( SENDINFO_VECTORELEM(m_attachedAnglesPlayerSpace, 2 ), 11 ),
 	SendPropInt( SENDINFO( m_EffectState ) ),
 	SendPropBool( SENDINFO( m_bOpen ) ),
+	SendPropBool( SENDINFO( m_bIsMega ) ),
 #endif
 END_NETWORK_TABLE()
 
@@ -1289,22 +1627,68 @@ END_PREDICTION_DATA()
 LINK_ENTITY_TO_CLASS( weapon_physcannon, CWeaponPhysCannon );
 PRECACHE_WEAPON_REGISTER( weapon_physcannon );
 
-#ifndef CLIENT_DLL
-
 acttable_t	CWeaponPhysCannon::m_acttable[] = 
 {
-	{ ACT_HL2MP_IDLE,					ACT_HL2MP_IDLE_PHYSGUN,					false },
-	{ ACT_HL2MP_RUN,					ACT_HL2MP_RUN_PHYSGUN,					false },
-	{ ACT_HL2MP_IDLE_CROUCH,			ACT_HL2MP_IDLE_CROUCH_PHYSGUN,			false },
-	{ ACT_HL2MP_WALK_CROUCH,			ACT_HL2MP_WALK_CROUCH_PHYSGUN,			false },
-	{ ACT_HL2MP_GESTURE_RANGE_ATTACK,	ACT_HL2MP_GESTURE_RANGE_ATTACK_PHYSGUN,	false },
-	{ ACT_HL2MP_GESTURE_RELOAD,			ACT_HL2MP_GESTURE_RELOAD_PHYSGUN,		false },
-	{ ACT_HL2MP_JUMP,					ACT_HL2MP_JUMP_PHYSGUN,					false },
+	{ ACT_MP_STAND_IDLE,				ACT_HL2MP_IDLE_PHYSGUN,					false },
+	{ ACT_MP_CROUCH_IDLE,				ACT_HL2MP_IDLE_CROUCH_PHYSGUN,			false },
+	{ ACT_MP_RUN,						ACT_HL2MP_RUN_PHYSGUN,					false },
+	{ ACT_MP_CROUCHWALK,				ACT_HL2MP_WALK_CROUCH_PHYSGUN,			false },
+	{ ACT_MP_ATTACK_STAND_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_PHYSGUN,	false },
+	{ ACT_MP_ATTACK_CROUCH_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_PHYSGUN,	false },
+
+	{ ACT_MP_RELOAD_STAND,				ACT_HL2MP_GESTURE_RELOAD_PHYSGUN,		false },
+	{ ACT_MP_RELOAD_CROUCH,				ACT_HL2MP_GESTURE_RELOAD_PHYSGUN,		false },
+
+	{ ACT_MP_JUMP,						ACT_HL2MP_JUMP_PHYSGUN,					false },
+
+	{ ACT_MP_SWIM_IDLE,					ACT_HL2MP_SWIM_IDLE_PHYSGUN,				false },
+	{ ACT_MP_SWIM,						ACT_HL2MP_SWIM_PHYSGUN,						false },
 };
 
 IMPLEMENT_ACTTABLE(CWeaponPhysCannon);
 
+BEGIN_DATADESC(CWeaponPhysCannon)
+#ifndef CLIENT_DLL
+DEFINE_INPUTFUNC(FIELD_VOID, "BecomeMegaCannon", InputBecomeMegaCannon),
+DEFINE_INPUTFUNC(FIELD_VOID, "BecomeSuperCharged", InputBecomeMegaCannon), // Same as "BecomeMega"
 #endif
+DEFINE_FIELD(m_bOpen, FIELD_BOOLEAN),
+DEFINE_FIELD(m_bActive, FIELD_BOOLEAN),
+
+DEFINE_FIELD(m_nChangeState, FIELD_INTEGER),
+DEFINE_FIELD(m_flCheckSuppressTime, FIELD_TIME),
+DEFINE_FIELD(m_flElementDebounce, FIELD_TIME),
+//DEFINE_FIELD(m_flElementPosition, FIELD_FLOAT),
+//DEFINE_FIELD(m_flElementDestination, FIELD_FLOAT),
+DEFINE_FIELD(m_nAttack2Debounce, FIELD_INTEGER),
+#ifndef CLIENT_DLL
+DEFINE_FIELD(m_bIsCurrentlyUpgrading, FIELD_BOOLEAN),
+#endif
+//DEFINE_FIELD(m_flTimeForceView, FIELD_TIME),
+DEFINE_FIELD(m_EffectState, FIELD_INTEGER),
+
+#ifdef CLIENT_DLL
+DEFINE_AUTO_ARRAY(m_Parameters, FIELD_CUSTOM),
+#endif
+DEFINE_FIELD(m_flLastDenySoundPlayed, FIELD_BOOLEAN),
+//DEFINE_FIELD(m_bPhyscannonState, FIELD_BOOLEAN),
+DEFINE_SOUNDPATCH(m_sndMotor),
+
+//DEFINE_EMBEDDED(m_grabController),
+
+// Physptrs can't be inside embedded classes
+//DEFINE_PHYSPTR(m_grabController.m_controller),
+#ifndef CLIENT_DLL
+DEFINE_THINKFUNC(WaitForUpgradeThink),
+#endif
+
+//DEFINE_UTLVECTOR(m_ThrownEntities, FIELD_EMBEDDED),
+
+//DEFINE_FIELD(m_flTimeNextObjectPurge, FIELD_TIME),
+
+DEFINE_FIELD(PlayerSetMega, FIELD_BOOLEAN),
+
+END_DATADESC()
 
 
 enum
@@ -1347,8 +1731,31 @@ void CWeaponPhysCannon::Precache( void )
 {
 	PrecacheModel( PHYSCANNON_BEAM_SPRITE );
 	PrecacheModel( PHYSCANNON_BEAM_SPRITE_NOZ );
+	PrecacheModel(MEGACANNON_MODEL);
+
+	PrecacheModel(MEGACANNON_BEAM_SPRITE);
+	PrecacheModel(MEGACANNON_GLOW_SPRITE);
+	PrecacheModel(MEGACANNON_ENDCAP_SPRITE);
+	PrecacheModel(MEGACANNON_CENTER_GLOW);
+	PrecacheModel(MEGACANNON_BLAST_SPRITE);
+
+	PrecacheModel(MEGACANNON_RAGDOLL_BOOGIE_SPRITE);
 
 	PrecacheScriptSound( "Weapon_PhysCannon.HoldSound" );
+	PrecacheSound("weapons/physcannon/physcannon_drop.wav");
+	PrecacheSound("weapons/physcannon/physcannon_pickup.wav");
+	PrecacheSound("weapons/physcannon/physcannon_hold_loop.wav");
+	PrecacheSound("weapons/physcannon/superphys_launch2.wav");
+	PrecacheSound("weapons/physcannon/superphys_launch1.wav");
+	PrecacheSound("weapons/physcannon/superphys_launch3.wav");
+	PrecacheSound("weapons/physcannon/superphys_launch4.wav");
+	PrecacheSound("weapons/physcannon/superphys_hold_loop.wav");
+	PrecacheSound("weapons/physcannon/superphys_small_zap1.wav");
+	PrecacheSound("weapons/physcannon/superphys_small_zap2.wav");
+	PrecacheSound("weapons/physcannon/superphys_small_zap3.wav");
+	PrecacheSound("weapons/physcannon/superphys_small_zap4.wav");
+	PrecacheSound("weapons/physcannon/physcannon_hold_loop.wav");
+	PrecacheSound("weapons/physcannon/physcannon_tooheavy.wav");
 
 	BaseClass::Precache();
 }
@@ -1434,10 +1841,10 @@ void CWeaponPhysCannon::OnDataChanged( DataUpdateType_t type )
 //-----------------------------------------------------------------------------
 inline float CWeaponPhysCannon::SpriteScaleFactor() 
 {
-	return 1.0f;
+	return IsMegaPhysCannon() ? 1.5f : 1.0f;
 }
 
-
+//#define RemoveToHaveNormalHL2DMDeploy
 //-----------------------------------------------------------------------------
 // Purpose: 
 // Output : Returns true on success, false on failure.
@@ -1445,10 +1852,14 @@ inline float CWeaponPhysCannon::SpriteScaleFactor()
 bool CWeaponPhysCannon::Deploy( void )
 {
 	CloseElements();
+#ifdef RemoveToHaveNormalHL2DMDeploy
+	DoEffect( EFFECT_CLOSED );
+#else
 	DoEffect( EFFECT_READY );
+#endif
 
 	bool bReturn = BaseClass::Deploy();
-
+#ifndef RemoveToHaveNormalHL2DMDeploy
 	m_flNextSecondaryAttack = m_flNextPrimaryAttack = gpGlobals->curtime;
 
 	CBasePlayer *pOwner = ToBasePlayer( GetOwner() );
@@ -1457,6 +1868,7 @@ bool CWeaponPhysCannon::Deploy( void )
 	{
 		pOwner->SetNextAttack( gpGlobals->curtime );
 	}
+#endif
 
 	return bReturn;
 }
@@ -1464,17 +1876,31 @@ bool CWeaponPhysCannon::Deploy( void )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CWeaponPhysCannon::SetViewModel( void )
+void CWeaponPhysCannon::SetViewModel(void)
 {
-	BaseClass::SetViewModel();
+	if (!IsMegaPhysCannon())
+	{
+		BaseClass::SetViewModel();
+		return;
+	}
+
+	CBasePlayer* pOwner = ToBasePlayer(GetOwner());
+	if (pOwner == NULL)
+		return;
+
+	CBaseViewModel* vm = pOwner->GetViewModel(m_nViewModelIndex);
+	if (vm == NULL)
+		return;
+
+	vm->SetWeaponModel(MEGACANNON_MODEL, this);
 }
 
 //-----------------------------------------------------------------------------
 // Purpose: Force the cannon to drop anything it's carrying
 //-----------------------------------------------------------------------------
-void CWeaponPhysCannon::ForceDrop( void )
+void CWeaponPhysCannon::ForceDrop(bool isholster)
 {
-	CloseElements();
+	CloseElements(isholster);
 	DetachObject();
 	StopEffects();
 }
@@ -1538,7 +1964,7 @@ bool CWeaponPhysCannon::Holster( CBaseCombatWeapon *pSwitchingTo )
 	if ( m_bActive )
 		return false;
 
-	ForceDrop();
+	ForceDrop(true);
 	DestroyEffects();
 
 	return BaseClass::Holster( pSwitchingTo );
@@ -1791,7 +2217,10 @@ void CWeaponPhysCannon::ApplyVelocityBasedForce( CBaseEntity *pEntity, const Vec
 //-----------------------------------------------------------------------------
 float CWeaponPhysCannon::TraceLength()
 {
+	if(!IsMegaPhysCannon())
 	return physcannon_tracelength.GetFloat();
+	else
+	return physcannon_mega_tracelength.GetFloat();
 }
 
 
@@ -1890,15 +2319,38 @@ void CWeaponPhysCannon::PrimaryAttack( void )
 			return;
 		}
 
-		if( GetOwner()->IsPlayer() )
+		if( GetOwner()->IsPlayer() && !IsMegaPhysCannon() )
 		{
+#ifdef CLIENT_DLL
 			// Don't let the player zap any NPC's except regular antlions and headcrabs.
-			if( pEntity->IsPlayer() )
+			if(pEntity->IsNPC() && !FClassnameIs(pEntity, "npc_headcrab") && !FClassnameIs(pEntity, "npc_poisonheadcrab") && !FClassnameIs(pEntity, "npc_fastheadcrab") && !FClassnameIs(pEntity, "npc_antlion"))
+#else
+			if(pEntity->IsNPC() && pEntity->Classify() != CLASS_HEADCRAB && !FClassnameIs(pEntity, "npc_antlion"))
+#endif
 			{
 				DryFire();
 				return;
 			}
 		}
+#ifndef CLIENT_DLL
+		if (IsMegaPhysCannon())
+		{
+			if (pEntity->IsNPC() && !FClassnameIs(pEntity, "npc_rollermine") && !pEntity->IsEFlagSet(EFL_NO_MEGAPHYSCANNON_RAGDOLL) && pEntity->MyNPCPointer()->CanBecomeRagdoll())
+			{
+				CTakeDamageInfo info(pOwner, pOwner, 1.0f, DMG_GENERIC);
+				CBaseEntity* pRagdoll = CreateServerRagdoll(pEntity->MyNPCPointer(), 0, info, COLLISION_GROUP_INTERACTIVE_DEBRIS, true);
+				PhysSetEntityGameFlags(pRagdoll, FVPHYSICS_NO_SELF_COLLISIONS);
+				pRagdoll->SetCollisionBounds(pEntity->CollisionProp()->OBBMins(), pEntity->CollisionProp()->OBBMaxs());
+
+				// Necessary to cause it to do the appropriate death cleanup
+				CTakeDamageInfo ragdollInfo(pOwner, pOwner, 10000.0, DMG_PHYSGUN | DMG_REMOVENORAGDOLL);
+				pEntity->TakeDamage(ragdollInfo);
+
+				PuntRagdoll(pRagdoll, forward, tr);
+				return;
+			}
+		}
+#endif
 
 		PuntNonVPhysics( pEntity, forward, tr );
 	}
@@ -2025,7 +2477,7 @@ bool CWeaponPhysCannon::AttachObject( CBaseEntity *pObject, const Vector &vPosit
 	}
 
 	// NOTE :This must happen after OnPhysGunPickup because that can change the mass
-	m_grabController.AttachEntity( pOwner, pObject, pPhysics, false, vPosition, false );
+	m_grabController.AttachEntity( pOwner, pObject, pPhysics, IsMegaPhysCannon(), vPosition, false);
 	m_hAttachedObject = pObject;
 	m_attachedPositionObjectSpace = m_grabController.m_attachedPositionObjectSpace;
 	m_attachedAnglesPlayerSpace = m_grabController.m_attachedAnglesPlayerSpace;
@@ -2038,7 +2490,7 @@ bool CWeaponPhysCannon::AttachObject( CBaseEntity *pObject, const Vector &vPosit
 		m_bResetOwnerEntity = true;
 	}
 
-/*	if( pOwner )
+	if( pOwner )
 	{
 		pOwner->EnableSprint( false );
 
@@ -2047,7 +2499,7 @@ bool CWeaponPhysCannon::AttachObject( CBaseEntity *pObject, const Vector &vPosit
 
 		//Msg( "Load perc: %f -- Movement speed: %f/%f\n", loadWeight, maxSpeed, hl2_normspeed.GetFloat() );
 		pOwner->SetMaxSpeed( maxSpeed );
-	}*/
+	}
 
 	// Don't drop again for a slight delay, in case they were pulling objects near them
 	m_flNextSecondaryAttack = gpGlobals->curtime + 0.4f;
@@ -2180,6 +2632,75 @@ CWeaponPhysCannon::FindObjectResult_t CWeaponPhysCannon::FindObject( void )
 	pObj->ApplyForceCenter( pullDir );
 	return OBJECT_NOT_FOUND;
 }
+#ifndef CLIENT_DLl
+CBaseEntity* CWeaponPhysCannon::MegaPhysCannonFindObjectInCone(const Vector& vecOrigin,
+	const Vector& vecDir, float flCone, float flCombineBallCone, bool bOnlyCombineBalls)
+{
+	// Find the nearest physics-based item in a cone in front of me.
+	CBaseEntity* list[1024];
+	float flMaxDist = TraceLength() + 1.0;
+	float flNearestDist = flMaxDist;
+	bool bNearestIsCombineBall = bOnlyCombineBalls ? true : false;
+	Vector mins = vecOrigin - Vector(flNearestDist, flNearestDist, flNearestDist);
+	Vector maxs = vecOrigin + Vector(flNearestDist, flNearestDist, flNearestDist);
+
+	CBaseEntity* pNearest = NULL;
+
+	int count = UTIL_EntitiesInBox(list, 1024, mins, maxs, 0);
+	for (int i = 0; i < count; i++)
+	{
+		if (!list[i]->VPhysicsGetObject())
+			continue;
+
+		bool bIsCombineBall = FClassnameIs(list[i], "prop_combine_ball");
+		if (!bIsCombineBall && bNearestIsCombineBall)
+			continue;
+
+		// Closer than other objects
+		Vector los;
+		VectorSubtract(list[i]->WorldSpaceCenter(), vecOrigin, los);
+		float flDist = VectorNormalize(los);
+
+		if (!bIsCombineBall || bNearestIsCombineBall)
+		{
+			// Closer than other objects
+			if (flDist >= flNearestDist)
+				continue;
+
+			// Cull to the cone
+			if (DotProduct(los, vecDir) <= flCone)
+				continue;
+		}
+		else
+		{
+			// Close enough?
+			if (flDist >= flMaxDist)
+				continue;
+
+			// Cull to the cone
+			if (DotProduct(los, vecDir) <= flCone)
+				continue;
+
+			// NOW: If it's either closer than nearest dist or within the ball cone, use it!
+			if ((flDist > flNearestDist) && (DotProduct(los, vecDir) <= flCombineBallCone))
+				continue;
+		}
+
+		// Make sure it isn't occluded!
+		trace_t tr;
+		CTraceFilterNoOwnerTest filter(GetOwner(), COLLISION_GROUP_NONE);
+		UTIL_TraceLine(vecOrigin, list[i]->WorldSpaceCenter(), MASK_SHOT | CONTENTS_GRATE, &filter, &tr);
+		if (tr.m_pEnt == list[i])
+		{
+			flNearestDist = flDist;
+			pNearest = list[i];
+			bNearestIsCombineBall = bIsCombineBall;
+		}
+	}
+
+	return pNearest;
+}
+#endif
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -2452,7 +2973,7 @@ void CWeaponPhysCannon::ManagePredictedObject( void )
 				m_grabController.SetIgnorePitch( false );
 				m_grabController.SetAngleAlignment( 0 );
 
-				GetGrabController().AttachEntity( ToBasePlayer( GetOwner() ), pAttachedObject, pPhysics, false, vec3_origin, false );
+				GetGrabController().AttachEntity( ToBasePlayer( GetOwner() ), pAttachedObject, pPhysics, IsMegaPhysCannon(), vec3_origin, false);
 				GetGrabController().m_attachedPositionObjectSpace = m_attachedPositionObjectSpace;
 				GetGrabController().m_attachedAnglesPlayerSpace = m_attachedAnglesPlayerSpace;
 			}
@@ -2528,6 +3049,11 @@ void CWeaponPhysCannon::ItemPreFrame()
 
 	if ( localplayer && !localplayer->IsObserver() )
 		ManagePredictedObject();
+#else
+	if( IsMegaPhysCannon() )
+		m_nSkin = 1;
+	else
+		m_nSkin = 0;
 #endif
 
 	// Update the object if the weapon is switched on.
@@ -2658,6 +3184,9 @@ void CWeaponPhysCannon::DoEffectIdle( void )
 //-----------------------------------------------------------------------------
 void CWeaponPhysCannon::ItemPostFrame()
 {
+#ifndef CLIENT_DLL
+	m_bIsMega=IsMegaPhysCannon();
+#endif
 	CBasePlayer *pOwner = ToBasePlayer( GetOwner() );
 	if ( pOwner == NULL )
 	{
@@ -2790,8 +3319,17 @@ bool CWeaponPhysCannon::CanPickupObject( CBaseEntity *pTarget )
 	if ( pOwner && pOwner->GetGroundEntity() == pTarget )
 		return false;
 
-	if ( pTarget->VPhysicsIsFlesh( ) )
-		return false;
+	if (!IsMegaPhysCannon())
+	{
+		if (pTarget->VPhysicsIsFlesh())
+			return false;
+	}
+
+	if (pTarget->IsNPC() && pTarget->MyNPCPointer()->CanBecomeRagdoll())
+		return true;
+
+	if (dynamic_cast<CRagdollProp*>(pTarget))
+		return true;
 
 	IPhysicsObject *pObj = pTarget->VPhysicsGetObject();	
 
@@ -2802,8 +3340,10 @@ bool CWeaponPhysCannon::CanPickupObject( CBaseEntity *pTarget )
 	{
 		return CBasePlayer::CanPickupObject( pTarget, 0, 0 );
 	}
-
+	if(!IsMegaPhysCannon())
 	return CBasePlayer::CanPickupObject( pTarget, physcannon_maxmass.GetFloat(), 0 );
+	else
+	return CBasePlayer::CanPickupObject( pTarget, 0, 0 );
 #else
 	return false;
 #endif
@@ -2824,6 +3364,12 @@ void CWeaponPhysCannon::OpenElements( void )
 
 	if ( pOwner == NULL )
 		return;
+#ifndef CLIENT_DLL
+	if (!IsMegaPhysCannon())
+	{
+		pOwner->RumbleEffect(20, 0, 0x0004);
+	}
+#endif
 
 	SendWeaponAnim( ACT_VM_IDLE );
 
@@ -2841,8 +3387,15 @@ void CWeaponPhysCannon::OpenElements( void )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CWeaponPhysCannon::CloseElements( void )
+void CWeaponPhysCannon::CloseElements( bool isholster )
 {
+	// The mega cannon cannot be closed!
+	if (IsMegaPhysCannon() && !isholster)
+	{
+		OpenElements();
+		return;
+	}
+
 	if ( m_bOpen == false )
 		return;
 
@@ -2973,11 +3526,21 @@ void CWeaponPhysCannon::StartEffects( void )
 		m_Parameters[PHYSCANNON_CORE].GetScale().Init( 0.0f, 1.0f, 0.1f );
 		m_Parameters[PHYSCANNON_CORE].GetAlpha().Init( 255.0f, 255.0f, 0.1f );
 		m_Parameters[PHYSCANNON_CORE].SetAttachment( 1 );
-		
-		if ( m_Parameters[PHYSCANNON_CORE].SetMaterial( PHYSCANNON_CENTER_GLOW ) == false )
+		if (!IsMegaPhysCannon())
 		{
-			// This means the texture was not found
-			Assert( 0 );
+			if (m_Parameters[PHYSCANNON_CORE].SetMaterial(PHYSCANNON_CENTER_GLOW) == false)
+			{
+				// This means the texture was not found
+				Assert(0);
+			}
+		}
+		else
+		{
+			if (m_Parameters[PHYSCANNON_CORE].SetMaterial(MEGACANNON_CENTER_GLOW) == false)
+			{
+				// This means the texture was not found
+				Assert(0);
+			}
 		}
 	}
 
@@ -2991,11 +3554,21 @@ void CWeaponPhysCannon::StartEffects( void )
 		m_Parameters[PHYSCANNON_BLAST].GetAlpha().Init( 255.0f, 255.0f, 0.1f );
 		m_Parameters[PHYSCANNON_BLAST].SetAttachment( 1 );
 		m_Parameters[PHYSCANNON_BLAST].SetVisible( false );
-		
-		if ( m_Parameters[PHYSCANNON_BLAST].SetMaterial( PHYSCANNON_BLAST_SPRITE ) == false )
+		if (!IsMegaPhysCannon())
 		{
-			// This means the texture was not found
-			Assert( 0 );
+			if (m_Parameters[PHYSCANNON_BLAST].SetMaterial(PHYSCANNON_BLAST_SPRITE) == false)
+			{
+				// This means the texture was not found
+				Assert(0);
+			}
+		}
+		else
+		{
+			if (m_Parameters[PHYSCANNON_BLAST].SetMaterial(MEGACANNON_BLAST_SPRITE) == false)
+			{
+				// This means the texture was not found
+				Assert(0);
+			}
 		}
 	}
 
@@ -3042,11 +3615,21 @@ void CWeaponPhysCannon::StartEffects( void )
 			m_Parameters[i].SetAttachment( LookupAttachment( attachNamesGlowThirdPerson[i-PHYSCANNON_GLOW1] ) );
 		}
 		m_Parameters[i].SetColor( Vector( 255, 128, 0 ) );
-		
-		if ( m_Parameters[i].SetMaterial( PHYSCANNON_GLOW_SPRITE ) == false )
+		if (!IsMegaPhysCannon())
 		{
-			// This means the texture was not found
-			Assert( 0 );
+			if ( m_Parameters[i].SetMaterial( PHYSCANNON_GLOW_SPRITE ) == false )
+			{
+				// This means the texture was not found
+				Assert( 0 );
+			}
+		}
+		else
+		{
+			if ( m_Parameters[i].SetMaterial( MEGACANNON_GLOW_SPRITE ) == false )
+			{
+				// This means the texture was not found
+				Assert( 0 );
+			}
 		}
 	}
 
@@ -3071,11 +3654,21 @@ void CWeaponPhysCannon::StartEffects( void )
 		m_Parameters[i].GetAlpha().SetAbsolute( 255.0f );
 		m_Parameters[i].SetAttachment( LookupAttachment( attachNamesEndCap[i-PHYSCANNON_ENDCAP1] ) );
 		m_Parameters[i].SetVisible( false );
-		
-		if ( m_Parameters[i].SetMaterial( PHYSCANNON_ENDCAP_SPRITE ) == false )
+		if (!IsMegaPhysCannon())
 		{
-			// This means the texture was not found
-			Assert( 0 );
+			if (m_Parameters[i].SetMaterial(PHYSCANNON_ENDCAP_SPRITE) == false)
+			{
+				// This means the texture was not found
+				Assert(0);
+			}
+		}
+		else
+		{
+			if ( m_Parameters[i].SetMaterial( MEGACANNON_ENDCAP_SPRITE ) == false )
+			{
+				// This means the texture was not found
+				Assert( 0 );
+			}
 		}
 	}
 
@@ -3340,12 +3933,21 @@ void CWeaponPhysCannon::DoEffectNone( void )
 //-----------------------------------------------------------------------------
 void CWeaponPhysCannon::DoEffect( int effectType, Vector *pos )
 {
+	// Make sure we're active
+	StartEffects();
 	m_EffectState = effectType;
 
 #ifdef CLIENT_DLL
 	// Save predicted state
 	m_nOldEffectState = m_EffectState;
 #endif
+
+	// Do different effects when upgraded
+	if (IsMegaPhysCannon())
+	{
+		DoMegaEffect(effectType, pos);
+		return;
+	}
 
 	switch( effectType )
 	{
@@ -3379,7 +3981,38 @@ void CWeaponPhysCannon::DoEffect( int effectType, Vector *pos )
 //-----------------------------------------------------------------------------
 const char *CWeaponPhysCannon::GetShootSound( int iIndex ) const
 {
-	return BaseClass::GetShootSound( iIndex );
+	// Just do this normally if we're a normal physcannon
+#ifdef CLIENT_DLL
+	if (m_bIsMega == false)
+#else
+	if (PlayerHasMegaPhysCannon() == false)
+#endif
+		return BaseClass::GetShootSound(iIndex);
+
+	// We override this if we're the charged up version
+	switch (iIndex)
+	{
+	case EMPTY:
+		return "Weapon_MegaPhysCannon.DryFire";
+		break;
+
+	case SINGLE:
+		return "Weapon_MegaPhysCannon.Launch";
+		break;
+
+	case SPECIAL1:
+		return "Weapon_MegaPhysCannon.Pickup";
+		break;
+
+	case MELEE_MISS:
+		return "Weapon_MegaPhysCannon.Drop";
+		break;
+
+	default:
+		break;
+	}
+
+	return BaseClass::GetShootSound(iIndex);
 }
 
 #ifdef CLIENT_DLL

@@ -12,6 +12,9 @@
 
 #include "entityoutput.h"
 #include "props.h"
+#ifdef SBPP
+#include "baseanimating.h"
+#endif
 
 typedef enum { expRandom = 0, expDirected, expUsePrecise} Explosions;
 typedef enum { matGlass = 0, matWood, matMetal, matFlesh, matCinderBlock, matCeilingTile, matComputer, matUnbreakableGlass, matRocks, matWeb, matNone, matLastMaterial } Materials;
@@ -34,10 +37,17 @@ typedef enum { matGlass = 0, matWood, matMetal, matFlesh, matCinderBlock, matCei
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
+#ifdef SBPP
+class CBreakable : public CBaseAnimating, public IBreakableWithPropData, public CDefaultPlayerPickupVPhysics
+{
+public:
+	DECLARE_CLASS( CBreakable, CBaseAnimating );
+#else
 class CBreakable : public CBaseEntity, public IBreakableWithPropData, public CDefaultPlayerPickupVPhysics
 {
 public:
 	DECLARE_CLASS( CBreakable, CBaseEntity );
+#endif
 
 	// basic functions
 	virtual void Spawn( void );
@@ -119,7 +129,12 @@ public:
 	mp_break_t		GetMultiplayerBreakMode( void ) const { return MULTIPLAYER_BREAK_DEFAULT; }
 
 protected:
+#ifdef SBPP
+	QAngle      m_savedAngles;
+	float       m_gibYaw;
+#else
 	float		m_angle;
+#endif
 	Materials	m_Material;
 	EHANDLE m_hBreaker;			// The entity that broke us. Held as a data member because sometimes breaking is delayed.
 

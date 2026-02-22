@@ -222,6 +222,7 @@ protected:
 	virtual bool HandleMoving( Activity &idealActivity );
 	virtual bool HandleSwimming( Activity &idealActivity );
 	virtual bool HandleDying( Activity &idealActivity );
+	virtual bool HandleVehicle(Activity& idealActivity); 
 
 	// Gesture Slots
 	CUtlVector<GestureSlot_t>		m_aGestureSlots;

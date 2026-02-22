@@ -83,6 +83,9 @@ public:
 	char					szPrintName[MAX_WEAPON_STRING];			// Name for showing in HUD, etc.
 
 	char					szViewModel[MAX_WEAPON_STRING];			// View model of this weapon
+#ifdef SBPP
+	int 					iViewModelFOV;							// FOV maybe
+#endif
 	char					szWorldModel[MAX_WEAPON_STRING];		// Model of this weapon seen carried by the player
 	char					szAnimationPrefix[MAX_WEAPON_PREFIX];	// Prefix of the animations that should be used by the player carrying this weapon
 	int						iSlot;									// inventory slot.
@@ -98,6 +101,10 @@ public:
 	int						iFlags;									// miscellaneous weapon flags
 	char					szAmmo1[MAX_WEAPON_AMMO_NAME];			// "primary" ammo type
 	char					szAmmo2[MAX_WEAPON_AMMO_NAME];			// "secondary" ammo type
+#ifdef SBPP
+	bool m_bPrimaryAutomatic;
+	bool m_bSecondaryAutomatic;
+#endif
 
 	// Sound blocks
 	char					aShootSounds[NUM_SHOOT_SOUND_TYPES][MAX_WEAPON_STRING];	
@@ -111,6 +118,13 @@ public:
 	bool					m_bBuiltRightHanded;
 	bool					m_bAllowFlipping;	// False to disallow flipping the model, regardless of whether
 												// it is built left or right handed.
+
+	Vector					vecIronsightPosOffset;
+	QAngle					angIronsightAngOffset;
+	float					flIronsightFOVOffset;
+	bool 					bCanUseIronsight;
+
+	float					fDeploySpeed;
 
 // CLIENT DLL
 	// Sprite data, read from the data file

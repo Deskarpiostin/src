@@ -195,7 +195,7 @@ public:
 	virtual AngularImpulse	PhysGunLaunchAngularImpulse();
 	virtual	CBasePlayer *HasPhysicsAttacker( float dt );
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	void CreateFlare( float flLifetime );
 #endif //HL2_EPISODIC
 
@@ -425,7 +425,11 @@ public:
 
 // Used by prop_physics_create and the server benchmark.
 // pModelName should not include the "models/" prefix.
+#ifdef SBPP
+CPhysicsProp* CreatePhysicsProp( const char *pModelName, const Vector &vTraceStart, const Vector &vTraceEnd, const IHandleEntity *pTraceIgnore, bool bRequireVCollide, const char *pClassName );
+#else
 CPhysicsProp* CreatePhysicsProp( const char *pModelName, const Vector &vTraceStart, const Vector &vTraceEnd, const IHandleEntity *pTraceIgnore, bool bRequireVCollide, const char *pClassName="physics_prop" );
+#endif
 
 bool UTIL_CreateScaledPhysObject( CBaseAnimating *pInstance, float flScale );
 

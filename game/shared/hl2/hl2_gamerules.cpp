@@ -81,7 +81,7 @@ ConVar	sk_dmg_inflict_scale3( "sk_dmg_inflict_scale3", "0.75", FCVAR_REPLICATED 
 // Damage scale for damage taken by the player on each skill level.
 ConVar	sk_dmg_take_scale1( "sk_dmg_take_scale1", "0.50", FCVAR_REPLICATED );
 ConVar	sk_dmg_take_scale2( "sk_dmg_take_scale2", "1.00", FCVAR_REPLICATED );
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	ConVar	sk_dmg_take_scale3( "sk_dmg_take_scale3", "2.0", FCVAR_REPLICATED );
 #else
 	ConVar	sk_dmg_take_scale3( "sk_dmg_take_scale3", "1.50", FCVAR_REPLICATED );
@@ -122,7 +122,11 @@ ConVar	sk_max_smg1				( "sk_max_smg1","0", FCVAR_REPLICATED);
 // FIXME: remove these
 //ConVar	sk_plr_dmg_flare_round	( "sk_plr_dmg_flare_round","0", FCVAR_REPLICATED);
 //ConVar	sk_npc_dmg_flare_round	( "sk_npc_dmg_flare_round","0", FCVAR_REPLICATED);
+#ifdef SBPP
+ConVar	sk_max_flare_round		( "sk_max_flare_round","0", FCVAR_REPLICATED);
+#else
 //ConVar	sk_max_flare_round		( "sk_max_flare_round","0", FCVAR_REPLICATED);
+#endif
 
 ConVar	sk_plr_dmg_buckshot		( "sk_plr_dmg_buckshot","0", FCVAR_REPLICATED);	
 ConVar	sk_npc_dmg_buckshot		( "sk_npc_dmg_buckshot","0", FCVAR_REPLICATED);
@@ -148,7 +152,7 @@ ConVar	sk_plr_dmg_grenade		( "sk_plr_dmg_grenade","0", FCVAR_REPLICATED);
 ConVar	sk_npc_dmg_grenade		( "sk_npc_dmg_grenade","0", FCVAR_REPLICATED);
 ConVar	sk_max_grenade			( "sk_max_grenade","0", FCVAR_REPLICATED);
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 ConVar	sk_max_hopwire			( "sk_max_hopwire", "3", FCVAR_REPLICATED);
 ConVar	sk_max_striderbuster	( "sk_max_striderbuster", "3", FCVAR_REPLICATED);
 #endif
@@ -180,6 +184,47 @@ ConVar	sk_max_gauss_round		( "sk_max_gauss_round", "0", FCVAR_REPLICATED );
 // Gunship & Dropship cannons
 ConVar	sk_npc_dmg_gunship			( "sk_npc_dmg_gunship", "0", FCVAR_REPLICATED );
 ConVar	sk_npc_dmg_gunship_to_plr	( "sk_npc_dmg_gunship_to_plr", "0", FCVAR_REPLICATED );
+#ifdef SBPP
+ConVar  sk_max_sticky_bomb			("sk_max_sticky_bomb", "0", FCVAR_REPLICATED );
+
+ConVar sk_plr_dmg_crowbar			( "sk_plr_dmg_crowbar",			"0", FCVAR_REPLICATED );
+
+ConVar sk_npc_dmg_9mm_bullet		( "sk_npc_dmg_9mm_bullet",		"0", FCVAR_REPLICATED );
+ConVar sk_plr_dmg_9mm_bullet		( "sk_plr_dmg_9mm_bullet",		"0", FCVAR_REPLICATED );
+ConVar sk_max_9mm_bullet			( "sk_max_9mm_bullet",			"0", FCVAR_REPLICATED );
+
+ConVar sk_npc_dmg_9mmAR_bullet		( "sk_npc_dmg_9mmAR_bullet",	"0", FCVAR_REPLICATED );
+
+ConVar sk_plr_dmg_357_bullet		( "sk_plr_dmg_357_bullet",		"0", FCVAR_REPLICATED );
+ConVar sk_max_357_bullet			( "sk_max_357_bullet",			"0", FCVAR_REPLICATED );
+
+ConVar sk_plr_dmg_mp5_grenade		( "sk_plr_dmg_mp5_grenade",		"0", FCVAR_REPLICATED );
+ConVar sk_max_mp5_grenade			( "sk_max_mp5_grenade",			"0", FCVAR_REPLICATED );
+ConVar sk_mp5_grenade_radius		( "sk_mp5_grenade_radius",		"0", FCVAR_REPLICATED );
+
+ConVar sk_plr_dmg_rpg				( "sk_plr_dmg_rpg",				"0", FCVAR_REPLICATED );
+ConVar sk_max_rpg_rocket			( "sk_max_rpg_rocket",			"0", FCVAR_REPLICATED );
+
+ConVar sk_plr_dmg_xbow_bolt_plr		( "sk_plr_dmg_xbow_bolt_plr",	"0", FCVAR_REPLICATED );
+ConVar sk_plr_dmg_xbow_bolt_npc		( "sk_plr_dmg_xbow_bolt_npc",	"0", FCVAR_REPLICATED );
+ConVar sk_max_xbow_bolt				( "sk_max_xbow_bolt",			"0", FCVAR_REPLICATED );
+
+ConVar sk_plr_dmg_egon_narrow		( "sk_plr_dmg_egon_narrow",		"0", FCVAR_REPLICATED );
+ConVar sk_plr_dmg_egon_wide			( "sk_plr_dmg_egon_wide",		"0", FCVAR_REPLICATED );
+ConVar sk_max_uranium				( "sk_max_uranium",				"0", FCVAR_REPLICATED );
+
+ConVar sk_plr_dmg_gauss				( "sk_plr_dmg_gauss",			"0", FCVAR_REPLICATED );
+
+ConVar sk_plr_dmg_hornet			( "sk_plr_dmg_hornet",			"0", FCVAR_REPLICATED );
+ConVar sk_npc_dmg_hornet			( "sk_npc_dmg_hornet",			"0", FCVAR_REPLICATED );
+ConVar sk_max_hornet				( "sk_max_hornet",				"0", FCVAR_REPLICATED );
+
+ConVar sk_max_snark					( "sk_max_snark",				"0", FCVAR_REPLICATED );
+
+ConVar sk_npc_dmg_12mm_bullet		( "sk_npc_dmg_12mm_bullet",		"0", FCVAR_REPLICATED );
+
+ConVar sk_mp_dmg_multiplier ( "sk_mp_dmg_multiplier", "2.0" );
+#endif
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -188,7 +233,7 @@ ConVar	sk_npc_dmg_gunship_to_plr	( "sk_npc_dmg_gunship_to_plr", "0", FCVAR_REPLI
 //-----------------------------------------------------------------------------
 int CHalfLife2::Damage_GetTimeBased( void )
 {
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	int iDamage = ( DMG_PARALYZE | DMG_NERVEGAS | DMG_POISON | DMG_RADIATION | DMG_DROWNRECOVER | DMG_ACID | DMG_SLOWBURN );
 	return iDamage;
 #else
@@ -204,7 +249,7 @@ int CHalfLife2::Damage_GetTimeBased( void )
 bool CHalfLife2::Damage_IsTimeBased( int iDmgType )
 {
 	// Damage types that are time-based.
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	// This makes me think EP2 should have its own rules, but they are #ifdef all over in here.
 	return ( ( iDmgType & ( DMG_PARALYZE | DMG_NERVEGAS | DMG_POISON | DMG_RADIATION | DMG_DROWNRECOVER | DMG_ACID | DMG_SLOWBURN ) ) != 0 );
 #else
@@ -215,7 +260,7 @@ bool CHalfLife2::Damage_IsTimeBased( int iDmgType )
 #ifdef CLIENT_DLL
 #else
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 ConVar  alyx_darkness_force( "alyx_darkness_force", "0", FCVAR_CHEAT | FCVAR_REPLICATED );
 #endif // HL2_EPISODIC
 
@@ -1314,6 +1359,16 @@ ConVar  alyx_darkness_force( "alyx_darkness_force", "0", FCVAR_CHEAT | FCVAR_REP
 			case CLASS_MISSILE:			return "CLASS_MISSILE";
 			case CLASS_FLARE:			return "CLASS_FLARE";
 			case CLASS_EARTH_FAUNA:		return "CLASS_EARTH_FAUNA";
+#ifdef SBPP
+			case CLASS_ALIEN_PREY:		return "CLASS_ALIEN_PREY";
+			case CLASS_ALIEN_MILITARY:	return "CLASS_ALIEN_MILITARY";
+			case CLASS_ALIEN_MONSTER:	return "CLASS_ALIEN_MONSTER";
+			case CLASS_ALIEN_PREDATOR:	return "CLASS_ALIEN_PREDATOR";
+			case CLASS_HUMAN_MILITARY:	return "CLASS_HUMAN_MILITARY";
+			case CLASS_MACHINE:			return "CLASS_MACHINE";
+			case CLASS_ALIEN_BIOWEAPON:	return "CLASS_ALIEN_BIOWEAPON";
+			case CLASS_PLAYER_BIOWEAPON:return "CLASS_PLAYER_BIOWEAPON";
+#endif
 
 			default:					return "MISSING CLASS in ClassifyText()";
 		}
@@ -1729,7 +1784,7 @@ void CHalfLife2::LevelInitPreEntity()
 {
 	// Remove this if you fix the bug in ep1 where the striders need to touch
 	// triggers using their absbox instead of their bbox
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	if ( !Q_strnicmp( gpGlobals->mapname.ToCStr(), "ep1_", 4 ) )
 	{
 		// episode 1 maps use the surrounding box trigger behavior
@@ -1744,7 +1799,7 @@ void CHalfLife2::LevelInitPreEntity()
 //-----------------------------------------------------------------------------
 bool CHalfLife2::IsAlyxInDarknessMode()
 {
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	if ( alyx_darkness_force.GetBool() )
 		return true;
 
@@ -1761,7 +1816,7 @@ bool CHalfLife2::IsAlyxInDarknessMode()
 //-----------------------------------------------------------------------------
 bool CHalfLife2::ShouldBurningPropsEmitLight()
 {
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	return IsAlyxInDarknessMode();
 #else
 	return false;
@@ -1805,6 +1860,9 @@ CAmmoDef *GetAmmoDef()
 		def.AddAmmoType("357",				DMG_BULLET,					TRACER_LINE_AND_WHIZ,	"sk_plr_dmg_357",			"sk_npc_dmg_357",			"sk_max_357",			BULLET_IMPULSE(800, 5000), 0 );
 		def.AddAmmoType("XBowBolt",			DMG_BULLET,					TRACER_LINE,			"sk_plr_dmg_crossbow",		"sk_npc_dmg_crossbow",		"sk_max_crossbow",		BULLET_IMPULSE(800, 8000), 0 );
 
+#ifdef SBPP
+		def.AddAmmoType("FlareRound",		DMG_BURN,					TRACER_LINE, 			"sk_plr_dmg_flare_round",	"sk_npc_dmg_flare_round",	"sk_max_flare_round",	BULLET_IMPULSE(1500, 600), 0 );
+#endif
 		def.AddAmmoType("Buckshot",			DMG_BULLET | DMG_BUCKSHOT,	TRACER_LINE,			"sk_plr_dmg_buckshot",		"sk_npc_dmg_buckshot",		"sk_max_buckshot",		BULLET_IMPULSE(400, 1200), 0 );
 		def.AddAmmoType("RPG_Round",		DMG_BURN,					TRACER_NONE,			"sk_plr_dmg_rpg_round",		"sk_npc_dmg_rpg_round",		"sk_max_rpg_round",		0, 0 );
 		def.AddAmmoType("SMG1_Grenade",		DMG_BURN,					TRACER_NONE,			"sk_plr_dmg_smg1_grenade",	"sk_npc_dmg_smg1_grenade",	"sk_max_smg1_grenade",	0, 0 );
@@ -1818,6 +1876,9 @@ CAmmoDef *GetAmmoDef()
 		def.AddAmmoType("GaussEnergy",		DMG_SHOCK,					TRACER_NONE,			"sk_jeep_gauss_damage",		"sk_jeep_gauss_damage", "sk_max_gauss_round", BULLET_IMPULSE(650, 8000), 0 ); // hit like a 10kg weight at 400 in/s
 		def.AddAmmoType("CombineCannon",	DMG_BULLET,					TRACER_LINE,			"sk_npc_dmg_gunship_to_plr", "sk_npc_dmg_gunship", NULL, 1.5 * 750 * 12, 0 ); // hit like a 1.5kg weight at 750 ft/s
 		def.AddAmmoType("AirboatGun",		DMG_AIRBOAT,				TRACER_LINE,			"sk_plr_dmg_airboat",		"sk_npc_dmg_airboat",		NULL,					BULLET_IMPULSE(10, 600), 0 );
+#ifdef SBPP
+		def.AddAmmoType("StickyBomb", 	 	DMG_BULLET, 				TRACER_LINE,			0, 0, "sk_max_sticky_bomb", 0, 0 );
+#endif
 
 		//=====================================================================
 		// STRIDER MINIGUN DAMAGE - Pull up a chair and I'll tell you a tale.
@@ -1856,7 +1917,7 @@ CAmmoDef *GetAmmoDef()
 		// now that the AmmoDef code is behaving correctly.
 		//
 		//=====================================================================
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 		def.AddAmmoType("StriderMinigun",	DMG_BULLET,					TRACER_LINE,			5, 5, 15, 1.0 * 750 * 12, AMMO_FORCE_DROP_IF_CARRIED ); // hit like a 1.0kg weight at 750 ft/s
 #else
 		def.AddAmmoType("StriderMinigun",	DMG_BULLET,					TRACER_LINE,			5, 15,15, 1.0 * 750 * 12, AMMO_FORCE_DROP_IF_CARRIED ); // hit like a 1.0kg weight at 750 ft/s
@@ -1866,7 +1927,7 @@ CAmmoDef *GetAmmoDef()
 		def.AddAmmoType("HelicopterGun",	DMG_BULLET,					TRACER_LINE_AND_WHIZ,	"sk_npc_dmg_helicopter_to_plr", "sk_npc_dmg_helicopter",	"sk_max_smg1",	BULLET_IMPULSE(400, 1225), AMMO_FORCE_DROP_IF_CARRIED | AMMO_INTERPRET_PLRDAMAGE_AS_DAMAGE_TO_PLAYER );
 		def.AddAmmoType("AR2AltFire",		DMG_DISSOLVE,				TRACER_NONE,			0, 0, "sk_max_ar2_altfire", 0, 0 );
 		def.AddAmmoType("Grenade",			DMG_BURN,					TRACER_NONE,			"sk_plr_dmg_grenade",		"sk_npc_dmg_grenade",		"sk_max_grenade",		0, 0);
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 		def.AddAmmoType("Hopwire",			DMG_BLAST,					TRACER_NONE,			"sk_plr_dmg_grenade",		"sk_npc_dmg_grenade",		"sk_max_hopwire",		0, 0);
 		def.AddAmmoType("CombineHeavyCannon",	DMG_BULLET,				TRACER_LINE,			40,	40, NULL, 10 * 750 * 12, AMMO_FORCE_DROP_IF_CARRIED ); // hit like a 10 kg weight at 750 ft/s
 		def.AddAmmoType("ammo_proto1",			DMG_BULLET,				TRACER_LINE,			0, 0, 10, 0, 0 );

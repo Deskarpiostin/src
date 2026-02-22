@@ -59,6 +59,9 @@
 #include "c_prop_portal.h" //portal surface rendering functions
 #endif
 
+#ifdef SBPP
+ConVar cl_camera_anim_intensity("cl_camera_anim_intensity", "1.0", FCVAR_ARCHIVE, "Intensity of cambone animations");
+#endif
 	
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -671,8 +674,13 @@ void CViewRender::SetUpViews()
 
 	// You in-view weapon aim.
 	bool bCalcViewModelView = false;
-	Vector ViewModelOrigin;
-	QAngle ViewModelAngles;
+#ifdef SBPP
+	Vector ViewModelOrigin = vec3_origin;
+	QAngle ViewModelAngles = QAngle(0,0,0);
+#else
+	Vector ViewModelOrigin = vec3_origin;
+	QAngle ViewModelAngles = QAngle(0,0,0);
+#endif
 
 	if ( engine->IsHLTV() )
 	{
@@ -743,7 +751,11 @@ void CViewRender::SetUpViews()
 	float flFOVOffset = fDefaultFov - view.fov;
 
 	//Adjust the viewmodel's FOV to move with any FOV offsets on the viewer's end
+#ifdef SBPP
+	view.fovViewmodel = fabs( g_pClientMode->GetViewModelFOV() - MIN( flFOVOffset, g_pClientMode->GetViewModelFOV() ) );
+#else
 	view.fovViewmodel = fabs( g_pClientMode->GetViewModelFOV() - flFOVOffset );
+#endif
 
 	if ( UseVR() )
 	{
@@ -1259,6 +1271,48 @@ void CViewRender::Render( vrect_t *rect )
 			// we should use the monitor view from the left eye for both eyes
 			flags |= RENDERVIEW_SUPPRESSMONITORRENDERING;
 		}
+#ifdef SBPP
+		//--------------------------------
+		// Handle camera anims
+		//--------------------------------
+
+		if (!UseVR() && pPlayer && cl_camera_anim_intensity.GetFloat() > 0)
+		{
+			if (pPlayer->GetViewModel(0))
+			{
+				int attachment = pPlayer->GetViewModel(0)->LookupAttachment("camera");
+				if (attachment != -1)
+				{
+					int rootBone = pPlayer->GetViewModel(0)->LookupAttachment("camera_root");
+					Vector cameraOrigin = Vector(0, 0, 0);
+					QAngle cameraAngles = QAngle(0, 0, 0);
+					Vector rootOrigin = Vector(0, 0, 0);
+					QAngle rootAngles = QAngle(0, 0, 0);
+
+					pPlayer->GetViewModel(0)->GetAttachmentLocal(attachment, cameraOrigin, cameraAngles);
+					if (rootBone != -1)
+					{
+						pPlayer->GetViewModel(0)->GetAttachmentLocal(rootBone, rootOrigin, rootAngles);
+						cameraOrigin -= rootOrigin;
+						cameraAngles -= rootAngles;
+
+						//DevMsg("camera attachment found\n");
+					}
+					
+					// hacky hack
+					CBaseCombatWeapon *pWeapon = GetActiveWeapon();
+					if (pWeapon)
+					{
+						if (pWeapon->IsIronsighted() == false)
+						{
+							view.angles += cameraAngles * cl_camera_anim_intensity.GetFloat();
+							view.origin += cameraOrigin * cl_camera_anim_intensity.GetFloat();
+						}
+					}
+				}
+			}
+		}
+#endif
 
 	    RenderView( view, nClearFlags, flags );
 
@@ -1318,6 +1372,61 @@ void CViewRender::Render( vrect_t *rect )
 
 
 
+#ifdef SBPP
+void CViewRender::MP_PostSimulate()
+{
+	C_BasePlayer *pLocal = C_BasePlayer::GetLocalPlayer();
+	if ( !pLocal )
+		return;
+
+	//Tony; if the local player is in a vehicle, then we need to kill the bone cache, and re-calculate the view.
+	if ( !pLocal->IsInAVehicle() && !pLocal->GetVehicle())
+		return;
+
+	IClientVehicle *pVehicle = pLocal->GetVehicle();
+	Assert( pVehicle );
+	CBaseAnimating *pVehicleEntity = (CBaseAnimating*)pVehicle->GetVehicleEnt();
+	Assert( pVehicleEntity );
+
+	int nRole = pVehicle->GetPassengerRole( pLocal );
+
+	//Tony; we have to invalidate the bone cache in order for the attachment lookups to be correct!
+	pVehicleEntity->InvalidateBoneCache();
+	pVehicle->GetVehicleViewPosition( nRole, &m_View.origin, &m_View.angles, &m_View.fov );
+
+	//Tony; everything below is from SetupView - the things that should be recalculated.. are recalculated!
+	pLocal->CalcViewModelView( m_View.origin, m_View.angles );
+
+	// Compute the world->main camera transform
+	ComputeCameraVariables( m_View.origin, m_View.angles,
+		&g_vecVForward, &g_vecVRight, &g_vecVUp, &g_matCamInverse );
+
+	// set up the hearing origin...
+	AudioState_t audioState;
+	audioState.m_Origin = m_View.origin;
+	audioState.m_Angles = m_View.angles;
+	audioState.m_bIsUnderwater = pLocal && pLocal->AudioStateIsUnderwater( m_View.origin );
+
+	ToolFramework_SetupAudioState( audioState );
+
+	m_View.origin = audioState.m_Origin;
+	m_View.angles = audioState.m_Angles;
+
+	engine->SetAudioState( audioState );
+
+	g_vecPrevRenderOrigin = g_vecRenderOrigin;
+	g_vecPrevRenderAngles = g_vecRenderAngles;
+	g_vecRenderOrigin = m_View.origin;
+	g_vecRenderAngles = m_View.angles;
+
+#ifdef _DEBUG
+	s_DbgSetupOrigin = m_View.origin;
+	s_DbgSetupAngles = m_View.angles;
+#endif
+
+
+}
+#endif
 
 static void GetPos( const CCommand &args, Vector &vecOrigin, QAngle &angles )
 {

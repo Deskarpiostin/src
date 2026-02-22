@@ -15,6 +15,15 @@
 #pragma once
 
 
+#ifdef SBPP
+#include "c_baseanimating.h"
+
+
+class C_PhysBox : public C_BaseAnimating
+{
+public:
+	DECLARE_CLASS( C_PhysBox, C_BaseAnimating );
+#else
 #include "c_baseentity.h"
 
 
@@ -22,6 +31,7 @@ class C_PhysBox : public C_BaseEntity
 {
 public:
 	DECLARE_CLASS( C_PhysBox, C_BaseEntity );
+#endif
 	DECLARE_CLIENTCLASS();
 
 					C_PhysBox();

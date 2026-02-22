@@ -52,7 +52,7 @@ CPlayerResource *g_pPlayerResource;
 //-----------------------------------------------------------------------------
 void CPlayerResource::Spawn( void )
 {
-	for ( int i=0; i < MAX_PLAYERS+1; i++ )
+	for ( int i=0; i < MAX_PLAYERS_ARRAY_SAFE; i++ )
 	{
 		m_iPing.Set( i, 0 );
 		m_iScore.Set( i, 0 );

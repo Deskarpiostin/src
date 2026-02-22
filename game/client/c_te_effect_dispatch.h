@@ -42,5 +42,8 @@ public:
 
 void DispatchEffectToCallback( const char *pEffectName, const CEffectData &m_EffectData );
 void DispatchEffect( const char *pName, const CEffectData &data );
+#ifdef SBPP
+void DispatchEffect( const char *pName, const CEffectData &data, IRecipientFilter &filter );
+#endif
 
 #endif // C_TE_EFFECT_DISPATCH_H

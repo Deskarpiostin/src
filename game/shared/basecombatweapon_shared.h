@@ -18,6 +18,10 @@
 #include "baseviewmodel_shared.h"
 #include "weapon_proficiency.h"
 #include "utlmap.h"
+#ifdef LUA_SDK
+#include "luamanager.h"
+#include "lbasecombatweapon_shared.h"
+#endif
 
 #if defined( CLIENT_DLL )
 #define CBaseCombatWeapon C_BaseCombatWeapon
@@ -170,6 +174,27 @@ public:
 	//  apply the proper filter
 	virtual bool			IsPredicted( void ) const { return false; }
 
+#if defined( LUA_SDK )
+	virtual bool			IsScripted( void ) const { return false; }
+	virtual bool			IsWeapon( void ) const { return true; }
+#endif
+#ifdef SBPP
+	Vector					GetIronsightPositionOffset( void ) const;
+	QAngle					GetIronsightAngleOffset( void ) const;
+	float					GetIronsightFOVOffset( void ) const;
+
+	CNetworkVar( bool, m_bIsIronsighted );
+	CNetworkVar( float, m_flIronsightedTime );
+
+	virtual bool			HasIronsights( void ) { return false; }
+	virtual bool					IsIronsighted( void );
+	virtual void					ToggleIronsights( void );
+	virtual void					EnableIronsights( void );
+	virtual void					DisableIronsights( void );
+	virtual void					SetIronsightTime( void );
+	virtual bool 					CanUseIronsight() const;
+#endif
+
 	virtual void			Spawn( void );
 	virtual void			Precache( void );
 
@@ -253,6 +278,11 @@ public:
 #ifdef CLIENT_DLL
 	virtual void			CreateMove( float flInputSampleTime, CUserCmd *pCmd, const QAngle &vecOldViewAngles ) {}
 	virtual int				CalcOverrideModelIndex() OVERRIDE;
+
+#ifdef MOON
+	// misyl: If weapon mispred's don't reset all the player's variables.
+	virtual bool PredictionErrorShouldResetLatchedForAllPredictables( void ) OVERRIDE;
+#endif
 #endif
 
 	virtual bool			IsWeaponZoomed() { return false; }		// Is this weapon in its 'zoomed in' mode?
@@ -337,7 +367,11 @@ public:
 public:
 
 	// Weapon info accessors for data in the weapon's data file
+#ifndef LUA_SDK
 	const FileWeaponInfo_t	&GetWpnData( void ) const;
+#else
+	virtual const FileWeaponInfo_t	&GetWpnData( void ) const;
+#endif
 	virtual const char		*GetViewModel( int viewmodelindex = 0 ) const;
 	virtual const char		*GetWorldModel( void ) const;
 	virtual const char		*GetAnimPrefix( void ) const;
@@ -488,6 +522,12 @@ public:
 	virtual bool			ShouldDraw( void );
 	virtual bool			ShouldDrawPickup( void );
 	virtual void			HandleInput( void ) { return; };
+#ifdef ARGG
+	// adnan
+	// does this weapon need to override the setting of view angles?
+	virtual bool			OverrideViewAngles( void ) { return false; };
+	// end adnan
+#endif
 	virtual void			OverrideMouseInput( float *x, float *y ) { return; };
 	virtual int				KeyInput( int down, ButtonCode_t keynum, const char *pszCurrentBinding ) { return 1; }
 	virtual bool			AddLookShift( void ) { return true; };
@@ -496,6 +536,11 @@ public:
 
 	virtual void			NotifyShouldTransmit( ShouldTransmitState_t state );
 	WEAPON_FILE_INFO_HANDLE	GetWeaponFileInfoHandle() { return m_hWeaponFileInfo; }
+
+#ifdef MOON
+	//Tony; notifications of any third person switches.
+	virtual void			ThirdPersonSwitch( bool bThirdPerson ) {};
+#endif
 
 	virtual int				GetWorldModelIndex( void );
 

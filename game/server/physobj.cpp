@@ -516,6 +516,10 @@ bool CPhysBox::CreateVPhysics()
 	}
 
 	vcollide_t *pVCollide = modelinfo->GetVCollide( GetModelIndex() );
+#ifdef SBPP
+	if (!pVCollide)
+		return false;
+#endif
 	PhysGetMassCenterOverride( this, pVCollide, tmpSolid );
 	PhysSolidOverride( tmpSolid, m_iszOverrideScript );
 	if ( tmpSolid.params.rotdamping < 1.0f && ShouldDampRotation(pVCollide->solids[0]) )
@@ -524,6 +528,10 @@ bool CPhysBox::CreateVPhysics()
 	}
 	IPhysicsObject *pPhysics = VPhysicsInitNormal( GetSolid(), GetSolidFlags(), true, &tmpSolid );
 
+#ifdef SBPP
+	if (!pPhysics)
+		return false;
+#endif
 	if ( m_damageType == 1 )
 	{
 		PhysSetGameFlags( pPhysics, FVPHYSICS_DMG_SLICE );
@@ -1639,7 +1647,11 @@ void CPhysMagnet::VPhysicsCollision( int index, gamevcollisionevent_t *pEvent )
 	if ( HasSpawnFlags( SF_MAGNET_COAST_HACK ) )
 	{
 		// If the other isn't the jeep, we need to get rid of it
+#ifdef SBPP
+		if ( !FClassnameIs( pOther, "prop_vehicle_jeep" ) || !FClassnameIs( pOther, "prop_vehicle_jalopy" ) )
+#else
 		if ( !FClassnameIs( pOther, "prop_vehicle_jeep" ) )
+#endif
 		{
 			// If it takes damage, destroy it
 			if ( pOther->m_takedamage != DAMAGE_NO && pOther->m_takedamage != DAMAGE_EVENTS_ONLY )

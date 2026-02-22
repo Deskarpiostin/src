@@ -20,11 +20,26 @@
 #include "grenade_satchel.h"
 #include "eventqueue.h"
 #include "gamestats.h"
+#ifdef SBPP
+#include "tier0/vprof.h"
+#include "bone_setup.h"
+#include "usermessages.h"
+#include "player.h"
+#endif
+#ifdef LUA_SDK
+#include "luamanager.h"
+#include "lbaseentity_shared.h"
+#include "lhl2mp_player_shared.h"
+#include "ltakedamageinfo.h"
+#endif
 
 #include "engine/IEngineSound.h"
 #include "SoundEmitterSystem/isoundemittersystembase.h"
 
 #include "ilagcompensationmanager.h"
+
+// memdbgon must be the last include file in a .cpp file!!!
+#include "tier0/memdbgon.h"
 
 int g_iLastCitizenModel = 0;
 int g_iLastCombineModel = 0;
@@ -32,6 +47,12 @@ int g_iLastCombineModel = 0;
 CBaseEntity	 *g_pLastCombineSpawn = NULL;
 CBaseEntity	 *g_pLastRebelSpawn = NULL;
 extern CBaseEntity				*g_pLastSpawn;
+
+#ifdef SBPP
+ConVar spawnpoint("spawnpoint", "ct");
+
+extern ConVar mode;
+#endif
 
 #define HL2MP_COMMAND_MAX_RATE 0.3
 
@@ -42,24 +63,128 @@ LINK_ENTITY_TO_CLASS( player, CHL2MP_Player );
 LINK_ENTITY_TO_CLASS( info_player_combine, CPointEntity );
 LINK_ENTITY_TO_CLASS( info_player_rebel, CPointEntity );
 
+// Andrew; we may end up using other game content - these allow us to use other
+// maps besides deathmatch ones.
+#ifdef HL2SB
+LINK_ENTITY_TO_CLASS( info_player_counterterrorist, CPointEntity );
+LINK_ENTITY_TO_CLASS( info_player_terrorist, CPointEntity );
+LINK_ENTITY_TO_CLASS( info_player_allies, CPointEntity );
+LINK_ENTITY_TO_CLASS( info_player_axis, CPointEntity );
+#endif
+
+#ifdef SBPP
+extern void SendProxy_Origin( const SendProp *pProp, const void *pStruct, const void *pData, DVariant *pOut, int iElement, int objectID );
+
+//Tony; this should ideally be added to dt_send.cpp
+void* SendProxy_SendNonLocalDataTable( const SendProp *pProp, const void *pStruct, const void *pVarData, CSendProxyRecipients *pRecipients, int objectID )
+{
+	pRecipients->SetAllRecipients();
+	pRecipients->ClearRecipient( objectID - 1 );
+	return ( void * )pVarData;
+}
+REGISTER_SEND_PROXY_NON_MODIFIED_POINTER( SendProxy_SendNonLocalDataTable );
+
+
+BEGIN_SEND_TABLE_NOBASE( CHL2MP_Player, DT_HL2MPLocalPlayerExclusive )
+	// send a hi-res origin to the local player for use in prediction
+	SendPropVector	(SENDINFO(m_vecOrigin), -1,  SPROP_NOSCALE|SPROP_CHANGES_OFTEN, 0.0f, HIGH_DEFAULT, SendProxy_Origin ),
+	SendPropFloat( SENDINFO_VECTORELEM(m_angEyeAngles, 0), 8, SPROP_CHANGES_OFTEN, -90.0f, 90.0f ),
+//	SendPropAngle( SENDINFO_VECTORELEM(m_angEyeAngles, 1), 10, SPROP_CHANGES_OFTEN ),
+END_SEND_TABLE()
+
+BEGIN_SEND_TABLE_NOBASE( CHL2MP_Player, DT_HL2MPNonLocalPlayerExclusive )
+	// send a lo-res origin to other players
+	SendPropVector	(SENDINFO(m_vecOrigin), -1,  SPROP_COORD_MP_LOWPRECISION|SPROP_CHANGES_OFTEN, 0.0f, HIGH_DEFAULT, SendProxy_Origin ),
+	SendPropFloat( SENDINFO_VECTORELEM(m_angEyeAngles, 0), 8, SPROP_CHANGES_OFTEN, -90.0f, 90.0f ),
+	SendPropAngle( SENDINFO_VECTORELEM(m_angEyeAngles, 1), 10, SPROP_CHANGES_OFTEN ),
+END_SEND_TABLE()
+#endif
+
 IMPLEMENT_SERVERCLASS_ST(CHL2MP_Player, DT_HL2MP_Player)
+#ifdef SBPP
+	SendPropFloat( SENDINFO( m_flStartCharge ) ),
+	SendPropFloat( SENDINFO( m_flAmmoStartCharge ) ),
+	SendPropFloat( SENDINFO( m_flPlayAftershock ) ),
+	SendPropFloat( SENDINFO( m_flNextAmmoBurn ) ),
+	
+	SendPropExclude( "DT_BaseAnimating", "m_flPlaybackRate" ),	
+	SendPropExclude( "DT_BaseAnimating", "m_nSequence" ),
+	SendPropExclude( "DT_BaseEntity", "m_angRotation" ),
+	SendPropExclude( "DT_BaseAnimatingOverlay", "overlay_vars" ),
+
+	SendPropExclude( "DT_BaseEntity", "m_vecOrigin" ),
+
+	// playeranimstate and clientside animation takes care of these on the client
+	SendPropExclude( "DT_ServerAnimationData" , "m_flCycle" ),	
+	SendPropExclude( "DT_AnimTimeMustBeFirst" , "m_flAnimTime" ),
+
+	SendPropExclude( "DT_BaseFlex", "m_flexWeight" ),
+	SendPropExclude( "DT_BaseFlex", "m_blinktoggle" ),
+#else
 	SendPropAngle( SENDINFO_VECTORELEM(m_angEyeAngles, 0), 11, SPROP_CHANGES_OFTEN ),
 	SendPropAngle( SENDINFO_VECTORELEM(m_angEyeAngles, 1), 11, SPROP_CHANGES_OFTEN ),
 	SendPropEHandle( SENDINFO( m_hRagdoll ) ),
 	SendPropInt( SENDINFO( m_iSpawnInterpCounter), 4 ),
 	SendPropInt( SENDINFO( m_iPlayerSoundType), 3 ),
+#endif
 	
 	SendPropExclude( "DT_BaseAnimating", "m_flPoseParameter" ),
 	SendPropExclude( "DT_BaseFlex", "m_viewtarget" ),
 
 //	SendPropExclude( "DT_ServerAnimationData" , "m_flCycle" ),	
 //	SendPropExclude( "DT_AnimTimeMustBeFirst" , "m_flAnimTime" ),
+
+#ifdef SBPP
+	// Data that only gets sent to the local player.
+	SendPropDataTable( "hl2mplocaldata", 0, &REFERENCE_SEND_TABLE(DT_HL2MPLocalPlayerExclusive), SendProxy_SendLocalDataTable ),
+	// Data that gets sent to all other players
+	SendPropDataTable( "hl2mpnonlocaldata", 0, &REFERENCE_SEND_TABLE(DT_HL2MPNonLocalPlayerExclusive), SendProxy_SendNonLocalDataTable ),
+
+	SendPropEHandle( SENDINFO( m_hRagdoll ) ),
+	SendPropInt( SENDINFO( m_iPlayerSoundType), 3 ),
 	
+	SendPropBool( SENDINFO( m_bTaunting) ),
+	SendPropInt( SENDINFO( m_aCurrentTaunt ) ),
+#endif
 END_SEND_TABLE()
 
 BEGIN_DATADESC( CHL2MP_Player )
+#ifdef SBPP
+	DEFINE_FIELD( m_flStartCharge, FIELD_FLOAT ),
+	DEFINE_FIELD( m_flAmmoStartCharge, FIELD_FLOAT ),
+	DEFINE_FIELD( m_flPlayAftershock, FIELD_FLOAT ),
+	DEFINE_FIELD( m_flNextAmmoBurn, FIELD_FLOAT ),
+#endif
 END_DATADESC()
 
+#ifdef SBPP
+const char *g_ppszRandomCitizenModels[] = 
+{
+	"models/player/group03/male_01.mdl",
+	"models/player/group03/male_02.mdl",
+	"models/player/group03/female_01.mdl",
+	"models/player/group03/male_03.mdl",
+	"models/player/group03/female_02.mdl",
+	"models/player/group03/male_04.mdl",
+	"models/player/group03/female_03.mdl",
+	"models/player/group03/male_05.mdl",
+	"models/player/group03/female_04.mdl",
+	"models/player/group03/male_06.mdl",
+	"models/player/group03/female_06.mdl",
+	"models/player/group03/male_07.mdl",
+	"models/player/group03/female_07.mdl",
+	"models/player/group03/male_08.mdl",
+	"models/player/group03/male_09.mdl",
+};
+
+const char *g_ppszRandomCombineModels[] =
+{
+	"models/player/combine_soldier.mdl",
+	"models/player/combine_soldier_prisonguard.mdl",
+	"models/player/combine_super_soldier.mdl",
+	"models/player/police.mdl",
+};
+#else
 const char *g_ppszRandomCitizenModels[] = 
 {
 	"models/humans/group03/male_01.mdl",
@@ -86,18 +211,33 @@ const char *g_ppszRandomCombineModels[] =
 	"models/combine_super_soldier.mdl",
 	"models/police.mdl",
 };
+#endif
 
 
 #define MAX_COMBINE_MODELS 4
+#ifdef SBPP
+#define MODEL_CHANGE_INTERVAL 0.1f
+#define TEAM_CHANGE_INTERVAL 0.1f
+#else
 #define MODEL_CHANGE_INTERVAL 5.0f
 #define TEAM_CHANGE_INTERVAL 5.0f
+#endif
 
 #define HL2MPPLAYER_PHYSDAMAGE_SCALE 4.0f
 
 #pragma warning( disable : 4355 )
 
+#ifdef SBPP
+CHL2MP_Player::CHL2MP_Player()
+{
+	//Tony; create our player animation state.
+	m_PlayerAnimState = CreateHL2MPPlayerAnimState( this );
+	UseClientSideAnimation();
+#else
 CHL2MP_Player::CHL2MP_Player() : m_PlayerAnimState( this )
 {
+#endif
+
 	m_angEyeAngles.Init();
 
 	m_iLastWeaponFireUsercmd = 0;
@@ -110,14 +250,27 @@ CHL2MP_Player::CHL2MP_Player() : m_PlayerAnimState( this )
     m_bEnterObserver = false;
 	m_bReady = false;
 
+#ifdef SBPP
+	m_aCurrentTaunt = ACT_INVALID;
+	m_bTaunting = false;
+
+	m_CurrentHandModel = "";
+
+	BaseClass::ChangeTeam( 0 );
+	UseClientSideAnimation();
+#else
 	BaseClass::ChangeTeam( 0 );
 	
 //	UseClientSideAnimation();
+#endif
 }
 
 CHL2MP_Player::~CHL2MP_Player( void )
 {
 
+#ifdef SBPP
+	m_PlayerAnimState->Release();
+#endif
 }
 
 void CHL2MP_Player::UpdateOnRemove( void )
@@ -136,6 +289,15 @@ void CHL2MP_Player::Precache( void )
 	BaseClass::Precache();
 
 	PrecacheModel ( "sprites/glow01.vmt" );
+#ifdef SBPP
+	PrecacheModel("models/weapons/c_arms_combine.mdl");
+	PrecacheModel("models/weapons/c_arms_citizen.mdl");
+	PrecacheModel("models/weapons/c_arms_hev.mdl");
+	PrecacheModel("models/weapons/c_arms_refugee.mdl");
+	PrecacheModel("models/weapons/c_arms_cstrike.mdl");
+	PrecacheModel("models/weapons/c_arms_dod.mdl");
+	PrecacheModel("models/weapons/c_arms_chell.mdl");
+#endif
 
 	//Precache Citizen models
 	int nHeads = ARRAYSIZE( g_ppszRandomCitizenModels );
@@ -150,7 +312,9 @@ void CHL2MP_Player::Precache( void )
 	for ( i = 0; i < nHeads; ++i )
 	   	 PrecacheModel( g_ppszRandomCombineModels[i] );
 
+#ifndef SBPP
 	PrecacheFootStepSounds();
+#endif
 
 	PrecacheScriptSound( "NPC_MetroPolice.Die" );
 	PrecacheScriptSound( "NPC_CombineS.Die" );
@@ -196,6 +360,11 @@ void CHL2MP_Player::GiveAllItems( void )
 
 void CHL2MP_Player::GiveDefaultItems( void )
 {
+#if defined ( LUA_SDK )
+	BEGIN_LUA_CALL_HOOK("GiveDefaultItems");
+	lua_pushhl2mpplayer(L, this);
+	END_LUA_CALL_HOOK(1, 0);
+#else
 	EquipSuit();
 
 	CBasePlayer::GiveAmmo( 255,	"Pistol");
@@ -230,7 +399,9 @@ void CHL2MP_Player::GiveDefaultItems( void )
 	{
 		Weapon_Switch( Weapon_OwnsThisType( "weapon_physcannon" ) );
 	}
+#endif
 }
+
 
 void CHL2MP_Player::PickDefaultSpawnTeam( void )
 {
@@ -247,7 +418,12 @@ void CHL2MP_Player::PickDefaultSpawnTeam( void )
 				{
 					char szReturnString[512];
 
+#ifdef SBPP
+					Q_snprintf( szReturnString, sizeof (szReturnString ), "cl_playermodel models/player/combine_soldier.mdl\n" );
+#else
 					Q_snprintf( szReturnString, sizeof (szReturnString ), "cl_playermodel models/combine_soldier.mdl\n" );
+		
+#endif
 					engine->ClientCommand ( edict(), szReturnString );
 				}
 
@@ -304,8 +480,10 @@ void CHL2MP_Player::Spawn(void)
 		GiveDefaultItems();
 	}
 
+#ifdef SBPP
 	SetNumAnimOverlays( 3 );
 	ResetAnimation();
+#endif
 
 	m_nRenderFX = kRenderNormal;
 
@@ -331,15 +509,36 @@ void CHL2MP_Player::Spawn(void)
 	SetPlayerUnderwater(false);
 
 	m_bReady = false;
+#ifdef SBPP
+	// oof..
+	m_CurrentHandModel = "";
+
+	//Tony; do the spawn animevent
+	DoAnimationEvent( PLAYERANIMEVENT_SPAWN );
+#endif
 }
 
 void CHL2MP_Player::PickupObject( CBaseEntity *pObject, bool bLimitMassAndSize )
 {
-	
+
+#ifdef LUA_SDK
+	BEGIN_LUA_CALL_HOOK( "PlayerPickupObject" );
+		lua_pushhl2mpplayer( L, this );
+		lua_pushentity( L, pObject );
+		lua_pushboolean( L, bLimitMassAndSize );
+	END_LUA_CALL_HOOK( 3, 1 );
+
+	RETURN_LUA_NONE();
+#endif
+
+#ifdef HL2SB
+	BaseClass::PickupObject( pObject, bLimitMassAndSize );
+#endif
 }
 
 bool CHL2MP_Player::ValidatePlayerModel( const char *pModel )
 {
+#ifndef HL2SB
 	int iModels = ARRAYSIZE( g_ppszRandomCitizenModels );
 	int i;	
 
@@ -362,6 +561,10 @@ bool CHL2MP_Player::ValidatePlayerModel( const char *pModel )
 	}
 
 	return false;
+#else
+	PrecacheModel( pModel );
+	return true;
+#endif
 }
 
 void CHL2MP_Player::SetPlayerTeamModel( void )
@@ -373,7 +576,11 @@ void CHL2MP_Player::SetPlayerTeamModel( void )
 
 	if ( modelIndex == -1 || ValidatePlayerModel( szModelName ) == false )
 	{
+#ifdef SBPP
+		szModelName = "models/player/combine_soldier.mdl";
+#else
 		szModelName = "models/Combine_Soldier.mdl";
+#endif
 		m_iModelType = TEAM_COMBINE;
 
 		char szReturnString[512];
@@ -384,7 +591,11 @@ void CHL2MP_Player::SetPlayerTeamModel( void )
 
 	if ( GetTeamNumber() == TEAM_COMBINE )
 	{
+#ifdef SBPP
+		if ( Q_stristr( szModelName, "models/player/human") )
+#else
 		if ( Q_stristr( szModelName, "models/human") )
+#endif
 		{
 			int nHeads = ARRAYSIZE( g_ppszRandomCombineModels );
 		
@@ -396,7 +607,11 @@ void CHL2MP_Player::SetPlayerTeamModel( void )
 	}
 	else if ( GetTeamNumber() == TEAM_REBELS )
 	{
+#ifdef SBPP
+		if ( !Q_stristr( szModelName, "models/player/human") )
+#else
 		if ( !Q_stristr( szModelName, "models/human") )
+#endif
 		{
 			int nHeads = ARRAYSIZE( g_ppszRandomCitizenModels );
 
@@ -419,6 +634,25 @@ void CHL2MP_Player::SetPlayerModel( void )
 	const char *pszCurrentModelName = modelinfo->GetModelName( GetModel());
 
 	szModelName = engine->GetClientConVarValue( engine->IndexOfEdict( edict() ), "cl_playermodel" );
+#ifdef HL2SB
+	//Andrew; Map our requested player model to the new model/player path.
+	char file[_MAX_PATH];
+	Q_strncpy( file, szModelName, sizeof(file) );
+	if ( Q_strnicmp( file, "models/player/", 14 ) )
+	{
+		char *substring = strstr( file, "models/" );
+		if ( substring )
+		{
+			// replace with new directory
+			const char *dirname = substring + strlen("models/");
+			*substring = 0;
+			char destpath[_MAX_PATH];
+			// player
+			Q_snprintf( destpath, sizeof(destpath), "models/player/%s", dirname);
+			szModelName = destpath;
+		}
+	}
+#endif
 
 	if ( ValidatePlayerModel( szModelName ) == false )
 	{
@@ -426,7 +660,11 @@ void CHL2MP_Player::SetPlayerModel( void )
 
 		if ( ValidatePlayerModel( pszCurrentModelName ) == false )
 		{
+#ifdef SBPP
+			pszCurrentModelName = "models/player/combine_soldier.mdl";
+#else
 			pszCurrentModelName = "models/Combine_Soldier.mdl";
+#endif
 		}
 
 		Q_snprintf( szReturnString, sizeof (szReturnString ), "cl_playermodel %s\n", pszCurrentModelName );
@@ -460,7 +698,11 @@ void CHL2MP_Player::SetPlayerModel( void )
 			szModelName = g_ppszRandomCitizenModels[0];
 		}
 
+#ifdef SBPP
+		if ( Q_stristr( szModelName, "models/player/human") )
+#else
 		if ( Q_stristr( szModelName, "models/human") )
+#endif
 		{
 			m_iModelType = TEAM_REBELS;
 		}
@@ -474,7 +716,11 @@ void CHL2MP_Player::SetPlayerModel( void )
 
 	if ( modelIndex == -1 )
 	{
+#ifdef SBPP
+		szModelName = "models/player/combine_soldier.mdl";
+#else
 		szModelName = "models/Combine_Soldier.mdl";
+#endif
 		m_iModelType = TEAM_COMBINE;
 
 		char szReturnString[512];
@@ -491,11 +737,15 @@ void CHL2MP_Player::SetPlayerModel( void )
 
 void CHL2MP_Player::SetupPlayerSoundsByModel( const char *pModelName )
 {
+#ifdef SBPP
 	if ( Q_stristr( pModelName, "models/human") )
 	{
 		m_iPlayerSoundType = (int)PLAYER_SOUNDS_CITIZEN;
 	}
 	else if ( Q_stristr(pModelName, "police" ) )
+#else
+	if ( Q_stristr(pModelName, "police" ) )
+#endif
 	{
 		m_iPlayerSoundType = (int)PLAYER_SOUNDS_METROPOLICE;
 	}
@@ -503,8 +753,15 @@ void CHL2MP_Player::SetupPlayerSoundsByModel( const char *pModelName )
 	{
 		m_iPlayerSoundType = (int)PLAYER_SOUNDS_COMBINESOLDIER;
 	}
+#ifdef SBPP
+	else
+	{
+		m_iPlayerSoundType = (int)PLAYER_SOUNDS_CITIZEN;
+	}
+#endif
 }
 
+#ifndef SBPP
 void CHL2MP_Player::ResetAnimation( void )
 {
 	if ( IsAlive() )
@@ -520,22 +777,26 @@ void CHL2MP_Player::ResetAnimation( void )
 			SetAnimation( PLAYER_WALK );
 	}
 }
+#endif
 
 
 bool CHL2MP_Player::Weapon_Switch( CBaseCombatWeapon *pWeapon, int viewmodelindex )
 {
 	bool bRet = BaseClass::Weapon_Switch( pWeapon, viewmodelindex );
 
+#ifndef SBPP
 	if ( bRet == true )
 	{
 		ResetAnimation();
 	}
+#endif
 
 	return bRet;
 }
 
 void CHL2MP_Player::PreThink( void )
 {
+#ifndef SBPP
 	QAngle vOldAngles = GetLocalAngles();
 	QAngle vTempAngles = GetLocalAngles();
 
@@ -547,13 +808,16 @@ void CHL2MP_Player::PreThink( void )
 	}
 
 	SetLocalAngles( vTempAngles );
+#endif
 
 	BaseClass::PreThink();
 	State_PreThink();
 
 	//Reset bullet force accumulator, only lasts one frame
 	m_vecTotalBulletForce = vec3_origin;
+#ifndef SBPP
 	SetLocalAngles( vOldAngles );
+#endif
 }
 
 void CHL2MP_Player::PostThink( void )
@@ -565,18 +829,59 @@ void CHL2MP_Player::PostThink( void )
 		SetCollisionBounds( VEC_CROUCH_TRACE_MIN, VEC_CROUCH_TRACE_MAX );
 	}
 
+#ifndef SBPP
 	m_PlayerAnimState.Update();
 
 	// Store the eye angles pitch so the client can compute its animation state correctly.
 	m_angEyeAngles = EyeAngles();
+#endif
 
 	QAngle angles = GetLocalAngles();
 	angles[PITCH] = 0;
 	SetLocalAngles( angles );
+
+#if defined(LUA_SDK)
+	CUtlString desiredModel;
+	int desiredSkin = 0;
+	const char* c_handmodel = engine->GetClientConVarValue( ENTINDEX( edict() ), "c_handmodel" );
+
+	BEGIN_LUA_CALL_HOOK("GetPlayerHandModel")
+		lua_pushhl2mpplayer(L, this);
+		lua_pushstring(L, c_handmodel);
+		lua_pushinteger(L, m_iPlayerSoundType);
+	END_LUA_CALL_HOOK(3, 2);
+
+	desiredModel = lua_tostring(L, -2);
+	desiredSkin = (int)lua_tointeger(L, -1);
+
+	lua_pop(L, 2);
+
+	PrecacheModel( desiredModel.Get() );
+
+	if (m_CurrentHandModel != desiredModel)
+	{
+		CBaseViewModel *pHandModel = GetViewModel(1);
+		if ( pHandModel )
+		{	
+			pHandModel->SetModel(desiredModel.Get());
+			pHandModel->m_nSkin = desiredSkin;
+			m_CurrentHandModel = desiredModel;
+		}
+	}
+#endif
+
+	// Store the eye angles pitch so the client can compute its animation state correctly.
+	m_angEyeAngles = EyeAngles();
+	m_PlayerAnimState->Update( m_angEyeAngles[YAW], m_angEyeAngles[PITCH] );
 }
 
 void CHL2MP_Player::PlayerDeathThink()
 {
+#if defined ( LUA_SDK )
+	BEGIN_LUA_CALL_HOOK( "PlayerDeathThink" );
+		lua_pushhl2mpplayer( L, this );
+	END_LUA_CALL_HOOK( 1, 0 );
+#endif
 	if( !IsObserver() )
 	{
 		BaseClass::PlayerDeathThink();
@@ -603,6 +908,11 @@ void CHL2MP_Player::FireBullets ( const FireBulletsInfo_t &info )
 
 	// Move other players back to history positions based on local player's lag
 	lagcompensation->FinishLagCompensation( this );
+
+#ifdef SBPP
+	if ( pWeapon )
+		this->OnMyWeaponFired( pWeapon );
+#endif
 }
 
 void CHL2MP_Player::NoteWeaponFired( void )
@@ -671,6 +981,7 @@ Activity CHL2MP_Player::TranslateTeamActivity( Activity ActToTranslate )
 
 extern ConVar hl2_normspeed;
 
+#ifdef SBPP
 // Set the activity based on an event or current state
 void CHL2MP_Player::SetAnimation( PLAYER_ANIM playerAnim )
 {
@@ -833,6 +1144,7 @@ void CHL2MP_Player::SetAnimation( PLAYER_ANIM playerAnim )
 	ResetSequence( animDesired );
 	SetCycle( 0 );
 }
+#endif
 
 
 extern int	gEvilImpulse101;
@@ -919,14 +1231,18 @@ void CHL2MP_Player::ChangeTeam( int iTeam )
 
 	m_flNextTeamChangeTime = gpGlobals->curtime + TEAM_CHANGE_INTERVAL;
 
+#ifdef SBPP
 	if ( HL2MPRules()->IsTeamplay() == true )
 	{
 		SetPlayerTeamModel();
 	}
 	else
 	{
+#endif
 		SetPlayerModel();
+#ifdef SBPP
 	}
+#endif
 
 	if ( iTeam == TEAM_SPECTATOR )
 	{
@@ -952,7 +1268,7 @@ bool CHL2MP_Player::HandleCommand_JoinTeam( int team )
 	if ( team == TEAM_SPECTATOR )
 	{
 		// Prevent this is the cvar is set
-		if ( !mp_allowspectators.GetInt() )
+		if ( !mp_allowspectators.GetInt() && !IsHLTV() )
 		{
 			ClientPrint( this, HUD_PRINTCENTER, "#Cannot_Be_Spectator" );
 			return false;
@@ -983,6 +1299,30 @@ bool CHL2MP_Player::HandleCommand_JoinTeam( int team )
 
 	return true;
 }
+#ifdef SBPP
+void SendStartMessageMode( CBasePlayer *pPlayer, int mode )
+{
+    if ( !pPlayer )
+        return;
+
+    CSingleUserRecipientFilter filter( pPlayer );
+    filter.MakeReliable();
+
+    int msg_index = usermessages->LookupUserMessage( "StartMessageMode" );
+    if ( msg_index == -1 )
+    {
+        Warning( "Could not find StartMessageMode usermessage!\n" );
+        return;
+    }
+
+    bf_write *pBuf = engine->UserMessageBegin( &filter, msg_index );
+    if ( !pBuf )
+        return;
+
+    pBuf->WriteByte( mode );
+    engine->MessageEnd();
+}
+#endif
 
 bool CHL2MP_Player::ClientCommand( const CCommand &args )
 {
@@ -1013,12 +1353,28 @@ bool CHL2MP_Player::ClientCommand( const CCommand &args )
 	{
 		return true;
 	}
+#ifdef SBPP
+	else if ( FStrEq( args[0], "messagemode" ) )
+	{
+		CBasePlayer *pPlayer = UTIL_GetCommandClient();
+    	SendStartMessageMode( pPlayer, 0 );
+		return true;
+	}
+#endif
 
 	return BaseClass::ClientCommand( args );
 }
 
 void CHL2MP_Player::CheatImpulseCommands( int iImpulse )
 {
+#if defined ( LUA_SDK )
+	BEGIN_LUA_CALL_HOOK( "CheatImpulseCommands" );
+		lua_pushhl2mpplayer( L, this );
+		lua_pushinteger( L, iImpulse );
+	END_LUA_CALL_HOOK( 2, 1 );
+
+	RETURN_LUA_NONE();
+#endif
 	switch ( iImpulse )
 	{
 		case 101:
@@ -1225,7 +1581,9 @@ void CHL2MP_Player::Event_Killed( const CTakeDamageInfo &info )
 	CTakeDamageInfo subinfo = info;
 	subinfo.SetDamageForce( m_vecTotalBulletForce );
 
+#ifndef SBPP
 	SetNumAnimOverlays( 0 );
+#endif
 
 	// Note: since we're dead, it won't draw us on the client, but we don't set EF_NODRAW
 	// because we still want to transmit to the clients in our PVS.
@@ -1254,7 +1612,9 @@ void CHL2MP_Player::Event_Killed( const CTakeDamageInfo &info )
 			iScoreToAdd = -1;
 		}
 
+#ifndef SBPP
 		GetGlobalTeam( pAttacker->GetTeamNumber() )->AddScore( iScoreToAdd );
+#endif
 	}
 
 	FlashlightTurnOff();
@@ -1280,12 +1640,26 @@ int CHL2MP_Player::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 
 void CHL2MP_Player::DeathSound( const CTakeDamageInfo &info )
 {
+#if defined ( LUA_SDK )
+	CTakeDamageInfo lInfo = info;
+
+	BEGIN_LUA_CALL_HOOK( "PlayerDeathSound" );
+		lua_pushhl2mpplayer( L, this );
+		lua_pushdamageinfo( L, lInfo );
+	END_LUA_CALL_HOOK( 2, 1 );
+
+	RETURN_LUA_NONE();
+#endif
 	if ( m_hRagdoll && m_hRagdoll->GetBaseAnimating()->IsDissolving() )
 		 return;
 
 	char szStepSound[128];
 
+#ifdef SBPP
+	Q_snprintf( szStepSound, sizeof( szStepSound ), "%s.Death", GetPlayerModelSoundPrefix() );
+#else
 	Q_snprintf( szStepSound, sizeof( szStepSound ), "%s.Die", GetPlayerModelSoundPrefix() );
+#endif
 
 	const char *pModelName = STRING( GetModelName() );
 
@@ -1332,10 +1706,86 @@ CBaseEntity* CHL2MP_Player::EntSelectSpawnPoint( void )
 
 		if ( gEntList.FindEntityByClassname( NULL, pSpawnpointName ) == NULL )
 		{
+			// Andrew; this could be neater, or the entire function could be
+			// rewritten to pool together our various point classes and select
+			// one randomly. For now, we'll prefer spawnpoints by appid if we
+			// can't find anything from deathmatch.
+#ifdef HL2SB
+			if ( GetTeamNumber() == TEAM_COMBINE || FStrEq( spawnpoint.GetString(), "terrorist" ) )
+			{
+				pSpawnpointName = "info_player_terrorist";
+				pLastSpawnPoint = g_pLastCombineSpawn;
+			}
+			else if ( GetTeamNumber() == TEAM_REBELS || FStrEq( spawnpoint.GetString(), "ct") )
+			{
+				pSpawnpointName = "info_player_counterterrorist";
+				pLastSpawnPoint = g_pLastRebelSpawn;
+			}
+
+			// try once more for dod
+			if ( gEntList.FindEntityByClassname( NULL, pSpawnpointName ) == NULL )
+			{
+				if ( GetTeamNumber() == TEAM_COMBINE )
+				{
+					pSpawnpointName = "info_player_axis";
+					pLastSpawnPoint = g_pLastCombineSpawn;
+				}
+				else if ( GetTeamNumber() == TEAM_REBELS )
+				{
+					pSpawnpointName = "info_player_allies";
+					pLastSpawnPoint = g_pLastRebelSpawn;
+				}
+
+				// three strikes, you're out!
+		if ( gEntList.FindEntityByClassname( NULL, pSpawnpointName ) == NULL )
+		{
 			pSpawnpointName = "info_player_deathmatch";
 			pLastSpawnPoint = g_pLastSpawn;
 		}
 	}
+#else
+			pSpawnpointName = "info_player_deathmatch";
+			pLastSpawnPoint = g_pLastSpawn;
+#endif
+		}
+	}
+#ifdef HL2SB
+	else
+	{
+		if ( random->RandomInt(0,1) )
+		{
+			pSpawnpointName = "info_player_terrorist";
+			pLastSpawnPoint = g_pLastCombineSpawn;
+		}
+		else
+		{
+			pSpawnpointName = "info_player_counterterrorist";
+			pLastSpawnPoint = g_pLastRebelSpawn;
+		}
+
+		// try once more for dod
+		if ( gEntList.FindEntityByClassname( NULL, pSpawnpointName ) == NULL )
+		{
+			if ( random->RandomInt(0,1) )
+			{
+				pSpawnpointName = "info_player_axis";
+				pLastSpawnPoint = g_pLastCombineSpawn;
+			}
+			else
+			{
+				pSpawnpointName = "info_player_allies";
+				pLastSpawnPoint = g_pLastRebelSpawn;
+			}
+
+			// three strikes, you're out!
+			if ( gEntList.FindEntityByClassname( NULL, pSpawnpointName ) == NULL )
+			{
+				pSpawnpointName = "info_player_deathmatch";
+				pLastSpawnPoint = g_pLastSpawn;
+			}
+		}
+	}
+#endif
 
 	pSpot = pLastSpawnPoint;
 	// Randomize the start spot
@@ -1380,6 +1830,22 @@ CBaseEntity* CHL2MP_Player::EntSelectSpawnPoint( void )
 		goto ReturnSpot;
 	}
 
+#ifdef HL2SB
+	// If startspot is set, (re)spawn there.
+	if ( !gpGlobals->startspot || !strlen(STRING(gpGlobals->startspot)))
+	{
+		pSpot = FindPlayerStart( "info_player_start" );
+		if ( pSpot )
+			goto ReturnSpot;
+	}
+	else
+	{
+		pSpot = gEntList.FindEntityByName( NULL, gpGlobals->startspot );
+		if ( pSpot )
+			goto ReturnSpot;
+	}
+
+#else
 	if ( !pSpot  )
 	{
 		pSpot = gEntList.FindEntityByClassname( pSpot, "info_player_start" );
@@ -1387,6 +1853,7 @@ CBaseEntity* CHL2MP_Player::EntSelectSpawnPoint( void )
 		if ( pSpot )
 			goto ReturnSpot;
 	}
+#endif
 
 ReturnSpot:
 
@@ -1627,3 +2094,212 @@ bool CHL2MP_Player::CanHearAndReadChatFrom( CBasePlayer *pPlayer )
 
 	return true;
 }
+
+#ifdef SBPP
+//-----------------------------------------------------------------------------
+// Purpose: multiplayer does not do autoaiming.
+//-----------------------------------------------------------------------------
+Vector CHL2MP_Player::GetAutoaimVector( float flScale )
+{
+	//No Autoaim
+	Vector	forward;
+	AngleVectors( EyeAngles() + m_Local.m_vecPunchAngle, &forward );
+	return	forward;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Do nothing multiplayer_animstate takes care of animation.
+// Input  : playerAnim - 
+//-----------------------------------------------------------------------------
+void CHL2MP_Player::SetAnimation( PLAYER_ANIM playerAnim )
+{
+	return;
+}
+
+// -------------------------------------------------------------------------------- //
+// Player animation event. Sent to the client when a player fires, jumps, reloads, etc..
+// -------------------------------------------------------------------------------- //
+class CTEPlayerAnimEvent : public CBaseTempEntity
+{
+public:
+	DECLARE_CLASS( CTEPlayerAnimEvent, CBaseTempEntity );
+	DECLARE_SERVERCLASS();
+
+	CTEPlayerAnimEvent( const char *name ) : CBaseTempEntity( name )
+	{
+	}
+
+	CNetworkHandle( CBasePlayer, m_hPlayer );
+	CNetworkVar( int, m_iEvent );
+	CNetworkVar( int, m_nData );
+};
+
+IMPLEMENT_SERVERCLASS_ST_NOBASE( CTEPlayerAnimEvent, DT_TEPlayerAnimEvent )
+	SendPropEHandle( SENDINFO( m_hPlayer ) ),
+	SendPropInt( SENDINFO( m_iEvent ), Q_log2( PLAYERANIMEVENT_COUNT ) + 1, SPROP_UNSIGNED ),
+	SendPropInt( SENDINFO( m_nData ), 32 )
+END_SEND_TABLE()
+
+static CTEPlayerAnimEvent g_TEPlayerAnimEvent( "PlayerAnimEvent" );
+
+void TE_PlayerAnimEvent( CBasePlayer *pPlayer, PlayerAnimEvent_t event, int nData )
+{
+	CPVSFilter filter( (const Vector&)pPlayer->EyePosition() );
+
+	//Tony; use prediction rules.
+	filter.UsePredictionRules();
+	
+	g_TEPlayerAnimEvent.m_hPlayer = pPlayer;
+	g_TEPlayerAnimEvent.m_iEvent = event;
+	g_TEPlayerAnimEvent.m_nData = nData;
+	g_TEPlayerAnimEvent.Create( filter, 0 );
+}
+
+
+void CHL2MP_Player::DoAnimationEvent( PlayerAnimEvent_t event, int nData )
+{
+	m_PlayerAnimState->DoAnimationEvent( event, nData );
+	TE_PlayerAnimEvent( this, event, nData );	// Send to any clients who can see this guy.
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Override setup bones so that is uses the render angles from
+//			the HL2MP animation state to setup the hitboxes.
+//-----------------------------------------------------------------------------
+void CHL2MP_Player::SetupBones( matrix3x4_t *pBoneToWorld, int boneMask )
+{
+	VPROF_BUDGET( "CHL2MP_Player::SetupBones", VPROF_BUDGETGROUP_SERVER_ANIM );
+
+	// Get the studio header.
+	Assert( GetModelPtr() );
+	CStudioHdr *pStudioHdr = GetModelPtr( );
+	if ( !pStudioHdr )
+		return;
+
+	Vector pos[MAXSTUDIOBONES];
+	Quaternion q[MAXSTUDIOBONES];
+
+	// Adjust hit boxes based on IK driven offset.
+	Vector adjOrigin = GetAbsOrigin() + Vector( 0, 0, m_flEstIkOffset );
+
+	// FIXME: pass this into Studio_BuildMatrices to skip transforms
+	CBoneBitList boneComputed;
+	if ( m_pIk )
+	{
+		m_iIKCounter++;
+		m_pIk->Init( pStudioHdr, GetAbsAngles(), adjOrigin, gpGlobals->curtime, m_iIKCounter, boneMask );
+		GetSkeleton( pStudioHdr, pos, q, boneMask );
+
+		m_pIk->UpdateTargets( pos, q, pBoneToWorld, boneComputed );
+		CalculateIKLocks( gpGlobals->curtime );
+		m_pIk->SolveDependencies( pos, q, pBoneToWorld, boneComputed );
+	}
+	else
+	{
+		GetSkeleton( pStudioHdr, pos, q, boneMask );
+	}
+
+	CBaseAnimating *pParent = dynamic_cast< CBaseAnimating* >( GetMoveParent() );
+	if ( pParent )
+	{
+		// We're doing bone merging, so do special stuff here.
+		CBoneCache *pParentCache = pParent->GetBoneCache();
+		if ( pParentCache )
+		{
+			BuildMatricesWithBoneMerge( 
+				pStudioHdr, 
+				m_PlayerAnimState->GetRenderAngles(),
+				adjOrigin, 
+				pos, 
+				q, 
+				pBoneToWorld, 
+				pParent, 
+				pParentCache );
+
+			return;
+		}
+	}
+
+	Studio_BuildMatrices( 
+		pStudioHdr, 
+		m_PlayerAnimState->GetRenderAngles(),
+		adjOrigin, 
+		pos, 
+		q, 
+		-1,
+		GetModelScale(), // Scaling
+		pBoneToWorld,
+		boneMask );
+}
+
+void CHL2MP_Player::StartTaunt(Activity aDance)
+{
+	m_bTaunting = true;
+	AddFlag( FL_FROZEN );
+	m_aCurrentTaunt = aDance;
+
+	engine->ClientCommand( edict(), "thirdperson" );
+	if (GetActiveWeapon())
+		GetActiveWeapon()->Holster();
+
+	float duration = 3.f;
+	switch (aDance)
+	{
+		case ACT_GMOD_TAUNT_MUSCLE:
+			duration = 10.f;
+			break;
+		case ACT_GMOD_TAUNT_DANCE:
+			duration = 4.5f;
+			break;
+		case ACT_GMOD_TAUNT_LAUGH:
+			duration = 2.75f;
+			break;
+		default:
+			duration = 3.f;
+			break;
+	}
+
+    SetThink(&CHL2MP_Player::EndTaunt);
+    SetNextThink(gpGlobals->curtime + duration);
+}
+
+void CHL2MP_Player::EndTaunt()
+{
+	m_bTaunting = false;
+	RemoveFlag( FL_FROZEN );
+	m_aCurrentTaunt = ACT_INVALID;
+
+	engine->ClientCommand( edict(), "firstperson" );
+	if (GetActiveWeapon())
+		GetActiveWeapon()->Deploy();
+}
+
+void CC_PlayAct(const CCommand &args)
+{
+    if (args.ArgC() < 2)
+    {
+        Msg("Usage: act <act_name>\n");
+        return;
+    }
+
+    const char* actName = args[1];
+    Activity act = ACT_INVALID;
+
+    if (FStrEq(actName, "dance")) act = ACT_GMOD_TAUNT_DANCE;
+	else if (FStrEq(actName, "muscle")) act = ACT_GMOD_TAUNT_MUSCLE;
+	else if (FStrEq(actName, "laugh")) act = ACT_GMOD_TAUNT_LAUGH;
+    else
+    {
+        Msg("Unknown act: %s\n", actName);
+        return;
+    }
+
+    CHL2MP_Player* pPlayer = ToHL2MPPlayer( UTIL_GetCommandClient() );
+    if (!pPlayer) return;
+
+	pPlayer->StartTaunt(act);
+}
+
+ConCommand act("act", CC_PlayAct, "Plays a specific animation, don't use this lmao", FCVAR_NONE);
+
+#endif

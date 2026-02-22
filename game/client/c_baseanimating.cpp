@@ -200,7 +200,12 @@ IMPLEMENT_CLIENTCLASS_DT(C_BaseAnimating, DT_BaseAnimating, CBaseAnimating)
 	RecvPropFloat( RECVINFO( m_fadeMinDist ) ), 
 	RecvPropFloat( RECVINFO( m_fadeMaxDist ) ), 
 	RecvPropFloat( RECVINFO( m_flFadeScale ) ), 
-
+#ifdef GLOWS_ENABLE
+	RecvPropBool(RECVINFO(m_bGlowEnabled)),
+	RecvPropFloat(RECVINFO(m_flGlowR)),
+	RecvPropFloat(RECVINFO(m_flGlowG)),
+	RecvPropFloat(RECVINFO(m_flGlowB)),
+#endif // GLOWS_ENABLE
 END_RECV_TABLE()
 
 BEGIN_PREDICTION_DATA( C_BaseAnimating )
@@ -734,6 +739,14 @@ C_BaseAnimating::C_BaseAnimating() :
 	m_bDynamicModelAllowed = false;
 	m_bDynamicModelPending = false;
 	m_bResetSequenceInfoOnLoad = false;
+#ifdef GLOWS_ENABLE
+	m_flGlowR = 0.76f;
+	m_flGlowG = 0.76f;
+	m_flGlowB = 0.76f;
+	m_pGlowEffect = NULL;
+	m_bGlowEnabled = false;
+	m_bOldGlowEnabled = false;
+#endif // GLOWS_ENABLE
 
 	Q_memset(&m_mouth, 0, sizeof(m_mouth));
 	m_flCycle = 0;
@@ -761,6 +774,10 @@ C_BaseAnimating::~C_BaseAnimating()
 
 	// Kill off anything bone attached to us.
 	DestroyBoneAttachments();
+
+#ifdef GLOWS_ENABLE
+	DestroyGlowEffect();
+#endif // GLOWS_ENABLE
 
 	// If we are bone attached to something, remove us from the list.
 	if ( m_pAttachedTo )
@@ -2947,7 +2964,11 @@ C_BaseAnimating* C_BaseAnimating::FindFollowedEntity()
 
 	if ( !follow->GetModel() )
 	{
+		// @ThePixelMoon: this isn't necessary anymore since we have
+		// no-weapon anims.
+#ifndef SBPP
 		Warning( "mod_studio: MOVETYPE_FOLLOW with no model.\n" );
+#endif
 		return NULL;
 	}
 
@@ -3829,6 +3850,36 @@ void C_BaseAnimating::FireEvent( const Vector& origin, const QAngle& angles, int
 
 	// Eject brass
 	case CL_EVENT_EJECTBRASS1:
+#if defined ( HL2SB )
+		{
+			// Check if we're a weapon, if we belong to the local player, and if the local player is in third person - if all are true, don't do a muzzleflash in this instance, because
+			// we're using the view models dispatch for smoothness.
+			if ( dynamic_cast< C_BaseCombatWeapon *>(this) != NULL )
+			{
+				C_BaseCombatWeapon *pWeapon = dynamic_cast< C_BaseCombatWeapon *>(this);
+				if ( pWeapon && pWeapon->GetOwner() == C_BasePlayer::GetLocalPlayer() && ::input->CAM_IsThirdPerson() )
+					break;
+			}
+			
+			if ( ( prediction->InPrediction() && !prediction->IsFirstTimePredicted() ) )
+				break;
+
+			if ( m_Attachments.Count() > 0 )
+			{
+				if ( MainViewOrigin().DistToSqr( GetAbsOrigin() ) < (256 * 256) )
+				{
+					Vector attachOrigin;
+					QAngle attachAngles; 
+					
+					if( GetAttachment( 2, attachOrigin, attachAngles ) )
+					{
+						tempents->EjectBrass( attachOrigin, attachAngles, GetAbsAngles(), atoi( options ) );
+					}
+				}
+			}
+			break;
+		}
+#else
 		if ( m_Attachments.Count() > 0 )
 		{
 			if ( MainViewOrigin().DistToSqr( GetAbsOrigin() ) < (256 * 256) )
@@ -3843,6 +3894,7 @@ void C_BaseAnimating::FireEvent( const Vector& origin, const QAngle& angles, int
 			}
 		}
 		break;
+#endif
 
 	case AE_MUZZLEFLASH:
 		{
@@ -4060,6 +4112,7 @@ void C_BaseAnimating::FireObsoleteEvent( const Vector& origin, const QAngle& ang
 
 			if ( iAttachment != -1 && m_Attachments.Count() > iAttachment )
 			{
+#ifndef SBPP
 				GetAttachment( iAttachment+1, attachOrigin, attachAngles );
 
 				// Fill out the generic data
@@ -4071,6 +4124,21 @@ void C_BaseAnimating::FireObsoleteEvent( const Vector& origin, const QAngle& ang
 				data.m_nAttachmentIndex = iAttachment + 1;
 
 				DispatchEffect( options, data );
+#else
+				if ( input->CAM_IsThirdPerson() )
+				{
+					C_BaseCombatWeapon *pWeapon = GetActiveWeapon();
+					pWeapon->GetAttachment( iAttachment+1, attachOrigin, attachAngles );
+				}
+				else
+				{
+					C_BasePlayer *pPlayer = C_BasePlayer::GetLocalPlayer();
+					CBaseViewModel *vm = pPlayer->GetViewModel();
+					vm->GetAttachment( iAttachment+1, attachOrigin, attachAngles );
+					engine->GetViewAngles( attachAngles );
+				}
+				g_pEffects->MuzzleFlash( attachOrigin, attachAngles, 1.0, MUZZLEFLASH_TYPE_DEFAULT );
+#endif
 			}
 		}
 		break;
@@ -4511,6 +4579,50 @@ void C_BaseAnimating::PostDataUpdate( DataUpdateType_t updateType )
 		}
 	}
 }
+#ifdef GLOWS_ENABLE
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void C_BaseAnimating::GetGlowEffectColor(float* r, float* g, float* b)
+{
+	*r = m_flGlowR;
+	*g = m_flGlowG;
+	*b = m_flGlowB;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void C_BaseAnimating::UpdateGlowEffect( void )
+{
+	// destroy the existing effect
+	if ( m_pGlowEffect )
+	{
+		DestroyGlowEffect();
+	}
+
+	// create a new effect
+	if ( m_bGlowEnabled )
+	{
+		float r, g, b;
+		GetGlowEffectColor( &r, &g, &b );
+
+		m_pGlowEffect = new CGlowObject( this, Vector( r, g, b ), 1.0, true );
+	}
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void C_BaseAnimating::DestroyGlowEffect( void )
+{
+	if ( m_pGlowEffect )
+	{
+		delete m_pGlowEffect;
+		m_pGlowEffect = NULL;
+	}
+}
+#endif // GLOWS_ENABLE
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -4519,6 +4631,10 @@ void C_BaseAnimating::PostDataUpdate( DataUpdateType_t updateType )
 void C_BaseAnimating::OnPreDataChanged( DataUpdateType_t updateType )
 {
 	BaseClass::OnPreDataChanged( updateType );
+
+#ifdef GLOWS_ENABLE
+	m_bOldGlowEnabled = m_bGlowEnabled;
+#endif // GLOWS_ENABLE
 
 	m_bLastClientSideFrameReset = m_bClientSideFrameReset;
 }
@@ -4724,6 +4840,12 @@ void C_BaseAnimating::OnDataChanged( DataUpdateType_t updateType )
 	}
 
 
+#ifdef GLOWS_ENABLE
+	if ( m_bOldGlowEnabled != m_bGlowEnabled )
+	{
+		UpdateGlowEffect();
+	}
+#endif // GLOWS_ENABLE
 
 	bool modelchanged = false;
 

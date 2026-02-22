@@ -70,7 +70,11 @@ protected:
 	MESSAGE_FUNC( OnApplyButtonEnable, "ApplyButtonEnable" );
 	void EnableApplyButton(bool bEnable);
 	
+#ifdef LUA_SDK
+public:
+#else
 private:
+#endif
 	PropertySheet *_propertySheet;
 	Button *_okButton;
 	Button *_cancelButton;

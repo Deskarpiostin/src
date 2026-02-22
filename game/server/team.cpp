@@ -145,7 +145,11 @@ int CTeam::GetTeamNumber( void ) const
 //-----------------------------------------------------------------------------
 const char *CTeam::GetName( void )
 {
+#ifdef SBPP
+	return "None";
+#else
 	return m_szTeamname;
+#endif
 }
 
 

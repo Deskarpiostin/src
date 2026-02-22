@@ -39,6 +39,14 @@ struct DeathNoticeItem
 	int			iSuicide;
 	float		flDisplayTime;
 	bool		bHeadshot;
+
+#ifdef SBPP
+    bool        bKillerIsNPC;
+    bool        bVictimIsNPC;
+	bool		bNPCInflictorIsFriendly;
+	bool		bNPCVictimIsFriendly;
+	bool		bVictimIsPlayer;
+#endif
 };
 
 //-----------------------------------------------------------------------------
@@ -56,7 +64,9 @@ public:
 	virtual void Paint( void );
 	virtual void ApplySchemeSettings( vgui::IScheme *scheme );
 
+#ifndef SBPP
 	void SetColorForNoticePlayer( int iTeamNumber );
+#endif
 	void RetireExpiredDeathNotices( void );
 	
 	virtual void FireGameEvent( IGameEvent * event );
@@ -76,6 +86,10 @@ private:
 	CHudTexture		*m_iconD_headshot;  
 
 	CUtlVector<DeathNoticeItem> m_DeathNotices;
+
+#ifdef SBPP
+	CPanelAnimationVar( float, m_flTextYOffset, "TextYOffset", "4" );
+#endif
 };
 
 using namespace vgui;
@@ -112,6 +126,9 @@ void CHudDeathNotice::ApplySchemeSettings( IScheme *scheme )
 void CHudDeathNotice::Init( void )
 {
 	ListenForGameEvent( "player_death" );	
+#ifdef SBPP
+	ListenForGameEvent("npc_killed");
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -131,6 +148,7 @@ bool CHudDeathNotice::ShouldDraw( void )
 	return ( CHudElement::ShouldDraw() && ( m_DeathNotices.Count() ) );
 }
 
+#ifndef SBPP
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
@@ -138,6 +156,7 @@ void CHudDeathNotice::SetColorForNoticePlayer( int iTeamNumber )
 {
 	surface()->DrawSetTextColor( GameResources()->GetTeamColor( iTeamNumber ) );
 }
+#endif
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -157,8 +176,16 @@ void CHudDeathNotice::Paint()
 	for ( int i = 0; i < iCount; i++ )
 	{
 		CHudTexture *icon = m_DeathNotices[i].iconDeath;
+#ifdef SBPP
+		if ( m_DeathNotices[i].iSuicide )
+			icon = m_iconD_skull;
+
+		if ( !icon )
+			icon = m_iconD_skull;
+#else
 		if ( !icon )
 			continue;
+#endif
 
 		wchar_t victim[ 256 ];
 		wchar_t killer[ 256 ];
@@ -204,6 +231,10 @@ void CHudDeathNotice::Paint()
 		{
 			x = 0;
 		}
+#ifdef SBPP
+		int yIcon = y;
+		int yText = yIcon + (int)m_flTextYOffset;
+#endif
 		
 		// Only draw killers name if it wasn't a suicide
 		if ( !m_DeathNotices[i].iSuicide )
@@ -213,10 +244,25 @@ void CHudDeathNotice::Paint()
 				x -= UTIL_ComputeStringWidth( m_hTextFont, killer );
 			}
 
+#ifdef SBPP
+			if (m_DeathNotices[i].bKillerIsNPC)
+			{
+				if (m_DeathNotices[i].bNPCInflictorIsFriendly)
+					surface()->DrawSetTextColor(Color(50, 200, 50, 255));
+				else
+					surface()->DrawSetTextColor(Color(250, 50, 50, 255));
+			}
+			else
+				surface()->DrawSetTextColor(Color(250, 250, 50, 255));
+
+			// Draw killer's name
+			surface()->DrawSetTextPos( x, yText );
+#else
 			SetColorForNoticePlayer( iKillerTeam );
 
 			// Draw killer's name
 			surface()->DrawSetTextPos( x, y );
+#endif
 			surface()->DrawSetTextFont( m_hTextFont );
 			surface()->DrawUnicodeString( killer );
 			surface()->DrawGetTextPos( x, y );
@@ -229,10 +275,25 @@ void CHudDeathNotice::Paint()
 		icon->DrawSelf( x, y, iconWide, iconTall, iconColor );
 		x += iconWide;		
 
+#ifdef SBPP
+		if (m_DeathNotices[i].bVictimIsNPC)
+		{
+			if (m_DeathNotices[i].bNPCVictimIsFriendly)
+				surface()->DrawSetTextColor(Color(50, 200, 50, 255));
+			else
+				surface()->DrawSetTextColor(Color(250, 50, 50, 255));
+		}
+		else
+			surface()->DrawSetTextColor(Color(250, 250, 50, 255));
+		
+		// Draw victims name
+		surface()->DrawSetTextPos( x, yText );
+#else
 		SetColorForNoticePlayer( iVictimTeam );
 
 		// Draw victims name
 		surface()->DrawSetTextPos( x, y );
+#endif
 		surface()->DrawSetTextFont( m_hTextFont );	//reset the font, draw icon can change it
 		surface()->DrawUnicodeString( victim );
 	}
@@ -262,10 +323,146 @@ void CHudDeathNotice::RetireExpiredDeathNotices( void )
 //-----------------------------------------------------------------------------
 void CHudDeathNotice::FireGameEvent( IGameEvent * event )
 {
+#ifndef SBPP
 	if (!g_PR)
 		return;
+#endif
 
 	if ( hud_deathnotice_time.GetFloat() == 0 )
+#ifdef SBPP
+		return;
+
+	char fullkilledwith[256];
+
+	int killer;
+	int victim;
+	const char *killer_name;
+	const char *victim_name;
+	if (FStrEq(event->GetName(), "npc_killed"))
+	{
+		const char *attacker_name = event->GetString( "attacker_name" );
+		const char *victim_name   = event->GetString( "victim_name" );
+		bool attacker_is_player   = event->GetBool( "attacker_isplayer", false );
+		bool npc_killer_friendly = event->GetBool( "npc_killer_friendly", false );
+		bool npc_victim_friendly = event->GetBool( "npc_victim_friendly", false );
+		bool victim_isplayer	 = event->GetBool( "victim_isplayer", false );
+
+		if ( !attacker_name ) attacker_name = "";
+		if ( !victim_name )   victim_name = "";
+
+		const char *killedwith = event->GetString( "weaponname" );
+		if ( killedwith && *killedwith )
+		{
+			Q_snprintf( fullkilledwith, sizeof(fullkilledwith), "death_%s", killedwith );
+		}
+		else
+		{
+			fullkilledwith[0] = 0;
+		}
+
+		killer = 0;
+		victim = 0;
+		killer_name = attacker_name;
+		victim_name = victim_name;
+
+		DeathNoticeItem deathMsg;
+		deathMsg.Killer.iEntIndex = killer;
+		deathMsg.Victim.iEntIndex = victim;
+		Q_strncpy( deathMsg.Killer.szName, killer_name, MAX_PLAYER_NAME_LENGTH );
+		Q_strncpy( deathMsg.Victim.szName, victim_name, MAX_PLAYER_NAME_LENGTH );
+		deathMsg.bVictimIsNPC = !victim_isplayer;
+    	deathMsg.bKillerIsNPC = !attacker_is_player;
+		deathMsg.bNPCInflictorIsFriendly = npc_killer_friendly;
+		deathMsg.bNPCVictimIsFriendly = npc_victim_friendly;
+		deathMsg.bVictimIsPlayer	  = victim_isplayer;
+
+		deathMsg.flDisplayTime = gpGlobals->curtime + hud_deathnotice_time.GetFloat();
+
+		if ( attacker_name[0] == '\0' || FStrEq( attacker_name, "world" ) )
+		{
+			deathMsg.iSuicide = 0; // just "died"
+		}
+		else
+		{
+			deathMsg.iSuicide = FStrEq( attacker_name, victim_name );
+		}
+
+		deathMsg.iconDeath = gHUD.GetIcon( fullkilledwith );
+		if ( !deathMsg.iconDeath || deathMsg.iSuicide )
+		{
+			deathMsg.iconDeath = m_iconD_skull;
+		}
+
+		if ( m_DeathNotices.Count() > 0 && m_DeathNotices.Count() >= (int)m_flMaxDeathNotices )
+		{
+			m_DeathNotices.Remove( 0 );
+		}
+		m_DeathNotices.AddToTail( deathMsg );
+
+		char sDeathMsg[512];
+
+		if ( deathMsg.iSuicide )
+		{
+			if ( !strcmp( fullkilledwith, "d_worldspawn" ) )
+			{
+				Q_snprintf( sDeathMsg, sizeof( sDeathMsg ), "%s died.\n", deathMsg.Victim.szName );
+			}
+			else	//d_world
+			{
+				Q_snprintf( sDeathMsg, sizeof( sDeathMsg ), "%s suicided.\n", deathMsg.Victim.szName );
+			}
+		}
+		else
+		{
+			Q_snprintf( sDeathMsg, sizeof( sDeathMsg ), "%s killed %s", deathMsg.Killer.szName, deathMsg.Victim.szName );
+
+			if ( fullkilledwith && *fullkilledwith && (*fullkilledwith > 13 ) )
+			{
+				Q_strncat( sDeathMsg, VarArgs( " with %s.\n", fullkilledwith+6 ), sizeof( sDeathMsg ), COPY_ALL_CHARACTERS );
+			}
+		}
+
+		Msg( "%s", sDeathMsg );
+
+		return;
+	}
+	else
+	{
+		if (!g_PR)
+			return;
+		
+		// the event should be "player_death"
+		killer = engine->GetPlayerForUserID( event->GetInt("attacker") );
+		victim = engine->GetPlayerForUserID( event->GetInt("userid") );
+		const char *killedwith = event->GetString( "weapon" );
+
+		if ( killedwith && *killedwith )
+		{
+			Q_snprintf( fullkilledwith, sizeof(fullkilledwith), "death_%s", killedwith );
+		}
+		else
+		{
+			fullkilledwith[0] = 0;
+		}
+
+		// Do we have too many death messages in the queue?
+		if ( m_DeathNotices.Count() > 0 &&
+			m_DeathNotices.Count() >= (int)m_flMaxDeathNotices )
+		{
+			// Remove the oldest one in the queue, which will always be the first
+			m_DeathNotices.Remove(0);
+		}
+
+		// Get the names of the players
+		killer_name = g_PR->GetPlayerName( killer );
+		victim_name = g_PR->GetPlayerName( victim );
+
+		if ( !killer_name )
+			killer_name = "";
+		if ( !victim_name )
+			victim_name = "";
+	}
+#else
 		return;
 
 	// the event should be "player_death"
@@ -299,6 +496,7 @@ void CHudDeathNotice::FireGameEvent( IGameEvent * event )
 		killer_name = "";
 	if ( !victim_name )
 		victim_name = "";
+#endif
 
 	// Make a new death notice
 	DeathNoticeItem deathMsg;
@@ -308,6 +506,12 @@ void CHudDeathNotice::FireGameEvent( IGameEvent * event )
 	Q_strncpy( deathMsg.Victim.szName, victim_name, MAX_PLAYER_NAME_LENGTH );
 	deathMsg.flDisplayTime = gpGlobals->curtime + hud_deathnotice_time.GetFloat();
 	deathMsg.iSuicide = ( !killer || killer == victim );
+#ifdef SBPP
+	deathMsg.bVictimIsNPC = false;
+    deathMsg.bKillerIsNPC = false;
+	deathMsg.bNPCInflictorIsFriendly = false;
+	deathMsg.bNPCVictimIsFriendly = false;
+#endif
 
 	// Try and find the death identifier in the icon list
 	deathMsg.iconDeath = gHUD.GetIcon( fullkilledwith );

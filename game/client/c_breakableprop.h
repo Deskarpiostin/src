@@ -22,6 +22,7 @@ public:
 	C_BreakableProp();
 	
 	virtual void SetFadeMinMax( float fademin, float fademax );
+	virtual bool PredictionErrorShouldResetLatchedForAllPredictables( void ) OVERRIDE { return false; }
 
 	// Copy fade from another breakable prop
 	void CopyFadeFrom( C_BreakableProp *pSource );

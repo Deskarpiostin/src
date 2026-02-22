@@ -42,8 +42,17 @@ public:
 	bool MyTouch( CBasePlayer *pPlayer )
 	{
 		if ( pPlayer->IsSuitEquipped() )
+#ifndef HL2SB
 			return FALSE;
+#else
+		{
+			UTIL_EmitSoundSuit(pPlayer->edict(), "!HEV_A0"); // short version cuz gmod-like
 
+			pPlayer->EquipSuit();
+			return true;
+		}
+#endif	
+		
 		if ( m_spawnflags & SF_SUIT_SHORTLOGON )
 			UTIL_EmitSoundSuit(pPlayer->edict(), "!HEV_A0");		// short version of suit logon,
 		else

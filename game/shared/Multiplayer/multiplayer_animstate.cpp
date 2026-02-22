@@ -11,6 +11,14 @@
 #include "utldict.h"
 #include "multiplayer_animstate.h"
 #include "activitylist.h"
+#ifdef SBPP
+#ifdef GAME_DLL
+#include "iservervehicle.h"
+#else
+#include "iclientvehicle.h"
+#define IServerVehicle IClientVehicle
+#endif
+#endif
 
 #ifdef CLIENT_DLL
 #include "c_baseplayer.h"
@@ -832,7 +840,13 @@ bool CMultiPlayerAnimState::HandleDucking( Activity &idealActivity )
 //-----------------------------------------------------------------------------
 bool CMultiPlayerAnimState::HandleSwimming( Activity &idealActivity )
 {
+#ifdef SBPP
+    CBasePlayer *pPlayer = GetBasePlayer();
+
+	if ( pPlayer->GetWaterLevel() >= WL_Waist )
+#else
 	if ( GetBasePlayer()->GetWaterLevel() >= WL_Waist )
+#endif
 	{
 		if ( m_bFirstSwimFrame )
 		{
@@ -841,7 +855,19 @@ bool CMultiPlayerAnimState::HandleSwimming( Activity &idealActivity )
 			m_bFirstSwimFrame = false;
 		}
 
+#ifdef SBPP
+		if ( pPlayer->GetAbsVelocity().Length2D() > 0.1f )
+        {
+#endif
 		idealActivity = ACT_MP_SWIM;		
+#ifdef SBPP
+        }
+        else
+        {
+            idealActivity = ACT_MP_SWIM_IDLE;
+        }
+#endif
+
 		m_bInSwim = true;
 		return true;
 	}
@@ -857,6 +883,32 @@ bool CMultiPlayerAnimState::HandleSwimming( Activity &idealActivity )
 	
 	return false;
 }
+#ifdef SBPP
+//-----------------------------------------------------------------------------
+// Purpose: Vehicle Sit Animation
+// Input  : *idealActivity - 
+//-----------------------------------------------------------------------------
+bool CMultiPlayerAnimState::HandleVehicle(Activity& idealActivity)
+{
+	if (GetBasePlayer()->IsInAVehicle() && GetBasePlayer()->GetVehicle())
+	{
+		const char* classname = GetBasePlayer()->GetVehicle()->GetVehicleEnt()->GetClassname();
+
+		if (Q_stristr(classname, "jeep"))
+			idealActivity = ACT_DRIVE_JEEP;
+		else if (Q_stristr(classname, "airboat"))
+			idealActivity = ACT_DRIVE_AIRBOAT;
+		else if (Q_stristr(classname, "pod"))
+			idealActivity = ACT_DRIVE_POD;
+		else
+			idealActivity = ACT_HL2MP_SIT;
+
+		return true; // hack
+	}
+
+	return false;
+}
+#endif
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -919,6 +971,9 @@ Activity CMultiPlayerAnimState::CalcMainActivity()
 	if ( HandleJumping( idealActivity ) || 
 		HandleDucking( idealActivity ) || 
 		HandleSwimming( idealActivity ) || 
+#ifdef SBPP
+		HandleVehicle( idealActivity ) ||
+#endif
 		HandleDying( idealActivity ) )
 	{
 		// intentionally blank

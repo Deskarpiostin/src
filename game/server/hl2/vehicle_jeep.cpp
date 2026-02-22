@@ -204,6 +204,13 @@ void CPropJeep::Precache( void )
 //------------------------------------------------
 void CPropJeep::Spawn( void )
 {
+#ifdef SBPP
+	if (GetModelName() == NULL_STRING)
+    {
+		PrecacheModel("models/buggy.mdl");
+		SetModel("models/buggy.mdl");
+	}
+#endif
 	// Setup vehicle as a real-wheels car.
 	SetVehicleType( VEHICLE_TYPE_CAR_WHEELS );
 
@@ -677,7 +684,11 @@ void CPropJeep::Think( void )
 {
 	BaseClass::Think();
 
+#ifdef HL2SB
+	CBasePlayer	*pPlayer = UTIL_GetNearestPlayer( GetAbsOrigin() );
+#else
 	CBasePlayer	*pPlayer = UTIL_GetLocalPlayer();
+#endif
 
 	if ( m_bEngineLocked )
 	{
@@ -898,6 +909,9 @@ void CPropJeep::FireCannon( void )
 	if ( m_bUnableToFire )
 		return;
 
+#ifdef HL2SB
+	CDisablePredictionFiltering disabler;
+#endif
 	m_flCannonTime = gpGlobals->curtime + 0.2f;
 	m_bCannonCharging = false;
 
@@ -908,6 +922,49 @@ void CPropJeep::FireCannon( void )
 #if defined( WIN32 ) && !defined( _X360 ) 
 	// NVNT apply a punch on fire
 	HapticPunch(m_hPlayer,0,0,hap_jeep_cannon_mag.GetFloat());
+#endif
+#ifdef SBPP
+	Vector endPos = m_vecGunOrigin + (aimDir * MAX_TRACE_LENGTH);
+
+	//Shoot a shot straight out
+	trace_t	tr;
+	UTIL_TraceLine(m_vecGunOrigin, endPos, MASK_SHOT, this, COLLISION_GROUP_NONE, &tr);
+
+	//DispatchParticleEffect("hl2mmod_tracer_gaussrifle_tracer_buggy2", PATTACH_POINT_FOLLOW, this, "muzzle", true);
+	DoMuzzleFlash();
+	//Show the effect
+	DrawBeam(m_vecGunOrigin, tr.endpos, 1.6);
+
+	UTIL_ImpactTrace(&tr, m_nBulletType, "ImpactJeep");
+	if (tr.DidHitWorld() && !(tr.surface.flags & SURF_SKY))
+	{
+		UTIL_ImpactTrace(&tr, m_nBulletType, "HelicopterImpact");
+	}
+	CBaseEntity* pHit = tr.m_pEnt;
+#ifndef CLIENT_DLL         
+	CTakeDamageInfo dmgInfo(this, GetDriver(), 10.0f, DMG_SHOCK | DMG_BULLET);
+#endif
+
+	if (pHit != NULL)
+	{
+#ifndef CLIENT_DLL
+		CalculateBulletDamageForce(&dmgInfo, m_nBulletType, aimDir, tr.endpos, 7.0f * 5.0f);
+		pHit->DispatchTraceAttack(dmgInfo, aimDir, &tr);
+#endif
+	}
+
+	//Kick up an effect
+	if (!(tr.surface.flags & SURF_SKY))
+	{
+		UTIL_ImpactTrace(&tr, m_nBulletType, "ImpactJeep");
+		if (tr.DidHitWorld() && !(tr.surface.flags & SURF_SKY))
+		{
+			UTIL_ImpactTrace(&tr, m_nBulletType, "HelicopterImpact");
+		}
+		//Do a gauss explosion
+		CPVSFilter filter(tr.endpos);
+		te->GaussExplosion(filter, 0.0f, tr.endpos, tr.plane.normal, 0);
+	}
 #endif
 	FireBulletsInfo_t info( 1, m_vecGunOrigin, aimDir, VECTOR_CONE_1DEGREES, MAX_TRACE_LENGTH, m_nAmmoType );
 
@@ -936,6 +993,9 @@ void CPropJeep::FireCannon( void )
 //-----------------------------------------------------------------------------
 void CPropJeep::FireChargedCannon( void )
 {
+#ifdef HL2SB
+	CDisablePredictionFiltering disabler;
+#endif
 	bool penetrated = false;
 
 	m_bCannonCharging	= false;

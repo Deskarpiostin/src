@@ -83,6 +83,9 @@ public:
 		return &m_SortedItems;
 	}
 
+#ifdef MOON
+	virtual
+#endif
 	int	ComputeVPixelsNeeded();
 
 protected:

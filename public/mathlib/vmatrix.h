@@ -1807,6 +1807,28 @@ inline void MatrixBuildScale( VMatrix &dst, const Vector& scale )
 	MatrixBuildScale( dst, scale.x, scale.y, scale.z );
 }
 
+#ifdef MOON
+inline void MatrixBuildPerspective(VMatrix &dst, float fovX, float fovY, float zNear, float zFar)
+{
+    const float temp = 0.00872664626f; // (M_PI/180.0f)*0.5f
+	const float width = 2.0f * zNear * tan( fovX * temp );
+	const float height = 2.0f * zNear * tan( fovY * temp );
+	const float invWidth = ( width != 0.0f ) ? ( 1.0f / width ) : 0.0f;
+	const float invHeight = ( height != 0.0f ) ? ( 1.0f / height ) : 0.0f;
+
+	// Final matrix matches the previous result of multiply chain:
+	// [ -zn/width, 0, 0.5, 0 ]
+	// [ 0, -zn/height, 0.5, 0 ]
+	// [ 0, 0, zFactor, zOffset ]
+	// [ 0, 0, 1, 0 ]
+	dst.Init(
+		-zNear * invWidth, 0.0f, 0.5f, 0.0f,
+		0.0f, -zNear * invHeight, 0.5f, 0.0f,
+		0.0f, 0.0f, -zFar / ( zNear - zFar ), ( zNear * zFar ) / ( zNear - zFar ),
+		0.0f, 0.0f, 1.0f, 0.0f
+	);
+}
+#else
 // nillerusr: optimize this bruh later
 inline void MatrixBuildPerspective( VMatrix &dst, float fovX, float fovY, float zNear, float zFar )
 {
@@ -1841,6 +1863,7 @@ inline void MatrixBuildPerspective( VMatrix &dst, float fovX, float fovY, float 
 	scaleHalf[1][1] = 0.5f;
 	MatrixMultiply( scaleHalf, dst, dst );
 }
+#endif
 
 static inline void CalculateAABBForNormalizedFrustum_Helper( float x, float y, float z, const VMatrix &volumeToWorld, Vector &mins, Vector &maxs )
 {

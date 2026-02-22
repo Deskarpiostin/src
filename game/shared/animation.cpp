@@ -803,7 +803,7 @@ void SetBodygroup( CStudioHdr *pstudiohdr, int& body, int iGroup, int iValue )
 	if (! pstudiohdr)
 		return;
 
-	if (iGroup >= pstudiohdr->numbodyparts())
+	if (iGroup < 0 || iGroup >= pstudiohdr->numbodyparts())
 		return;
 
 	mstudiobodyparts_t *pbodypart = pstudiohdr->pBodypart( iGroup );
@@ -822,7 +822,7 @@ int GetBodygroup( CStudioHdr *pstudiohdr, int body, int iGroup )
 	if (! pstudiohdr)
 		return 0;
 
-	if (iGroup >= pstudiohdr->numbodyparts())
+	if (iGroup < 0 || iGroup >= pstudiohdr->numbodyparts())
 		return 0;
 
 	mstudiobodyparts_t *pbodypart = pstudiohdr->pBodypart( iGroup );
@@ -840,7 +840,7 @@ const char *GetBodygroupName( CStudioHdr *pstudiohdr, int iGroup )
 	if ( !pstudiohdr)
 		return "";
 
-	if (iGroup >= pstudiohdr->numbodyparts())
+	if (iGroup < 0 || iGroup >= pstudiohdr->numbodyparts())
 		return "";
 
 	mstudiobodyparts_t *pbodypart = pstudiohdr->pBodypart( iGroup );
@@ -870,7 +870,7 @@ int GetBodygroupCount( CStudioHdr *pstudiohdr, int iGroup )
 	if ( !pstudiohdr )
 		return 0;
 
-	if (iGroup >= pstudiohdr->numbodyparts())
+	if (iGroup < 0 || iGroup >= pstudiohdr->numbodyparts())
 		return 0;
 
 	mstudiobodyparts_t *pbodypart = pstudiohdr->pBodypart( iGroup );

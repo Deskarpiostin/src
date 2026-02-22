@@ -775,6 +775,11 @@ void UTIL_Tracer( const Vector &vecStart, const Vector &vecEnd, int iEntIndex,
 
 void UTIL_BloodDrips( const Vector &origin, const Vector &direction, int color, int amount )
 {
+#ifdef HL2SB
+	//Andrew; see https://developer.valvesoftware.com/wiki/Fixing_AI_in_multiplayer#Blood
+	IPredictionSystem::SuppressHostEvents( NULL );
+#endif
+
 	if ( !UTIL_ShouldShowBlood( color ) )
 		return;
 
@@ -1174,4 +1179,49 @@ const char* UTIL_GetActiveHolidayString()
 #else
 	return NULL;
 #endif
+}
+
+#define WORKSHOP_PREFIX_1		"workshop/"
+#define MAP_WORKSHOP_PREFIX_1	"maps/" WORKSHOP_PREFIX_1
+
+#define WORKSHOP_PREFIX_2		"workshop\\"
+#define MAP_WORKSHOP_PREFIX_2	"maps\\" WORKSHOP_PREFIX_2
+
+const char *GetCleanMapName( const char *pszUnCleanMapName, char (&pszTmp)[256])
+{
+#if defined( TF_DLL ) || defined( TF_CLIENT_DLL )
+	bool bPrefixMaps = true;
+	const char *pszMapAfterPrefix = StringAfterPrefixCaseSensitive( pszUnCleanMapName, MAP_WORKSHOP_PREFIX_1 );
+	if ( !pszMapAfterPrefix )
+		pszMapAfterPrefix = StringAfterPrefixCaseSensitive( pszUnCleanMapName, MAP_WORKSHOP_PREFIX_2 );
+
+	if ( !pszMapAfterPrefix )
+	{
+		bPrefixMaps = false;
+		pszMapAfterPrefix = StringAfterPrefixCaseSensitive( pszUnCleanMapName, WORKSHOP_PREFIX_1 );
+		if ( !pszMapAfterPrefix )
+			pszMapAfterPrefix = StringAfterPrefixCaseSensitive( pszUnCleanMapName, WORKSHOP_PREFIX_2 );
+	}
+
+	if ( pszMapAfterPrefix )
+	{
+		if ( bPrefixMaps )
+		{
+			V_strcpy_safe( pszTmp, "maps" CORRECT_PATH_SEPARATOR_S );
+			V_strcat_safe( pszTmp, pszMapAfterPrefix );
+		}
+		else
+		{
+			V_strcpy_safe( pszTmp, pszMapAfterPrefix );
+		}
+
+		char *pszUGC = V_strstr( pszTmp, ".ugc" );
+		if ( pszUGC )
+			*pszUGC = '\0';
+
+		return pszTmp;
+	}
+#endif
+
+	return pszUnCleanMapName;
 }

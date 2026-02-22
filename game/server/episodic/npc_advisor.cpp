@@ -30,7 +30,11 @@
 // #include "mathlib/noise.h"
 
 // this file contains the definitions for the message ID constants (eg ADVISOR_MSG_START_BEAM etc)
+#ifdef SBPP
+#include "episodic/npc_advisor_shared.h"
+#else
 #include "npc_advisor_shared.h"
+#endif
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -1073,6 +1077,7 @@ void CNPC_Advisor::RunTask( const Task_t *pTask )
 // helper function for testing whether or not an avisor is allowed to grab an object
 static bool AdvisorCanPickObject(CBasePlayer *pPlayer, CBaseEntity *pEnt)
 {
+#ifndef SBPP
 	Assert( pPlayer != NULL );
 
 	// Is the player carrying something?
@@ -1094,6 +1099,7 @@ static bool AdvisorCanPickObject(CBasePlayer *pPlayer, CBaseEntity *pEnt)
 	}
 
 	return true;
+#endif
 }
 
 

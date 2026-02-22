@@ -79,6 +79,11 @@ public:
 		m_flSimulationTime = -1;
 		m_masterSequence = 0;
 		m_masterCycle = 0;
+
+		for( int i=0; i<MAXSTUDIOPOSEPARAM; i++ )
+		{
+			m_flPoseParameters[i] = 0;
+		}
 	}
 
 	LagRecord( const LagRecord& src )
@@ -95,6 +100,11 @@ public:
 		}
 		m_masterSequence = src.m_masterSequence;
 		m_masterCycle = src.m_masterCycle;
+
+		for( int i=0; i<MAXSTUDIOPOSEPARAM; i++ )
+		{
+			m_flPoseParameters[i] = src.m_flPoseParameters[i];
+		}
 	}
 
 	// Did player die this frame
@@ -112,6 +122,8 @@ public:
 	LayerRecord				m_layerRecords[MAX_LAYER_RECORDS];
 	int						m_masterSequence;
 	float					m_masterCycle;
+
+	float					m_flPoseParameters[MAXSTUDIOPOSEPARAM];
 };
 
 
@@ -313,6 +325,11 @@ void CLagCompensationManager::FrameUpdatePostEntityThink()
 		}
 		record.m_masterSequence = pPlayer->GetSequence();
 		record.m_masterCycle = pPlayer->GetCycle();
+
+		for( int i=0; i<MAXSTUDIOPOSEPARAM; i++ )
+		{
+			record.m_flPoseParameters[i] = pPlayer->GetPoseParameter(i);
+		}
 	}
 
 	//Clear the current player.
@@ -646,11 +663,23 @@ void CLagCompensationManager::BacktrackPlayer( CBasePlayer *pPlayer, float flTar
 		{
 			pPlayer->SetCycle( Lerp( frac, record->m_masterCycle, prevRecord->m_masterCycle ) );
 		}
+
+		for( int i=0; i<MAXSTUDIOPOSEPARAM; i++ )
+		{
+			//don't lerp pose params, just pick the closest
+			pPlayer->SetPoseParameter( i, record->m_flPoseParameters[i] );
+			//pAnimating->SetPoseParameter( i, Lerp( frac, record->m_flPoseParameters[i], prevRecord->m_flPoseParameters[i] ) );
+		}
 	}
 	if( !interpolatedMasters )
 	{
 		pPlayer->SetSequence(record->m_masterSequence);
 		pPlayer->SetCycle(record->m_masterCycle);
+
+		for( int i=0; i<MAXSTUDIOPOSEPARAM; i++ )
+		{
+			pPlayer->SetPoseParameter( i, record->m_flPoseParameters[i] );
+		}
 	}
 
 	////////////////////////
@@ -701,6 +730,11 @@ void CLagCompensationManager::BacktrackPlayer( CBasePlayer *pPlayer, float flTar
 				currentLayer->m_nSequence = record->m_layerRecords[layerIndex].m_sequence;
 				currentLayer->m_flWeight = record->m_layerRecords[layerIndex].m_weight;
 			}
+		}
+
+		for( int i=0; i<MAXSTUDIOPOSEPARAM; i++ )
+		{
+			pPlayer->SetPoseParameter( i, restore->m_flPoseParameters[i] );
 		}
 	}
 	

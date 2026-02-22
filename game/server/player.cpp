@@ -82,6 +82,15 @@
 #include "weapon_physcannon.h"
 #endif
 
+#ifdef LUA_SDK
+#include "luamanager.h"
+#include "lbaseentity_shared.h"
+#include "lbaseplayer_shared.h"
+#include "lgametrace.h"
+#include "ltakedamageinfo.h"
+#include "mathlib/lvector.h"
+#endif
+
 ConVar autoaim_max_dist( "autoaim_max_dist", "2160" ); // 2160 = 180 feet
 ConVar autoaim_max_deflect( "autoaim_max_deflect", "0.99" );
 
@@ -184,6 +193,9 @@ ConVar	sk_player_arm( "sk_player_arm","1" );
 ConVar	sk_player_leg( "sk_player_leg","1" );
 
 //ConVar	player_usercommand_timeout( "player_usercommand_timeout", "10", 0, "After this many seconds without a usercommand from a player, the client is kicked." );
+#ifdef SBPP
+ConVar	sv_player_usercommand_timeout( "sv_player_usercommand_timeout", "3", FCVAR_CHEAT, "After this many seconds without a usercommand from a player, the server will RunNullCommand as if client sends an empty command." );
+#endif
 #ifdef _DEBUG
 ConVar  sv_player_net_suppress_usercommands( "sv_player_net_suppress_usercommands", "0", FCVAR_CHEAT, "For testing usercommand hacking sideeffects. DO NOT SHIP" );
 #endif // _DEBUG
@@ -258,6 +270,9 @@ BEGIN_DATADESC( CBasePlayer )
 #endif
 	DEFINE_UTLVECTOR( m_hTriggerSoundscapeList, FIELD_EHANDLE ),
 	DEFINE_EMBEDDED( pl ),
+#ifdef SBPP
+	DEFINE_FIELD( m_bDrawPlayerModelExternally, FIELD_BOOLEAN ),
+#endif
 
 	DEFINE_FIELD( m_StuckLast, FIELD_INTEGER ),
 
@@ -412,6 +427,13 @@ BEGIN_DATADESC( CBasePlayer )
 #if !defined( NO_ENTITY_PREDICTION )
 	// DEFINE_FIELD( m_SimulatedByThisPlayer, CUtlVector < CHandle < CBaseEntity > > ),
 #endif
+#if defined( ARGG )
+	// adnan
+	// set the use angles
+	// set when the player presses use
+	DEFINE_FIELD( m_vecUseAngles, FIELD_VECTOR ),
+	// end adnan
+#endif // ARGG
 
 	DEFINE_FIELD( m_flOldPlayerZ, FIELD_FLOAT ),
 	DEFINE_FIELD( m_flOldPlayerViewOffsetZ, FIELD_FLOAT ),
@@ -509,6 +531,29 @@ void CBasePlayer::CreateViewModel( int index /*=0*/ )
 		m_hViewModel.Set( index, vm );
 	}
 }
+#ifdef HL2SB
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CBasePlayer::CreateHandModel( int index, int iOtherVm )
+{
+	Assert( index >= 0 && index < MAX_VIEWMODELS && iOtherVm >= 0 && iOtherVm < MAX_VIEWMODELS );
+
+	if ( GetViewModel( index ) )
+		return;
+
+	CBaseViewModel *vm = (CBaseViewModel *)CreateEntityByName( "hand_viewmodel" );
+	if ( vm )
+	{
+		vm->SetAbsOrigin( GetAbsOrigin() );
+		vm->SetOwner( this );
+		vm->SetIndex( index );
+		DispatchSpawn( vm );
+		vm->FollowEntity( GetViewModel( iOtherVm ), true );
+		m_hViewModel.Set( index, vm );
+	}
+}
+#endif
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -591,6 +636,10 @@ CBasePlayer::CBasePlayer( )
 
 	m_hZoomOwner = NULL;
 
+#ifdef SBPP
+	m_bPendingClientSettings = false;
+	m_bRequestPredict = true;
+#endif
 	m_nUpdateRate = 20;  // cl_updaterate defualt
 	m_fLerpTime = 0.1f; // cl_interp default
 	m_bPredictWeapons = true;
@@ -634,7 +683,11 @@ CBasePlayer::CBasePlayer( )
 	m_vecConstraintCenter = vec3_origin;
 
 	m_flLastUserCommandTime = 0.f;
+#ifdef SBPP
+	m_nMovementTicksForUserCmdProcessingRemaining = 0;
+#else
 	m_flMovementTimeForUserCmdProcessingRemaining = 0.0f;
+#endif
 }
 
 CBasePlayer::~CBasePlayer( )
@@ -652,10 +705,12 @@ void CBasePlayer::UpdateOnRemove( void )
 	VPhysicsDestroyObject();
 
 	// Remove him from his current team
+#ifndef SBPP
 	if ( GetTeam() )
 	{
 		GetTeam()->RemovePlayer( this );
 	}
+#endif
 
 	// Chain at end to mimic destructor unwind order
 	BaseClass::UpdateOnRemove();
@@ -896,9 +951,26 @@ void CBasePlayer::DrawDebugGeometryOverlays(void)
 //=========================================================
 void CBasePlayer::TraceAttack( const CTakeDamageInfo &inputInfo, const Vector &vecDir, trace_t *ptr, CDmgAccumulator *pAccumulator )
 {
+#if defined ( LUA_SDK )
+	CTakeDamageInfo linputInfo = inputInfo;
+	Vector lvecDir = vecDir;
+
+	BEGIN_LUA_CALL_HOOK( "PlayerTraceAttack" );
+		lua_pushplayer( L, this );
+		lua_pushdamageinfo( L, linputInfo );
+		lua_pushvector( L, lvecDir );
+		lua_pushtrace( L, *ptr );
+	END_LUA_CALL_HOOK( 4, 1 );
+
+	RETURN_LUA_NONE();
+#endif
 	if ( m_takedamage )
 	{
+#if defined ( LUA_SDK )
+		CTakeDamageInfo info = linputInfo;
+#else
 		CTakeDamageInfo info = inputInfo;
+#endif
 
 		if ( info.GetAttacker() )
 		{
@@ -2089,6 +2161,9 @@ void CBasePlayer::PlayerDeathThink(void)
 			SetAbsVelocity( vecNewVelocity );
 		}
 	}
+#ifdef HL2SB
+	GetViewModel(1)->SetModel( "" ); // FIX: Removes hand model when the player is dead
+#endif
 
 	if ( HasWeapons() )
 	{
@@ -2792,12 +2867,25 @@ bool CBasePlayer::IsUseableEntity( CBaseEntity *pEntity, unsigned int requiredCa
 	return false;
 }
 
+CBaseEntity	*CBasePlayer::GetHeldObject( void )
+{
+	return NULL;
+}
 
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
 bool CBasePlayer::CanPickupObject( CBaseEntity *pObject, float massLimit, float sizeLimit )
 {
+#ifdef LUA_SDK
+	BEGIN_LUA_CALL_HOOK( "PlayerCanPickupObject" );
+		lua_pushentity( L, pObject );
+		lua_pushnumber( L, massLimit );
+		lua_pushnumber( L, sizeLimit );
+	END_LUA_CALL_HOOK( 3, 1 );
+
+	RETURN_LUA_BOOLEAN();
+#endif
 	// UNDONE: Make this virtual and move to HL2 player
 #ifdef HL2_DLL
 	//Must be valid
@@ -3075,6 +3163,18 @@ int CBasePlayer::DetermineSimulationTicks( void )
 		simulation_ticks += ctx->numcmds + ctx->dropped_packets;
 	}
 
+#ifdef SBPP
+	// Only allow rewinding if we actually behind by at least that many ticks.
+	// This doesn't quite guarantee that m_nTickBase is monotonically increasing, but it gets close and prevents users
+	// from manipulating the game time by more than 0.25s.
+	//
+	// REI- Ideally I'd like to put more serious restrictions on user command timing here, to lockstep the clients
+	// a bit harder and prevent even this 0.25s manipulation, but my experiments so far led to unacceptable hitching
+	// even for legitimate users.
+	if ( simulation_ticks > m_nMovementTicksForUserCmdProcessingRemaining )
+		simulation_ticks = m_nMovementTicksForUserCmdProcessingRemaining;
+#endif
+
 	return simulation_ticks;
 }
 
@@ -3210,6 +3310,10 @@ void CBasePlayer::PhysicsSimulate( void )
 	}
 	
 	m_nSimulationTick = gpGlobals->tickcount;
+#ifdef SBPP
+	// Grant the client some time buffer to execute user commands
+	m_nMovementTicksForUserCmdProcessingRemaining++;
+#endif
 
 	// See how many CUserCmds are queued up for running
 	int simulation_ticks = DetermineSimulationTicks();
@@ -3317,6 +3421,17 @@ void CBasePlayer::PhysicsSimulate( void )
 
 	float vphysicsArrivalTime = TICK_INTERVAL;
 
+#ifdef SBPP
+	// Now run the commands
+	MoveHelperServer()->SetHost( this );
+
+	// Suppress predicted events, etc.
+	if ( IsPredictingWeapons() )
+	{
+		IPredictionSystem::SuppressHostEvents( this );
+	}
+#endif
+
 #ifdef _DEBUG
 	if ( sv_player_net_suppress_usercommands.GetBool() )
 	{
@@ -3324,6 +3439,85 @@ void CBasePlayer::PhysicsSimulate( void )
 	}
 #endif // _DEBUG
 
+#ifdef SBPP
+
+	// Process user commands
+	if ( commandsToRun > 0 )
+	{
+		for ( int i = 0; i < commandsToRun; ++i )
+		{
+			PlayerRunCommand( &vecAvailCommands[ i ], MoveHelperServer() );
+			m_flLastUserCommandTime = savetime;
+		
+			// Update our vphysics object.
+			if ( m_pPhysicsController )
+			{
+				VPROF( "CBasePlayer::PhysicsSimulate-UpdateVPhysicsPosition" );
+				// If simulating at 2 * TICK_INTERVAL, add an extra TICK_INTERVAL to position arrival computation
+				UpdateVPhysicsPosition( m_vNewVPhysicsPosition, m_vNewVPhysicsVelocity, vphysicsArrivalTime );
+				vphysicsArrivalTime += TICK_INTERVAL;
+			}
+		}
+	}
+	else if ( GetTimeSinceLastUserCommand() > sv_player_usercommand_timeout.GetFloat() )
+	{
+		// no usercommand from player after some threshold
+		// server should start RunNullCommand as if client sends an empty command so that Think and gamestate related things run properly
+		RunNullCommand();
+	}
+
+
+	int nMaxTicks = sv_maxusrcmdprocessticks.GetInt();
+	if ( nMaxTicks && gpGlobals->maxClients != 1 ) // Don't apply this filter in SP games
+	{
+		if ( m_nMovementTicksForUserCmdProcessingRemaining > nMaxTicks )
+
+		{
+			//DevMsg( "Client %s dropped too many packets, simulating last cmd\n", m_szNetname );
+			
+			// Run a copy of the user's last command
+			// but make sure it's valid
+			CUserCmd cmd = m_LastCmd;
+			cmd.tick_count = gpGlobals->tickcount;
+			cmd.viewangles = EyeAngles();
+			pl.fixangle = FIXANGLE_NONE; // this forces use of cmd.viewangles directly, not as a relative value
+			PlayerRunCommand( &cmd, MoveHelperServer() );
+
+
+			if ( m_nMovementTicksForUserCmdProcessingRemaining > nMaxTicks )
+			{
+				// If this happens the user managed to execute a 'null' command that didn't make it through simulation.
+				// This means we should adjust the code above to make sure it always generates a valid command.
+				//Assert( false ); // security failure, airstuck!
+
+				// still make sure to avoid speedhax
+				m_nMovementTicksForUserCmdProcessingRemaining = nMaxTicks;
+			}
+			
+			// Update our vphysics object.
+			if ( m_pPhysicsController )
+			{
+				vphysicsArrivalTime += TICK_INTERVAL;
+			}
+		}
+	}
+
+	// Always reset after running commands
+	IPredictionSystem::SuppressHostEvents( NULL );
+
+	MoveHelperServer()->SetHost( NULL );
+
+	// Copy in final origin from simulation
+	CPlayerSimInfo *pi = NULL;
+	if ( m_vecPlayerSimInfo.Count() > 0 )
+	{
+		pi = &m_vecPlayerSimInfo[ m_vecPlayerSimInfo.Tail() ];
+		pi->m_flTime = Plat_FloatTime();
+		pi->m_vecAbsOrigin = GetAbsOrigin();
+		pi->m_flGameSimulationTime = gpGlobals->curtime;
+		pi->m_nNumCmds = commandsToRun;
+	}
+#else
 	int numUsrCmdProcessTicksMax = sv_maxusrcmdprocessticks.GetInt();
 	if ( gpGlobals->maxClients != 1 && numUsrCmdProcessTicksMax ) // don't apply this filter in SP games
 	{
@@ -3383,6 +3577,7 @@ void CBasePlayer::PhysicsSimulate( void )
 			pi->m_nNumCmds = commandsToRun;
 		}
 	}
+#endif
 
 	// Restore the true server clock
 	// FIXME:  Should this occur after simulation of children so
@@ -4504,11 +4699,97 @@ void CBasePlayer::ForceOrigin( const Vector &vecOrigin )
 	m_vForcedOrigin = vecOrigin;
 }
 
+#ifdef SBPP
+//-----------------------------------------------------------------------------
+// Purpose: Callback from engine when this player's client settings (userinfo) change
+//-----------------------------------------------------------------------------
+void CBasePlayer::ClientSettingsChanged()
+{
+	if ( !g_pGameRules->IsConnectedUserInfoChangeAllowed( this ) )
+	{
+		m_bPendingClientSettings = true;
+		return;
+	}
+
+	#define QUICKGETCVARVALUE(v) (engine->GetClientConVarValue( this->entindex(), v ))
+
+	// get network setting for prediction & lag compensation
+
+	// Unfortunately, we have to duplicate the code in cdll_bounded_cvars.cpp here because the client
+	// doesn't send the virtualized value up (because it has no way to know when the virtualized value
+	// changes). Possible todo: put the responsibility on the bounded cvar to notify the engine when
+	// its virtualized value has changed.
+
+	this->m_nUpdateRate = Q_atoi( QUICKGETCVARVALUE("cl_updaterate") );
+	static const ConVar *pMinUpdateRate = g_pCVar->FindVar( "sv_minupdaterate" );
+	static const ConVar *pMaxUpdateRate = g_pCVar->FindVar( "sv_maxupdaterate" );
+	if ( pMinUpdateRate && pMaxUpdateRate )
+		this->m_nUpdateRate = clamp( this->m_nUpdateRate, (int) pMinUpdateRate->GetFloat(), (int) pMaxUpdateRate->GetFloat() );
+
+	bool useInterpolation = Q_atoi( QUICKGETCVARVALUE("cl_interpolate") ) != 0;
+	if ( useInterpolation )
+	{
+		float flLerpRatio = Q_atof( QUICKGETCVARVALUE("cl_interp_ratio") );
+		if ( flLerpRatio == 0 )
+			flLerpRatio = 1.0f;
+		float flLerpAmount = Q_atof( QUICKGETCVARVALUE("cl_interp") );
+
+		static const ConVar *pMin = g_pCVar->FindVar( "sv_client_min_interp_ratio" );
+		static const ConVar *pMax = g_pCVar->FindVar( "sv_client_max_interp_ratio" );
+		if ( pMin && pMax && pMin->GetFloat() != -1 )
+		{
+			flLerpRatio = clamp( flLerpRatio, pMin->GetFloat(), pMax->GetFloat() );
+		}
+		else
+		{
+			if ( flLerpRatio == 0 )
+				flLerpRatio = 1.0f;
+		}
+		// #define FIXME_INTERP_RATIO
+		this->m_fLerpTime = MAX( flLerpAmount, flLerpRatio / this->m_nUpdateRate );
+	}
+	else
+	{
+		this->m_fLerpTime = 0.0f;
+	}
+
+#if !defined( NO_ENTITY_PREDICTION )
+	bool usePrediction = Q_atoi( QUICKGETCVARVALUE("cl_predict")) != 0;
+
+	if ( usePrediction )
+	{
+		this->m_bRequestPredict  = true;
+		this->m_bPredictWeapons  = Q_atoi( QUICKGETCVARVALUE("cl_predictweapons")) != 0;
+		this->m_bLagCompensation = Q_atoi( QUICKGETCVARVALUE("cl_lagcompensation")) != 0;
+	}
+	else
+#endif
+	{
+		this->m_bRequestPredict  = false;
+		this->m_bPredictWeapons  = false;
+		this->m_bLagCompensation = false;
+	}
+
+	#undef QUICKGETCVARVALUE
+
+	m_bPendingClientSettings = false;
+}
+
+ConVar sv_usercmd_custom_random_seed( "sv_usercmd_custom_random_seed", "1", FCVAR_CHEAT, "When enabled server will populate an additional random seed independent of the client" );
+#endif
+
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
 void CBasePlayer::PostThink()
 {
+#ifdef SBPP
+	// Attempt to apply pending client settings
+	if ( m_bPendingClientSettings )
+	{
+		ClientSettingsChanged();
+	}
+#endif
 	m_vecSmoothedVelocity = m_vecSmoothedVelocity * SMOOTHING_FACTOR + GetAbsVelocity() * ( 1 - SMOOTHING_FACTOR );
 
 	if ( !g_fGameOver && !m_iPlayerLocked )
@@ -4883,6 +5164,11 @@ ReturnSpot:
 //-----------------------------------------------------------------------------
 void CBasePlayer::InitialSpawn( void )
 {
+#if defined ( LUA_SDK )
+	BEGIN_LUA_CALL_HOOK( "PlayerInitialSpawn" );
+		lua_pushplayer( L, this );
+	END_LUA_CALL_HOOK( 1, 0 );
+#endif
 	m_iConnected = PlayerConnected;
 	gamestats->Event_PlayerConnected( this );
 }
@@ -4997,6 +5283,9 @@ void CBasePlayer::Spawn( void )
 	CreateViewModel();
 
 	SetCollisionGroup( COLLISION_GROUP_PLAYER );
+#ifdef HL2SB
+	CreateHandModel();
+#endif
 
 	// if the player is locked, make sure he stays locked
 	if ( m_iPlayerLocked )
@@ -5380,6 +5669,16 @@ void CBasePlayer::VelocityPunch( const Vector &vecForce )
 //-----------------------------------------------------------------------------
 bool CBasePlayer::CanEnterVehicle( IServerVehicle *pVehicle, int nRole )
 {
+#ifdef LUA_SDK
+	BEGIN_LUA_CALL_HOOK( "CanEnterVehicle" );
+		lua_pushplayer( L, this );
+		// FIXME: implement lua_pushvehicle()!
+		lua_pushentity( L, pVehicle->GetVehicleEnt());
+		lua_pushinteger( L, nRole );
+	END_LUA_CALL_HOOK( 3, 1 );
+
+	RETURN_LUA_BOOLEAN();
+#endif
 	// Must not have a passenger there already
 	if ( pVehicle->GetPassenger( nRole ) )
 		return false;
@@ -5695,7 +5994,21 @@ CBaseEntity	*CBasePlayer::GiveNamedItem( const char *pszName, int iSubType )
 
 	if ( pent != NULL && !(pent->IsMarkedForDeletion()) ) 
 	{
+#ifdef HL2MP
+		// misyl: Fix player's spawned weapons being dropped
+		// if they can't pick them up at spawn or died too quickly, etc.
+		if ( pWeapon )
+		{
+			if ( !BumpWeapon( pWeapon ) )
+			{
+				UTIL_Remove( pWeapon );
+			}
+		}
+		else
+#endif
+	{
 		pent->Touch( this );
+		}
 	}
 
 	return pent;
@@ -5982,7 +6295,45 @@ void CBasePlayer::ImpulseCommands( )
 	m_nImpulse = 0;
 }
 
-#ifdef HL2_EPISODIC
+#ifdef SBPP
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+static void CreatePod(CBasePlayer *pPlayer)
+{
+	// Cheat to create a jeep in front of the player
+	Vector vecForward;
+	AngleVectors(pPlayer->EyeAngles(), &vecForward);
+	CBaseEntity *pPod = (CBaseEntity *)CreateEntityByName("prop_vehicle_prisoner_pod");
+	if (pPod)
+	{
+		Vector vecOrigin = pPlayer->GetAbsOrigin() + vecForward * 256 + Vector(0, 0, 64);
+		QAngle vecAngles(0, pPlayer->GetAbsAngles().y - 90, 0);
+		pPod->SetAbsOrigin(vecOrigin);
+		pPod->SetAbsAngles(vecAngles);
+		pPod->KeyValue("model", "models/vehicles/prisoner_pod_inner.mdl");
+		pPod->KeyValue("solid", "6");
+		pPod->KeyValue("targetname", "prisoner_pod");
+		pPod->KeyValue("vehiclescript", "scripts/vehicles/prisoner_pod.txt");
+		DispatchSpawn(pPod);
+		pPod->Activate();
+		pPod->Teleport(&vecOrigin, &vecAngles, NULL);
+	}
+}
+
+
+void CC_CH_CreatePod(void)
+{
+	CBasePlayer *pPlayer = UTIL_GetCommandClient();
+	if (!pPlayer)
+		return;
+	CreatePod(pPlayer);
+}
+
+static ConCommand ch_createpod("ch_createpod", CC_CH_CreatePod, "Spawn a prisoner pod in front of the player.", FCVAR_CHEAT);
+#endif
+
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -5992,7 +6343,11 @@ static void CreateJalopy( CBasePlayer *pPlayer )
 	// Cheat to create a jeep in front of the player
 	Vector vecForward;
 	AngleVectors( pPlayer->EyeAngles(), &vecForward );
+#ifdef SBPP
+	CBaseEntity *pJeep = (CBaseEntity *)CreateEntityByName( "prop_vehicle_jalopy" );
+#else
 	CBaseEntity *pJeep = (CBaseEntity *)CreateEntityByName( "prop_vehicle_jeep" );
+#endif
 	if ( pJeep )
 	{
 		Vector vecOrigin = pPlayer->GetAbsOrigin() + vecForward * 256 + Vector(0,0,64);
@@ -6001,7 +6356,11 @@ static void CreateJalopy( CBasePlayer *pPlayer )
 		pJeep->SetAbsAngles( vecAngles );
 		pJeep->KeyValue( "model", "models/vehicle.mdl" );
 		pJeep->KeyValue( "solid", "6" );
+#ifdef SBPP
+		pJeep->KeyValue( "targetname", "jalopy" );
+#else
 		pJeep->KeyValue( "targetname", "jeep" );
+#endif
 		pJeep->KeyValue( "vehiclescript", "scripts/vehicles/jalopy.txt" );
 		DispatchSpawn( pJeep );
 		pJeep->Activate();
@@ -6017,7 +6376,11 @@ void CC_CH_CreateJalopy( void )
 	CreateJalopy( pPlayer );
 }
 
+#ifdef SBPP
+static ConCommand ch_createjalopy("ch_createjalopy", CC_CH_CreateJalopy, "Spawn jalopy in front of the player.", FCVAR_NONE);
+#else
 static ConCommand ch_createjalopy("ch_createjalopy", CC_CH_CreateJalopy, "Spawn jalopy in front of the player.", FCVAR_CHEAT);
+#endif
 
 #endif // HL2_EPISODIC
 
@@ -6055,7 +6418,11 @@ void CC_CH_CreateJeep( void )
 	CreateJeep( pPlayer );
 }
 
+#ifdef SBPP
+static ConCommand ch_createjeep("ch_createjeep", CC_CH_CreateJeep, "Spawn jeep in front of the player.", FCVAR_NONE);
+#else
 static ConCommand ch_createjeep("ch_createjeep", CC_CH_CreateJeep, "Spawn jeep in front of the player.", FCVAR_CHEAT);
+#endif
 
 
 //-----------------------------------------------------------------------------
@@ -6096,7 +6463,11 @@ void CC_CH_CreateAirboat( void )
 
 }
 
+#ifdef SBPP
+static ConCommand ch_createairboat( "ch_createairboat", CC_CH_CreateAirboat, "Spawn airboat in front of the player.", FCVAR_NONE );
+#else
 static ConCommand ch_createairboat( "ch_createairboat", CC_CH_CreateAirboat, "Spawn airboat in front of the player.", FCVAR_CHEAT );
+#endif
 
 
 //=========================================================
@@ -6362,6 +6733,16 @@ bool CBasePlayer::ClientCommand( const CCommand &args )
 			return true;
 		}
 	}
+#ifdef SBPP
+	else if( stricmp( cmd, "toggle_ironsight" ) == 0 )
+	{
+		CBaseCombatWeapon *pWeapon = GetActiveWeapon();
+		if( pWeapon != NULL )
+			pWeapon->ToggleIronsights();
+
+		return true;
+	}
+#endif
 	else if ( HandleVoteCommands( args ) )
 	{
 		return true;
@@ -6531,7 +6912,20 @@ bool CBasePlayer::ClientCommand( const CCommand &args )
 			angle.y = atof( args[5] );
 			angle.z = 0.0f;
 
+#ifdef SBPP
+			// If the player jumps outside world extents it will hangs the server
+			CWorld *world = GetWorldEntity();
+			if ( world )
+			{
+				Extent worldExtent;
+				world->GetWorldBounds( worldExtent.lo, worldExtent.hi );
+				VectorMax( origin, worldExtent.lo, origin );
+				VectorMin( origin, worldExtent.hi, origin );
+#endif
 			JumptoPosition( origin, angle );
+#ifdef SBPP
+			}
+#endif
 		}
 		
 		return true;
@@ -7963,6 +8357,16 @@ void SendProxy_CropFlagsToPlayerFlagBitsLength( const SendProp *pProp, const voi
 		SendPropFloat		( SENDINFO( m_flConstraintRadius ), 0, SPROP_NOSCALE ),
 		SendPropFloat		( SENDINFO( m_flConstraintWidth ), 0, SPROP_NOSCALE ),
 		SendPropFloat		( SENDINFO( m_flConstraintSpeedFactor ), 0, SPROP_NOSCALE ),
+#ifdef ARGG
+		// adnan
+		// send the use angles
+		// set when the player presses use
+		SendPropVector		( SENDINFO( m_vecUseAngles ), 0, SPROP_NOSCALE ),
+		// end adnan
+#endif // ARGG
+#ifdef SBPP
+		SendPropBool		( SENDINFO( m_bDrawPlayerModelExternally ) ),
+#endif
 
 		SendPropFloat		( SENDINFO( m_flDeathTime ), 0, SPROP_NOSCALE ),
 

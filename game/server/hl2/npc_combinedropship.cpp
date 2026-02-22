@@ -85,6 +85,9 @@ enum DROP_STATES
 enum CRATE_TYPES 
 {
 	CRATE_JEEP = -3,
+#ifdef SBPP
+	CRATE_JALOPY = -4,
+#endif
 	CRATE_APC = -2,
 	CRATE_STRIDER = -1,
 	CRATE_ROLLER_HOPPER,
@@ -976,6 +979,30 @@ void CNPC_CombineDropship::Spawn( void )
 		}
 		break;
 
+#ifdef SBPP
+	case CRATE_JALOPY:
+		m_hContainer = (CBaseAnimating*)CreateEntityByName( "prop_dynamic_override" );
+		if (m_hContainer)
+		{
+			m_hContainer->SetModel( "models/vehicle.mdl" );
+			m_hContainer->SetName( AllocPooledString( "dropship_jalopy" ) );
+
+			m_hContainer->SetAbsOrigin( GetAbsOrigin() );//- Vector( 0, 0 , 25 ) );
+			QAngle angles = GetAbsAngles();
+			VMatrix mat, rot, result;
+			MatrixFromAngles( angles, mat );
+			MatrixBuildRotateZ( rot, -90 );
+			MatrixMultiply( mat, rot, result );
+			MatrixToAngles( result, angles );
+			m_hContainer->SetAbsAngles( angles );
+
+			m_hContainer->SetParent(this, 0);
+			m_hContainer->SetOwnerEntity(this);
+			m_hContainer->SetSolid( SOLID_VPHYSICS );
+			m_hContainer->Spawn();
+		}
+		break;
+#endif
 	case CRATE_NONE:
 	default:
 		break;
@@ -1112,6 +1139,11 @@ void CNPC_CombineDropship::Precache( void )
 		PrecacheModel("models/buggy.mdl");
 		break;
 
+#ifdef SBPP
+	case CRATE_JALOPY:
+		PrecacheModel("models/vehicle.mdl");
+		break;
+#endif
 	default:
 		break;
 	}
@@ -1851,8 +1883,20 @@ void CNPC_CombineDropship::InputPickup( inputdata_t &inputdata )
 		return;
 	}
 
+#ifdef SBPP
+	CBaseAnimating *pTargetAnimating = pTarget->GetBaseAnimating();
+	if ( !pTargetAnimating )
+	{
+		Warning("npc_combinedropship %s with target %s wasn't a CBaseAnimating\n", STRING(GetEntityName()), STRING(iszTargetName) );
+		return;
+	}
+
+	// Start heading to the point
+	m_hPickupTarget = pTargetAnimating;
+#else
 	// Start heading to the point
 	m_hPickupTarget = pTarget;
+#endif
 
 	m_bHasDroppedOff = false;
 

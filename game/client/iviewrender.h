@@ -84,6 +84,9 @@ public:
 
 	// Called to render just a particular setup ( for timerefresh and envmap creation )
 	virtual void		RenderView( const CViewSetup &view, int nClearFlags, int whatToDraw ) = 0;
+#ifdef SBPP
+	virtual void        MP_PostSimulate() = 0;
+#endif
 
 	// What are we currently rendering? Returns a combination of DF_ flags.
 	virtual int GetDrawFlags() = 0;

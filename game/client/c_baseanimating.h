@@ -26,6 +26,9 @@
 #include "ragdoll_shared.h"
 #include "tier0/threadtools.h"
 #include "datacache/idatacache.h"
+#ifdef GLOWS_ENABLE
+#include "glow_outline_effect.h"
+#endif // GLOWS_ENABLE
 
 #define LIPSYNC_POSEPARAM_NAME "mouth"
 #define NUM_HITBOX_FIRES	10
@@ -229,6 +232,11 @@ public:
 	C_BaseAnimating*	GetBoneAttachment( int i );
 	virtual void		NotifyBoneAttached( C_BaseAnimating* attachTarget );
 	virtual void		UpdateBoneAttachments( void );
+
+#ifdef GLOWS_ENABLE
+	CGlowObject			*GetGlowObject( void ){ return m_pGlowEffect; }
+	virtual void		GetGlowEffectColor( float *r, float *g, float *b );
+#endif // GLOWS_ENABLE
 
 	//bool solveIK(float a, float b, const Vector &Foot, const Vector &Knee1, Vector &Knee2);
 	//void DebugIK( mstudioikchain_t *pikchain );
@@ -451,6 +459,11 @@ protected:
 	// use TransformViewModelAttachmentToWorld.
 	virtual void					FormatViewModelAttachment( int nAttachment, matrix3x4_t &attachmentToWorld ) {}
 
+#ifdef GLOWS_ENABLE	
+	virtual void		UpdateGlowEffect( void );
+	virtual void		DestroyGlowEffect( void );
+#endif // GLOWS_ENABLE
+
 	// View models say yes to this.
 	bool							IsBoneAccessAllowed() const;
 	CMouthInfo&						MouthInfo();
@@ -473,6 +486,15 @@ private:
 	void							TermRopes();
 
 	void							DelayedInitModelEffects( void );
+
+#ifdef GLOWS_ENABLE
+	float				m_flGlowR;
+	float				m_flGlowG;
+	float				m_flGlowB;
+	bool				m_bGlowEnabled;
+	bool				m_bOldGlowEnabled;
+	CGlowObject* m_pGlowEffect;
+#endif
 
 	void							UpdateRelevantInterpolatedVars();
 	void							AddBaseAnimatingInterpolatedVars();
@@ -566,10 +588,16 @@ private:
 	CInterpolatedVarArray< float, MAXSTUDIOBONECTRLS >		m_iv_flEncodedController;
 	float							m_flOldEncodedController[MAXSTUDIOBONECTRLS];
 
+#ifdef SBPP
+public:
+#endif
 	// Clientside animation
 	bool							m_bClientSideAnimation;
 	bool							m_bLastClientSideFrameReset;
 
+#ifdef SBPP
+private:
+#endif
 	int								m_nNewSequenceParity;
 	int								m_nResetEventsParity;
 

@@ -125,8 +125,12 @@ void CNPC_Alyx::Spawn()
 		CreateEmpTool( );
 	}
 
+#ifndef SBPP
 	AddEFlags( EFL_NO_DISSOLVE | EFL_NO_MEGAPHYSCANNON_RAGDOLL | EFL_NO_PHYSCANNON_INTERACTION );
+#else
 
+	SetBloodColor( BLOOD_COLOR_RED );
+#endif
 	m_iHealth			= 80;
 
 	NPCInit();
@@ -169,7 +173,9 @@ void CNPC_Alyx::SetupAlyxWithoutParent( void )
 	CapabilitiesAdd( bits_CAP_MOVE_GROUND | bits_CAP_DOORS_GROUP | bits_CAP_TURN_HEAD | bits_CAP_DUCK | bits_CAP_SQUAD );
 	CapabilitiesAdd( bits_CAP_USE_WEAPONS );
 	CapabilitiesAdd( bits_CAP_ANIMATEDFACE );
+#ifndef SBPP
 	CapabilitiesAdd( bits_CAP_FRIENDLY_DMG_IMMUNE );
+#endif
 	CapabilitiesAdd( bits_CAP_AIM_GUN );
 	CapabilitiesAdd( bits_CAP_MOVE_SHOOT );
 	CapabilitiesAdd( bits_CAP_USE_SHOT_REGULATOR );

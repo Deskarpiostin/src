@@ -16,7 +16,11 @@
 
 #define BATTERY_MODEL "models/w_battery.mdl"
 
+#ifdef SBPP
+extern ConVar sk_battery;
+#else
 ConVar	sk_battery( "sk_battery","0" );			
+#endif
 
 class CItemBattery : public CHL1Item
 {

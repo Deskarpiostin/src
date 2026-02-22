@@ -62,7 +62,7 @@ enum InvalidatePhysicsBits_t
 #else
 #include "baseentity.h"
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	#include "info_darknessmode_lightsource.h"
 #endif // HL2_EPISODIC
 
@@ -195,7 +195,7 @@ inline int CBaseEntity::GetEffects( void ) const
 inline void CBaseEntity::RemoveEffects( int nEffects ) 
 { 
 #if !defined( CLIENT_DLL )
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	if ( nEffects & (EF_BRIGHTLIGHT|EF_DIMLIGHT) )
 	{
 		// Hack for now, to avoid player emitting radius with his flashlight
@@ -222,7 +222,7 @@ inline void CBaseEntity::RemoveEffects( int nEffects )
 inline void CBaseEntity::ClearEffects( void ) 
 { 
 #if !defined( CLIENT_DLL )
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	if ( m_fEffects & (EF_BRIGHTLIGHT|EF_DIMLIGHT) )
 	{
 		// Hack for now, to avoid player emitting radius with his flashlight

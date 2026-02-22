@@ -26,6 +26,12 @@
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
+#ifdef HL2SB
+//ConVar    sk_plr_dmg_crowbar		( "sk_plr_dmg_crowbar","0");
+extern ConVar sk_plr_dmg_crowbar;
+ConVar    sk_npc_dmg_crowbar		( "sk_npc_dmg_crowbar","0");
+#endif
+
 #define	CROWBAR_RANGE	75.0f
 #define	CROWBAR_REFIRE	0.4f
 
@@ -45,23 +51,32 @@ END_PREDICTION_DATA()
 LINK_ENTITY_TO_CLASS( weapon_crowbar, CWeaponCrowbar );
 PRECACHE_WEAPON_REGISTER( weapon_crowbar );
 
-#ifndef CLIENT_DLL
-
 acttable_t	CWeaponCrowbar::m_acttable[] = 
 {
-	{ ACT_RANGE_ATTACK1,				ACT_RANGE_ATTACK_SLAM, true },
-	{ ACT_HL2MP_IDLE,					ACT_HL2MP_IDLE_MELEE,					false },
-	{ ACT_HL2MP_RUN,					ACT_HL2MP_RUN_MELEE,					false },
-	{ ACT_HL2MP_IDLE_CROUCH,			ACT_HL2MP_IDLE_CROUCH_MELEE,			false },
-	{ ACT_HL2MP_WALK_CROUCH,			ACT_HL2MP_WALK_CROUCH_MELEE,			false },
-	{ ACT_HL2MP_GESTURE_RANGE_ATTACK,	ACT_HL2MP_GESTURE_RANGE_ATTACK_MELEE,	false },
-	{ ACT_HL2MP_GESTURE_RELOAD,			ACT_HL2MP_GESTURE_RELOAD_MELEE,			false },
-	{ ACT_HL2MP_JUMP,					ACT_HL2MP_JUMP_MELEE,					false },
+	{ ACT_MP_STAND_IDLE,				ACT_HL2MP_IDLE_MELEE,					false },
+	{ ACT_MP_CROUCH_IDLE,				ACT_HL2MP_IDLE_CROUCH_MELEE,			false },
+
+	{ ACT_MP_RUN,						ACT_HL2MP_RUN_MELEE,					false },
+	{ ACT_MP_CROUCHWALK,				ACT_HL2MP_WALK_CROUCH_MELEE,			false },
+
+	{ ACT_MP_ATTACK_STAND_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_MELEE,	false },
+	{ ACT_MP_ATTACK_CROUCH_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_MELEE,	false },
+
+	{ ACT_MP_RELOAD_STAND,				ACT_HL2MP_GESTURE_RELOAD_MELEE,			false },
+	{ ACT_MP_RELOAD_CROUCH,				ACT_HL2MP_GESTURE_RELOAD_MELEE,			false },
+
+	{ ACT_MP_JUMP,						ACT_HL2MP_JUMP_MELEE,					false },
+
+	{ ACT_MP_SWIM_IDLE,					ACT_HL2MP_SWIM_IDLE_MELEE,				false },
+	{ ACT_MP_SWIM,						ACT_HL2MP_SWIM_MELEE,				false },
+
+	{ ACT_MELEE_ATTACK1, ACT_MELEE_ATTACK_SWING, true },
+	{ ACT_IDLE, ACT_IDLE_ANGRY_MELEE, false },
+	{ ACT_IDLE_ANGRY, ACT_IDLE_ANGRY_MELEE, false },
+
 };
 
 IMPLEMENT_ACTTABLE(CWeaponCrowbar);
-
-#endif
 
 //-----------------------------------------------------------------------------
 // Constructor
@@ -77,7 +92,14 @@ CWeaponCrowbar::CWeaponCrowbar( void )
 //-----------------------------------------------------------------------------
 float CWeaponCrowbar::GetDamageForActivity( Activity hitActivity )
 {
+#ifndef HL2SB
 	return 25.0f;
+#else
+	if ( ( GetOwner() != NULL ) && ( GetOwner()->IsPlayer() ) )
+		return sk_plr_dmg_crowbar.GetFloat();
+
+	return sk_npc_dmg_crowbar.GetFloat();
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -101,55 +123,6 @@ void CWeaponCrowbar::AddViewKick( void )
 
 
 #ifndef CLIENT_DLL
-//-----------------------------------------------------------------------------
-// Animation event handlers
-//-----------------------------------------------------------------------------
-void CWeaponCrowbar::HandleAnimEventMeleeHit( animevent_t *pEvent, CBaseCombatCharacter *pOperator )
-{
-	// Trace up or down based on where the enemy is...
-	// But only if we're basically facing that direction
-	Vector vecDirection;
-	AngleVectors( GetAbsAngles(), &vecDirection );
-
-	Vector vecEnd;
-	VectorMA( pOperator->Weapon_ShootPosition(), 50, vecDirection, vecEnd );
-	CBaseEntity *pHurt = pOperator->CheckTraceHullAttack( pOperator->Weapon_ShootPosition(), vecEnd, 
-		Vector(-16,-16,-16), Vector(36,36,36), GetDamageForActivity( GetActivity() ), DMG_CLUB, 0.75 );
-	
-	// did I hit someone?
-	if ( pHurt )
-	{
-		// play sound
-		WeaponSound( MELEE_HIT );
-
-		// Fake a trace impact, so the effects work out like a player's crowbaw
-		trace_t traceHit;
-		UTIL_TraceLine( pOperator->Weapon_ShootPosition(), pHurt->GetAbsOrigin(), MASK_SHOT_HULL, pOperator, COLLISION_GROUP_NONE, &traceHit );
-		ImpactEffect( traceHit );
-	}
-	else
-	{
-		WeaponSound( MELEE_MISS );
-	}
-}
-
-
-//-----------------------------------------------------------------------------
-// Animation event
-//-----------------------------------------------------------------------------
-void CWeaponCrowbar::Operator_HandleAnimEvent( animevent_t *pEvent, CBaseCombatCharacter *pOperator )
-{
-	switch( pEvent->event )
-	{
-	case EVENT_WEAPON_MELEE_HIT:
-		HandleAnimEventMeleeHit( pEvent, pOperator );
-		break;
-
-	default:
-		BaseClass::Operator_HandleAnimEvent( pEvent, pOperator );
-		break;
-	}
-}
 
 //-----------------------------------------------------------------------------
 // Attempt to lead the target (needed because citizens can't hit manhacks with the crowbar!)
@@ -169,7 +142,7 @@ int CWeaponCrowbar::WeaponMeleeAttack1Condition( float flDot, float flDist )
 
 	// Project where the enemy will be in a little while
 	float dt = sk_crowbar_lead_time.GetFloat();
-	dt += SharedRandomFloat( "crowbarmelee1", -0.3f, 0.2f );
+	dt += random->RandomFloat(-0.3f, 0.2f);
 	if ( dt < 0.0f )
 		dt = 0.0f;
 
@@ -199,6 +172,72 @@ int CWeaponCrowbar::WeaponMeleeAttack1Condition( float flDot, float flDist )
 	}
 
 	return COND_CAN_MELEE_ATTACK1;
+}
+
+//-----------------------------------------------------------------------------
+// Animation event handlers
+//-----------------------------------------------------------------------------
+void CWeaponCrowbar::HandleAnimEventMeleeHit(animevent_t *pEvent, CBaseCombatCharacter *pOperator)
+{
+	// Trace up or down based on where the enemy is...
+	// But only if we're basically facing that direction
+	Vector vecDirection;
+	AngleVectors(GetAbsAngles(), &vecDirection);
+
+	CBaseEntity *pEnemy = pOperator->MyNPCPointer() ? pOperator->MyNPCPointer()->GetEnemy() : NULL;
+	if (pEnemy)
+	{
+		Vector vecDelta;
+		VectorSubtract(pEnemy->WorldSpaceCenter(), pOperator->Weapon_ShootPosition(), vecDelta);
+		VectorNormalize(vecDelta);
+
+		Vector2D vecDelta2D = vecDelta.AsVector2D();
+		Vector2DNormalize(vecDelta2D);
+		if (DotProduct2D(vecDelta2D, vecDirection.AsVector2D()) > 0.8f)
+		{
+			vecDirection = vecDelta;
+		}
+	}
+
+
+	Vector vecEnd;
+	VectorMA(pOperator->Weapon_ShootPosition(), 50, vecDirection, vecEnd);
+	CBaseEntity *pHurt = pOperator->CheckTraceHullAttack(pOperator->Weapon_ShootPosition(), vecEnd,
+		Vector(-16, -16, -16), Vector(36, 36, 36), GetDamageForActivity(GetActivity()), DMG_CLUB, 0.75);
+
+	// did I hit someone?
+	if (pHurt)
+	{
+		// play sound
+		WeaponSound(MELEE_HIT);
+
+		// Fake a trace impact, so the effects work out like a player's crowbaw
+		trace_t traceHit;
+		UTIL_TraceLine(pOperator->Weapon_ShootPosition(), pHurt->GetAbsOrigin(), MASK_SHOT_HULL, pOperator, COLLISION_GROUP_NONE, &traceHit);
+		ImpactEffect(traceHit);
+	}
+	else
+	{
+		WeaponSound(MELEE_MISS);
+	}
+}
+
+
+//-----------------------------------------------------------------------------
+// Animation event
+//-----------------------------------------------------------------------------
+void CWeaponCrowbar::Operator_HandleAnimEvent(animevent_t *pEvent, CBaseCombatCharacter *pOperator)
+{
+	switch (pEvent->event)
+	{
+	case EVENT_WEAPON_MELEE_HIT:
+		HandleAnimEventMeleeHit(pEvent, pOperator);
+		break;
+
+	default:
+		BaseClass::Operator_HandleAnimEvent(pEvent, pOperator);
+		break;
+	}
 }
 
 #endif

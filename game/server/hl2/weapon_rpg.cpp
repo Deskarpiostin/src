@@ -2039,7 +2039,13 @@ bool CWeaponRPG::WeaponLOSCondition( const Vector &ownerPos, const Vector &targe
 			Vector vecShootDir = npcOwner->GetActualShootTrajectory( vecMuzzle );
 
 			// Make sure I have a good 10 feet of wide clearance in front, or I'll blow my teeth out.
+#ifdef SBPP
+			// F1dg3t: Whoever wrote this code is a moron. The muzzle position is not the same as the shoot position. I fixed it, but god damn, this is a stupid bug.
+			// The muzzle position is the position of the muzzle, not the shoot position.
+            AI_TraceHull(vecMuzzle + vecShootDir * (10.0f * 12.0f),	Vector(-24, -24, -24), Vector(24, 24, 24), MASK_NPCSOLID, npcOwner, MASK_NPCSOLID, COLLISION_GROUP_NONE, &tr);
+#else
 			AI_TraceHull( vecMuzzle, vecMuzzle + vecShootDir * (10.0f*12.0f), Vector( -24, -24, -24 ), Vector( 24, 24, 24 ), MASK_NPCSOLID, NULL, &tr );
+#endif
 
 			if( tr.fraction != 1.0f )
 				bResult = false;

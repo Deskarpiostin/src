@@ -94,7 +94,11 @@ void CTargetID::VidInit()
 
 Color CTargetID::GetColorForTargetTeam( int iTeamNumber )
 {
+#ifndef SBPP
+    return Color(0, 255, 255, 255);
+#else
 	return GameResources()->GetTeamColor( iTeamNumber );
+#endif
 } 
 
 //-----------------------------------------------------------------------------
@@ -158,6 +162,10 @@ void CTargetID::Paint()
 			bShowPlayerName = true;
 			g_pVGuiLocalize->ConvertANSIToUnicode( pPlayer->GetPlayerName(),  wszPlayerName, sizeof(wszPlayerName) );
 			
+#ifdef SBPP
+			bShowHealth = true;
+			printFormatString = "#Playerid";
+#else
 			if ( HL2MPRules()->IsTeamplay() == true && pPlayer->InSameTeam(pLocalPlayer) )
 			{
 				printFormatString = "#Playerid_sameteam";
@@ -167,6 +175,7 @@ void CTargetID::Paint()
 			{
 				printFormatString = "#Playerid_diffteam";
 			}
+#endif
 		
 
 			if ( bShowHealth )
@@ -177,6 +186,11 @@ void CTargetID::Paint()
 		}
 
 		if ( printFormatString )
+#ifdef SBPP
+		{
+			g_pVGuiLocalize->ConstructString( sIDString, sizeof(sIDString), g_pVGuiLocalize->Find(printFormatString), 2, wszPlayerName, wszHealthText );
+		}
+#else
 		{
 			if ( bShowPlayerName && bShowHealth )
 			{
@@ -195,6 +209,7 @@ void CTargetID::Paint()
 				g_pVGuiLocalize->ConstructString( sIDString, sizeof(sIDString), g_pVGuiLocalize->Find(printFormatString), 0 );
 			}
 		}
+#endif
 
 		if ( sIDString[0] )
 		{

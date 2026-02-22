@@ -365,6 +365,9 @@ public:
 	virtual void	Render2DEffectsPreHUD( const CViewSetup &view );
 	virtual void	Render2DEffectsPostHUD( const CViewSetup &view );
 
+	#ifdef SBPP
+	virtual void    MP_PostSimulate();
+#endif
 
 	void			DisableFog( void );
 

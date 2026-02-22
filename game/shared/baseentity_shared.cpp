@@ -200,7 +200,7 @@ void CBaseEntity::SetEffects( int nEffects )
 	if ( nEffects != m_fEffects )
 	{
 #if !defined( CLIENT_DLL )
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 		// Hack for now, to avoid player emitting radius with his flashlight
 		if ( !IsPlayer() )
 		{
@@ -229,7 +229,7 @@ void CBaseEntity::SetEffects( int nEffects )
 void CBaseEntity::AddEffects( int nEffects ) 
 { 
 #if !defined( CLIENT_DLL )
-#ifdef HL2_EPISODIC
+#ifdef HL2SB
 	if ( (nEffects & (EF_BRIGHTLIGHT|EF_DIMLIGHT)) && !(m_fEffects & (EF_BRIGHTLIGHT|EF_DIMLIGHT)) )
 	{
 		// Hack for now, to avoid player emitting radius with his flashlight
@@ -238,7 +238,7 @@ void CBaseEntity::AddEffects( int nEffects )
 			AddEntityToDarknessCheck( this );
 		}
 	}
-#endif // HL2_EPISODIC
+#endif // HL2SB
 #endif // !CLIENT_DLL
 
 	m_fEffects |= nEffects; 
@@ -1611,7 +1611,7 @@ void CBaseEntity::FireBullets( const FireBulletsInfo_t &info )
 	
 	bool bDoServerEffects = true;
 
-#if defined( HL2MP ) && defined( GAME_DLL )
+#if !defined( SBPP ) && defined( HL2MP ) && defined( GAME_DLL )
 	bDoServerEffects = false;
 #endif
 

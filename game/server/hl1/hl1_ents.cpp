@@ -762,7 +762,7 @@ void CFuncMortarField::InputTrigger( inputdata_t &inputdata )
 	}
 }
 
-#ifdef HL1_DLL
+#if defined( HL1_DLL ) || defined( SBPP )
 
 class CMortar : public CHL1BaseGrenade
 {

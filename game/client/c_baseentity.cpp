@@ -40,6 +40,10 @@
 #include "cdll_bounded_cvars.h"
 #include "inetchannelinfo.h"
 #include "proto_version.h"
+#ifdef LUA_SDK
+#include "luamanager.h"
+#include "mathlib/lvector.h"
+#endif
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -72,15 +76,10 @@ void cc_cl_interp_all_changed( IConVar *pConVar, const char *pOldString, float f
 	}
 }
 
-#ifndef MOON
+
 static ConVar  cl_extrapolate( "cl_extrapolate", "1", FCVAR_CHEAT, "Enable/disable extrapolation if interpolation history runs out." );
-static ConVar  cl_interp_npcs( "cl_interp_npcs", "0.0", FCVAR_USERINFO, "Interpolate NPC positions starting this many seconds in past (or cl_interp, if greater)" );  
+static ConVar  cl_interp_npcs( "cl_interp_npcs", "0.25", FCVAR_USERINFO, "Interpolate NPC positions starting this many seconds in past (or cl_interp, if greater)" );  
 static ConVar  cl_interp_all( "cl_interp_all", "0", 0, "Disable interpolation list optimizations.", 0, 0, 0, 0, cc_cl_interp_all_changed );
-#else
-static ConVar  cl_extrapolate( "cl_extrapolate", "0", FCVAR_CHEAT, "Enable/disable extrapolation if interpolation history runs out." );
-static ConVar  cl_interp_npcs( "cl_interp_npcs", "0.1", FCVAR_USERINFO, "Interpolate NPC positions starting this many seconds in past (or cl_interp, if greater)" );  
-static ConVar  cl_interp_all( "cl_interp_all", "1", 0, "Disable interpolation list optimizations.", 0, 0, 0, 0, cc_cl_interp_all_changed );
-#endif // MOON
 ConVar  r_drawmodeldecals( "r_drawmodeldecals", "1" );
 extern ConVar	cl_showerror;
 int C_BaseEntity::m_nPredictionRandomSeed = -1;
@@ -1089,6 +1088,28 @@ bool C_BaseEntity::Init( int entnum, int iSerialNum )
 
 	index = entnum;
 
+	if ( this->IsPlayer() )
+	{
+		// Josh: If we ever have a player that could ever cause us
+		// an out of bounds access to any player sized arrays.
+		// Just get out now!
+		//
+		// All these issues should be bounds checked now anyway,
+		// but I'd much rather be safe than sorry here.
+		//
+		// Additionally, make sure we aren't 0 or negative,
+		// the player CANNOT be worldspawn.
+		// Someone is going to try that to get an extra player and frog something up!
+		// 
+		// Player index is entindex - 1.
+		// MAX_PLAYERS_ARRAY_SAFE is MAX_PLAYERS + 1.
+		if ( index <= 0 || index >= MAX_PLAYERS_ARRAY_SAFE )
+		{
+			Warning("Player with out of bounds entindex! Got: %d Expected to be in inclusive range: %d - %d\n", index, 1, MAX_PLAYERS );
+			return false;
+		}
+	}
+
 	cl_entitylist->AddNetworkableEntity( GetIClientUnknown(), entnum, iSerialNum );
 
 	CollisionProp()->CreatePartitionHandle();
@@ -1636,11 +1657,41 @@ int C_BaseEntity::GetSoundSourceIndex() const
 //-----------------------------------------------------------------------------
 const Vector& C_BaseEntity::GetRenderOrigin( void )
 {
+#if 0
+	if ( m_nTableReference != LUA_NOREF )
+	{
+		lua_getref( L, m_nTableReference );
+		lua_getfield( L, -1, "m_vecRenderOrigin" );
+		lua_remove( L, -2 );
+		if ( lua_isuserdata( L, -1 ) && luaL_checkudata( L, -1, "Vector" ) != NULL )
+		{
+			const Vector& res = luaL_checkvector( L, -1 );
+			lua_pop( L, 1 );
+			return res;
+		}
+		lua_pop( L, 1 );
+	}
+#endif	
 	return GetAbsOrigin();
 }
 
 const QAngle& C_BaseEntity::GetRenderAngles( void )
 {
+#if 0
+	if ( m_nTableReference != LUA_NOREF )
+	{
+		lua_getref( L, m_nTableReference );
+		lua_getfield( L, -1, "m_angRenderAngles" );
+		lua_remove( L, -2 );
+		if ( lua_isuserdata( L, -1 ) && luaL_checkudata( L, -1, "QAngle" ) != NULL )
+		{
+			const QAngle& res = luaL_checkangle( L, -1 );
+			lua_pop( L, 1 );
+			return res;
+		}
+		lua_pop( L, 1 );
+	}
+#endif	
 	return GetAbsAngles();
 }
 
@@ -2746,6 +2797,8 @@ void C_BaseEntity::OnStoreLastNetworkedValue()
 	{
 		VarMapEntry_t *e = &m_VarMap.m_Entries[ i ];
 		IInterpolatedVar *watcher = e->watcher;
+		if (!watcher)
+			continue;
 
 		int type = watcher->GetType();
 
@@ -4763,6 +4816,13 @@ const char *C_BaseEntity::GetClassname( void )
 	static char outstr[ 256 ];
 	outstr[ 0 ] = 0;
 	bool gotname = false;
+#if defined ( LUA_SDK )
+	if ( m_iClassname && m_iClassname[ 0 ] )
+	{
+		Q_snprintf( outstr, sizeof( outstr ), "%s", m_iClassname );
+		gotname = true;
+	}
+#endif
 #ifndef NO_ENTITY_PREDICTION
 	if ( GetPredDescMap() )
 	{
@@ -5841,7 +5901,11 @@ void C_BaseEntity::Interp_Reset( VarMapping_t *map )
 		VarMapEntry_t *e = &map->m_Entries[ i ];
 		IInterpolatedVar *watcher = e->watcher;
 
-		watcher->Reset();
+		// ez
+		if (watcher)
+			watcher->Reset();
+		else
+			break;
 	}
 }
 

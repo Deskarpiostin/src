@@ -14,6 +14,9 @@
 #include "filesystem.h"
 #include "mp_shareddefs.h"
 #include "utlbuffer.h"
+#ifdef SBPP
+#include "hl2mp_gamerules.h"
+#endif
 
 #ifdef CLIENT_DLL
 
@@ -42,6 +45,11 @@
 	#include "NextBotManager.h"
 #endif
 
+#endif
+
+#ifdef TF_DLL
+	#include <unordered_set>
+	#include "hl2orange.spa.h"
 #endif
 
 // memdbgon must be the last include file in a .cpp file!!!
@@ -751,7 +759,14 @@ ConVarRef suitcharger( "sk_suitcharger" );
 	//=========================================================
 	void CMultiplayRules::PlayerKilled( CBasePlayer *pVictim, const CTakeDamageInfo &info )
 	{
+#ifdef SBPP
+		if ( info.GetAttacker()->IsNPC() )
+			HL2MPRules()->NPCDeathNotice( pVictim, info );
+		else
+			DeathNotice( pVictim, info );
+#else
 		DeathNotice( pVictim, info );
+#endif
 
 		// Find the killer & the scorer
 		CBaseEntity *pInflictor = info.GetInflictor();
@@ -829,6 +844,9 @@ ConVarRef suitcharger( "sk_suitcharger" );
 				
 				if ( pInflictor )
 				{
+#ifdef SBPP
+					killer_weapon_name = STRING( pInflictor->m_iClassname );
+#else
 					if ( pInflictor == pScorer )
 					{
 						// If the inflictor is the killer,  then it must be their current weapon doing the damage
@@ -845,6 +863,7 @@ ConVarRef suitcharger( "sk_suitcharger" );
 					{
 						killer_weapon_name = STRING( pInflictor->m_iClassname );  // it's just that easy
 					}
+#endif
 				}
 			}
 			else
@@ -1151,14 +1170,11 @@ ConVarRef suitcharger( "sk_suitcharger" );
 
 	void StripChar(char *szBuffer, const char cWhiteSpace )
 	{
-		char *src, *dst;
-
-		for (src = dst = szBuffer; *src != '\0'; src++)
+		while ( char *pSpace = strchr( szBuffer, cWhiteSpace ) )
 		{
-			*dst = *src;
-			if (*dst != cWhiteSpace) dst++;
+			char *pNextChar = pSpace + sizeof(char);
+			V_strcpy( pSpace, pNextChar );
 		}
-		*dst = '\0';
 	}
 
 	void CMultiplayRules::GetNextLevelName( char *pszNextMap, int bufsize, bool bRandom /* = false */ )
@@ -1222,12 +1238,30 @@ ConVarRef suitcharger( "sk_suitcharger" );
 			return;
 		}
 
-		char szRecommendedName[ 256 ];
-		V_sprintf_safe( szRecommendedName, "cfg/%s", pszVar );
+		// Check cfg/foo first.  Resolve dot-slashes only on the concatonated path, since "../foo" is valid if it
+		// matches "cfg/../foo".
+		//
+		// XXX Everything is awful bonus, V_RemoveDotSlashes("a/../b") returns false and the invalid "/b" parse, and the
+		//     comment there says "for backwards compat".  So we do "/cfg/%s" and then trim the first character on
+		//     success because why not.
+		char szRecommendedNameWithSlash[ MAX_PATH ] = { 0 };
+		V_sprintf_safe( szRecommendedNameWithSlash, "/cfg/%s", pszVar );
+		char *pszRecommendedName = szRecommendedNameWithSlash + 1;
+		if ( !V_RemoveDotSlashes( szRecommendedNameWithSlash ) ||
+		     szRecommendedNameWithSlash[0] != CORRECT_PATH_SEPARATOR || !*pszRecommendedName )
+		{
+			if ( bForceSpew || V_stricmp( szLastResult, "__novar") )
+			{
+				Msg( "mapcyclefile convar is not a valid path.\n" );
+				V_strcpy_safe( szLastResult, "__novar" );
+			}
+			*pszResult = '\0';
+			return;
+		}
 
 		// First, look for a mapcycle file in the cfg directory, which is preferred
-		V_strncpy( pszResult, szRecommendedName, nSizeResult );
-		if ( filesystem->FileExists( pszResult, "GAME" ) )
+		V_strncpy( pszResult, pszRecommendedName, nSizeResult );
+		if ( filesystem->FileExists( pszResult, "MOD" ) )
 		{
 			if ( bForceSpew || V_stricmp( szLastResult, pszResult) )
 			{
@@ -1237,27 +1271,42 @@ ConVarRef suitcharger( "sk_suitcharger" );
 			return;
 		}
 
-		// Nope?  Try the root.
-		V_strncpy( pszResult, pszVar, nSizeResult );
-		if ( filesystem->FileExists( pszResult, "GAME" ) )
+		// Nope?  Try the root.  Resolve dot-slashes in the path in isolation since "../foo" is now not allowed from
+		// there.  Same note as above about V_RemoveDotSlashes being actually broken.
+		char szCleanPathWithSlash[ MAX_PATH ] = { 0 };
+		V_sprintf_safe( szCleanPathWithSlash, "/%s", pszVar );
+		char *pszCleanPath = szCleanPathWithSlash + 1;
+		if ( !V_RemoveDotSlashes( szCleanPathWithSlash ) || szCleanPathWithSlash[0] != CORRECT_PATH_SEPARATOR || !pszCleanPath )
+		{
+			if ( bForceSpew || V_stricmp( szLastResult, "__novar") )
+			{
+				Msg( "mapcyclefile convar is not a valid path.\n" );
+				V_strcpy_safe( szLastResult, "__novar" );
+			}
+			*pszResult = '\0';
+			return;
+		}
+
+		V_strncpy( pszResult, pszCleanPath, nSizeResult );
+		if ( filesystem->FileExists( pszResult, "MOD" ) )
 		{
 			if ( bForceSpew || V_stricmp( szLastResult, pszResult) )
 			{
-				Msg( "Using map cycle file '%s'.  ('%s' was not found.)\n", pszResult, szRecommendedName );
+				Msg( "Using map cycle file '%s'.  ('%s' was not found.)\n", pszResult, pszRecommendedName );
 				V_strcpy_safe( szLastResult, pszResult );
 			}
 			return;
 		}
 
 		// Nope?  Use the default.
-		if ( !V_stricmp( pszVar, "mapcycle.txt" ) )
+		if ( !V_stricmp( pszCleanPath, "mapcycle.txt" ) )
 		{
 			V_strncpy( pszResult, "cfg/mapcycle_default.txt", nSizeResult );
-			if ( filesystem->FileExists( pszResult, "GAME" ) )
+			if ( filesystem->FileExists( pszResult, "MOD" ) )
 			{
 				if ( bForceSpew || V_stricmp( szLastResult, pszResult) )
 				{
-					Msg( "Using map cycle file '%s'.  ('%s' was not found.)\n", pszResult, szRecommendedName );
+					Msg( "Using map cycle file '%s'.  ('%s' was not found.)\n", pszResult, pszRecommendedName );
 					V_strcpy_safe( szLastResult, pszResult );
 				}
 				return;
@@ -1268,7 +1317,7 @@ ConVarRef suitcharger( "sk_suitcharger" );
 		*pszResult = '\0';
 		if ( bForceSpew || V_stricmp( szLastResult, "__notfound") )
 		{
-			Msg( "Map cycle file '%s' was not found.\n", szRecommendedName );
+			Msg( "Map cycle file '%s' was not found.\n", pszRecommendedName );
 			V_strcpy_safe( szLastResult, "__notfound" );
 		}
 	}
@@ -1276,7 +1325,7 @@ ConVarRef suitcharger( "sk_suitcharger" );
 	void CMultiplayRules::LoapMapCycleFileIntoVector( const char *pszMapCycleFile, CUtlVector<char *> &mapList )
 	{
 		CUtlBuffer buf;
-		if ( !filesystem->ReadFile( pszMapCycleFile, "GAME", buf ) )
+		if ( !filesystem->ReadFile( pszMapCycleFile, "MOD", buf ) )
 			return;
 		buf.PutChar( 0 );
 		V_SplitString( (char*)buf.Base(), "\n", mapList );
@@ -1286,8 +1335,8 @@ ConVarRef suitcharger( "sk_suitcharger" );
 			bool bIgnore = false;
 
 			// Strip out the spaces in the name
-			StripChar( mapList[i] , '\r');
-			StripChar( mapList[i] , ' ');
+			//StripChar( mapList[i] , '\r');
+			//StripChar( mapList[i] , ' ');
 
 			if ( !Q_strncmp( mapList[i], "//", 2 ) || mapList[i][0] == '\0' )
 			{
@@ -1583,7 +1632,7 @@ ConVarRef suitcharger( "sk_suitcharger" );
 
 			CBaseMultiplayerPlayer *pMultiPlayerPlayer = dynamic_cast< CBaseMultiplayerPlayer * >( pPlayer );
 
-			if ( pMultiPlayerPlayer )
+			if ( pMultiPlayerPlayer && pMultiPlayerPlayer->ShouldRunRateLimitedCommand( pcmd ) )
 			{
 				int iMenu = atoi( args[1] );
 				int iItem = atoi( args[2] );
@@ -1597,6 +1646,18 @@ ConVarRef suitcharger( "sk_suitcharger" );
 		return BaseClass::ClientCommand( pEdict, args );
 	}
 
+#ifdef TF_DLL
+	#define ACHIEVEMENT_LIST_(id) id
+	#define ACHIEVEMENT_LIST(className, achievementID, achievementName, iPointValue) \
+		ACHIEVEMENT_LIST_(achievementID),
+
+	static const std::unordered_set<int> g_ValidAchiementIdxs = {{
+		#include "achievements_tf_list.inc"
+	}};
+
+	#undef ACHIEVEMENT_LIST
+#endif
+
 	void CMultiplayRules::ClientCommandKeyValues( edict_t *pEntity, KeyValues *pKeyValues )
 	{
 		CBaseMultiplayerPlayer *pPlayer = dynamic_cast< CBaseMultiplayerPlayer * >( CBaseEntity::Instance( pEntity ) );
@@ -1609,20 +1670,32 @@ ConVarRef suitcharger( "sk_suitcharger" );
 		{
 			if ( FStrEq( pszCommand, "AchievementEarned" ) )
 			{
-				if ( pPlayer->ShouldAnnounceAchievement() )
+				if ( !pPlayer->ShouldAnnounceAchievement() )
+					return;
+
+				int nAchievementID = pKeyValues->GetInt( "achievementID" );
+
+#ifdef TF_DLL
+				// Josh:
+				// Bots are using this as a back-channel to communicate on our servers
+				// with invalid achievement indexes.
+				// I did want to use achievementmgr but that isn't available on the server --
+				// nor are the achievement's actually DECLARED (they rely on a bunch of client code)
+				// so we have a list of achievements in achievements_tf_list.inc.
+				// Let's validate the achievement is actually valid before continuing...
+				if ( g_ValidAchiementIdxs.find( nAchievementID ) == g_ValidAchiementIdxs.end() )
+					return;
+#endif
+
+				IGameEvent * event = gameeventmanager->CreateEvent( "achievement_earned" );
+				if ( event )
 				{
-					int nAchievementID = pKeyValues->GetInt( "achievementID" );
-
-					IGameEvent * event = gameeventmanager->CreateEvent( "achievement_earned" );
-					if ( event )
-					{
-						event->SetInt( "player", pPlayer->entindex() );
-						event->SetInt( "achievement", nAchievementID );
-						gameeventmanager->FireEvent( event );
-					}
-
-					pPlayer->OnAchievementEarned( nAchievementID );
+					event->SetInt( "player", pPlayer->entindex() );
+					event->SetInt( "achievement", nAchievementID );
+					gameeventmanager->FireEvent( event );
 				}
+
+				pPlayer->OnAchievementEarned( nAchievementID );
 			}
 			else if ( FStrEq( pszCommand, "SendServerMapCycle" ) )
 			{

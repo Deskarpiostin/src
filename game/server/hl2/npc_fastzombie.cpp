@@ -27,7 +27,7 @@
 #include "physics_npc_solver.h"
 #include "physics_prop_ragdoll.h"
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 #include "episodic/ai_behavior_passenger_zombie.h"
 #endif	// HL2_EPISODIC
 
@@ -48,7 +48,7 @@
 // If flying at an enemy, and this close or closer, start playing the maul animation!!
 #define FASTZOMBIE_MAUL_RANGE	300
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 
 int AE_PASSENGER_PHYSICS_PUSH;
 int AE_FASTZOMBIE_VEHICLE_LEAP;
@@ -293,7 +293,7 @@ public:
 	virtual const char *GetTorsoModel( void );
 
 //=============================================================================
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 
 public:
 	virtual bool	CreateBehaviors( void );
@@ -362,7 +362,7 @@ BEGIN_DATADESC( CFastZombie )
 	DEFINE_ENTITYFUNC( ClimbTouch ),
 	DEFINE_SOUNDPATCH( m_pLayer2 ),
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	DEFINE_ENTITYFUNC( VehicleLeapAttackTouch ),
 	DEFINE_INPUTFUNC( FIELD_STRING, "AttachToVehicle", InputAttachToVehicle ),
 #endif	// HL2_EPISODIC
@@ -389,7 +389,7 @@ static const char *s_pLegsModel = "models/gibs/fast_zombie_legs.mdl";
 void CFastZombie::Precache( void )
 {
 	PrecacheModel("models/zombie/fast.mdl");
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	PrecacheModel("models/zombie/Fast_torso.mdl");
 	PrecacheScriptSound( "NPC_FastZombie.CarEnter1" );
 	PrecacheScriptSound( "NPC_FastZombie.CarEnter2" );
@@ -444,7 +444,7 @@ int CFastZombie::SelectSchedule ( void )
 {
 
 // ========================================================
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 
 	// Defer all decisions to the behavior if it's running
 	if ( m_PassengerBehavior.CanSelectSchedule() )
@@ -918,7 +918,11 @@ void CFastZombie::DeathSound( const CTakeDamageInfo &info )
 //-----------------------------------------------------------------------------
 void CFastZombie::AlertSound( void )
 {
+#ifdef HL2SB
+	CBaseEntity *pPlayer = AI_GetNearestPlayer( this );
+#else
 	CBaseEntity *pPlayer = AI_GetSinglePlayer();
+#endif
 
 	if( pPlayer )
 	{
@@ -1099,7 +1103,7 @@ void CFastZombie::HandleAnimEvent( animevent_t *pEvent )
 	}
 
 //=============================================================================
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 
 	// Do the leap attack
 	if ( pEvent->event == AE_FASTZOMBIE_VEHICLE_LEAP )
@@ -1764,7 +1768,7 @@ void CFastZombie::BuildScheduleTestBits( void )
 	if ( GetRunningBehavior() )
 		GetRunningBehavior()->BridgeBuildScheduleTestBits(); 
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	SetCustomInterruptCondition( COND_PROVOKED );
 #endif	// HL2_EPISODIC
 
@@ -1870,7 +1874,7 @@ bool CFastZombie::ShouldBecomeTorso( const CTakeDamageInfo &info, float flDamage
 }
 
 //=============================================================================
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 
 //-----------------------------------------------------------------------------
 // Purpose: Add the passenger behavior to our repertoire
@@ -2053,7 +2057,7 @@ AI_BEGIN_CUSTOM_NPC( npc_fastzombie, CFastZombie )
 	DECLARE_ANIMEVENT( AE_FASTZOMBIE_CLIMB_LEFT )
 	DECLARE_ANIMEVENT( AE_FASTZOMBIE_CLIMB_RIGHT )
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	// FIXME: Move!
 	DECLARE_ANIMEVENT( AE_PASSENGER_PHYSICS_PUSH )
 	DECLARE_ANIMEVENT( AE_FASTZOMBIE_VEHICLE_LEAP )

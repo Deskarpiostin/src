@@ -594,7 +594,7 @@ typedef void * HINSTANCE;
 	#define FMTFUNCTION( a, b )
 #elif defined(GNUC)
 	#define SELECTANY __attribute__((weak))
-	#ifndef DEDICATED
+	#if defined(LINUX) && !defined(DEDICATED)
 		#define RESTRICT
 	#else
 		#define RESTRICT __restrict

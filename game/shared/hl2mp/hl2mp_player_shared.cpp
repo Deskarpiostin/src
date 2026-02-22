@@ -14,24 +14,41 @@
 #else
 #include "hl2mp_player.h"
 #endif
+#include "hl2mp_gamerules.h"
 
 #include "engine/IEngineSound.h"
 #include "SoundEmitterSystem/isoundemittersystembase.h"
+#ifdef LUA_SDK
+#include "luamanager.h"
+#include "lhl2mp_player_shared.h"
+#include "mathlib/lvector.h"
+#include "lvphysics_interface.h"
+#endif
+
+// memdbgon must be the last include file in a .cpp file!!!
+#include "tier0/memdbgon.h"
 
 extern ConVar sv_footsteps;
 
+#ifndef SBPP
 const char *g_ppszPlayerSoundPrefixNames[PLAYER_SOUNDS_MAX] =
 {
 	"NPC_Citizen",
 	"NPC_CombineS",
 	"NPC_MetroPolice",
 };
+#endif
 
 const char *CHL2MP_Player::GetPlayerModelSoundPrefix( void )
 {
+#ifdef SBPP
+	return "Player";
+#else
 	return g_ppszPlayerSoundPrefixNames[m_iPlayerSoundType];
+#endif
 }
 
+#ifndef SBPP
 void CHL2MP_Player::PrecacheFootStepSounds( void )
 {
 	int iFootstepSounds = ARRAYSIZE( g_ppszPlayerSoundPrefixNames );
@@ -48,6 +65,7 @@ void CHL2MP_Player::PrecacheFootStepSounds( void )
 		PrecacheScriptSound( szFootStepName );
 	}
 }
+#endif
 
 //-----------------------------------------------------------------------------
 // Consider the weapon's built-in accuracy, this character's proficiency with
@@ -61,6 +79,8 @@ Vector CHL2MP_Player::GetAttackSpread( CBaseCombatWeapon *pWeapon, CBaseEntity *
 	
 	return VECTOR_CONE_15DEGREES;
 }
+
+#ifndef SBPP
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -575,3 +595,4 @@ void CPlayerAnimState::GetOuterAbsVelocity( Vector& vel )
 	vel = GetOuter()->GetAbsVelocity();
 #endif
 }
+#endif

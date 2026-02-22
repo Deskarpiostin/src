@@ -87,7 +87,7 @@ BEGIN_DATADESC( CNPC_PlayerCompanion )
 	DEFINE_INPUTFUNC( FIELD_FLOAT,	"LockReadiness",		InputLockReadiness ),
 
 //------------------------------------------------------------------------------
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	DEFINE_FIELD( m_hFlare, FIELD_EHANDLE ),
 
 	DEFINE_INPUTFUNC( FIELD_STRING,	"EnterVehicle",				InputEnterVehicle ),
@@ -124,7 +124,7 @@ BEGIN_DATADESC( CNPC_PlayerCompanion )
 	DEFINE_INPUTFUNC( FIELD_VOID, "DisableWeaponPickup", InputDisableWeaponPickup ),
 
 
-#if HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	DEFINE_INPUTFUNC( FIELD_VOID, "ClearAllOutputs", InputClearAllOuputs ),
 #endif
 
@@ -148,14 +148,14 @@ string_t CNPC_PlayerCompanion::gm_iszRollerMineClassname;
 
 bool CNPC_PlayerCompanion::CreateBehaviors()
 {
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	AddBehavior( &m_FearBehavior );
 	AddBehavior( &m_PassengerBehavior );
 #endif // HL2_EPISODIC	
 
 	AddBehavior( &m_ActBusyBehavior );
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	AddBehavior( &m_OperatorBehavior );
 	AddBehavior( &m_StandoffBehavior );
 	AddBehavior( &m_AssaultBehavior );
@@ -183,7 +183,7 @@ void CNPC_PlayerCompanion::Precache()
 
 	PrecacheModel( STRING( GetModelName() ) );
 	
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	// The flare we're able to pull out
 	PrecacheModel( "models/props_junk/flare.mdl" );
 #endif // HL2_EPISODIC
@@ -220,7 +220,9 @@ void CNPC_PlayerCompanion::Spawn()
 		CapabilitiesAdd( bits_CAP_DUCK | bits_CAP_DOORS_GROUP );
 		CapabilitiesAdd( bits_CAP_USE_SHOT_REGULATOR );
 	}
+#ifndef SBPP
 	CapabilitiesAdd( bits_CAP_NO_HIT_PLAYER | bits_CAP_NO_HIT_SQUADMATES | bits_CAP_FRIENDLY_DMG_IMMUNE );
+#endif
 	CapabilitiesAdd( bits_CAP_MOVE_GROUND );
 	SetMoveType( MOVETYPE_STEP );
 
@@ -234,7 +236,7 @@ void CNPC_PlayerCompanion::Spawn()
 
 	m_AnnounceAttackTimer.Set( 10, 30 );
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	// We strip this flag because it's been made obsolete by the StartScripting behavior
 	if ( HasSpawnFlags( SF_NPC_ALTCOLLISION ) )
 	{
@@ -260,14 +262,14 @@ int CNPC_PlayerCompanion::Restore( IRestore &restore )
 		m_StandoffBehavior.SetActive( false );
 	}
 
-#ifdef HL2_EPISODIC
+#if !defined( HL2SB ) && defined( HL2SB )
 	// We strip this flag because it's been made obsolete by the StartScripting behavior
 	if ( HasSpawnFlags( SF_NPC_ALTCOLLISION ) )
 	{
 		Warning( "NPC %s using alternate collision! -- DISABLED\n", STRING( GetEntityName() ) );
 		RemoveSpawnFlags( SF_NPC_ALTCOLLISION );
 	}
-#endif // HL2_EPISODIC
+#endif // !HL2SB && HL2SB
 
 	return baseResult;
 }
@@ -348,9 +350,15 @@ void CNPC_PlayerCompanion::GatherConditions()
 {
 	BaseClass::GatherConditions();
 
+#ifndef HL2SB
 	if ( AI_IsSinglePlayer() )
 	{
+#endif
+#ifdef HL2SB
+		CBasePlayer *pPlayer = UTIL_GetNearestPlayer( GetAbsOrigin() );
+#else
 		CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
+#endif
 
 		if ( Classify() == CLASS_PLAYER_ALLY_VITAL )
 		{
@@ -438,7 +446,9 @@ void CNPC_PlayerCompanion::GatherConditions()
 				m_flBoostSpeed *= mult;
 			}
 		}
+#ifndef HL2SB
 	}
+#endif
 
 	// Update our readiness if we're 
 	if ( IsReadinessCapable() )
@@ -496,9 +506,15 @@ void CNPC_PlayerCompanion::GatherConditions()
 		DoCustomSpeechAI();
 	}
 
+#ifdef HL2SB
+	if ( hl2_episodic.GetBool() && !GetEnemy() && HasCondition( COND_HEAR_PLAYER ) )
+	{
+		Vector los = ( UTIL_GetNearestPlayer( GetAbsOrigin() )->EyePosition() - EyePosition() );
+#else
 	if ( AI_IsSinglePlayer() && hl2_episodic.GetBool() && !GetEnemy() && HasCondition( COND_HEAR_PLAYER ) )
 	{
 		Vector los = ( UTIL_GetLocalPlayer()->EyePosition() - EyePosition() );
+#endif
 		los.z = 0;
 		VectorNormalize( los );
 
@@ -514,10 +530,14 @@ void CNPC_PlayerCompanion::GatherConditions()
 //-----------------------------------------------------------------------------
 void CNPC_PlayerCompanion::DoCustomSpeechAI( void )
 {
+#ifdef HL2SB
+	CBasePlayer *pPlayer = AI_GetNearestPlayer( GetAbsOrigin() );
+#else
 	CBasePlayer *pPlayer = AI_GetSinglePlayer();
+#endif
 	
 	// Don't allow this when we're getting in the car
-#ifdef HL2_EPISODIC
+#ifdef HL2SB
 	bool bPassengerInTransition = ( IsInAVehicle() && ( m_PassengerBehavior.GetPassengerState() == PASSENGER_STATE_ENTERING || m_PassengerBehavior.GetPassengerState() == PASSENGER_STATE_EXITING ) );
 #else
 	bool bPassengerInTransition = false;
@@ -547,7 +567,11 @@ void CNPC_PlayerCompanion::DoCustomSpeechAI( void )
 //-----------------------------------------------------------------------------
 void CNPC_PlayerCompanion::PredictPlayerPush()
 {
+#ifdef HL2SB
+	CBasePlayer *pPlayer = AI_GetNearestPlayer( GetAbsOrigin() );
+#else
 	CBasePlayer *pPlayer = AI_GetSinglePlayer();
+#endif
 	if ( pPlayer && pPlayer->GetSmoothedVelocity().LengthSqr() >= Square(140))
 	{
 		Vector predictedPosition = pPlayer->WorldSpaceCenter() + pPlayer->GetSmoothedVelocity() * .4;
@@ -666,7 +690,7 @@ bool CNPC_PlayerCompanion::ShouldIgnoreSound( CSound *pSound )
 		if ( pSound->IsSoundType( SOUND_DANGER ) && !SoundIsVisible(pSound) )
 			return true;
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 		// Ignore vehicle sounds when we're driving in them
 		if ( pSound->m_hOwner && pSound->m_hOwner->GetServerVehicle() != NULL )
 		{
@@ -686,7 +710,7 @@ int CNPC_PlayerCompanion::SelectSchedule()
 {
 	m_bMovingAwayFromPlayer = false;
 
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	// Always defer to passenger if it's running
 	if ( ShouldDeferToPassengerBehavior() )
 	{
@@ -970,9 +994,13 @@ int CNPC_PlayerCompanion::TranslateSchedule( int scheduleType )
 
 			if( CanReload() && pWeapon->UsesClipsForAmmo1() && pWeapon->Clip1() < ( pWeapon->GetMaxClip1() * .5 ) && OccupyStrategySlot( SQUAD_SLOT_EXCLUSIVE_RELOAD ) )
 			{
+#ifdef HL2SB
+					CBasePlayer *pPlayer = UTIL_GetNearestPlayer( GetAbsOrigin() );
+#else
 				if ( AI_IsSinglePlayer() )
 				{
 					CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
+#endif
 					pWeapon = pPlayer->GetActiveWeapon();
 					if( pWeapon && pWeapon->UsesClipsForAmmo1() && 
 						pWeapon->Clip1() < ( pWeapon->GetMaxClip1() * .75 ) &&
@@ -980,7 +1008,9 @@ int CNPC_PlayerCompanion::TranslateSchedule( int scheduleType )
 					{
 						SpeakIfAllowed( TLK_PLRELOAD );
 					}
+#ifndef HL2SB
 				}
+#endif
 				return SCHED_RELOAD;
 			}
 		}
@@ -1153,10 +1183,14 @@ void CNPC_PlayerCompanion::RunTask( const Task_t *pTask )
 
 		case TASK_PC_GET_PATH_OFF_COMPANION:
 			{
+#ifdef HL2SB
+				GetNavigator()->SetAllowBigStep( UTIL_GetNearestPlayer( GetAbsOrigin() ) );
+#else
 				if ( AI_IsSinglePlayer() )
 				{
 					GetNavigator()->SetAllowBigStep( UTIL_GetLocalPlayer() );
 				}
+#endif
 				ChainRunTask( TASK_MOVE_AWAY_PATH, 48 );
 			}
 			break;
@@ -1384,7 +1418,7 @@ Activity CNPC_PlayerCompanion::NPC_TranslateActivity( Activity activity )
 //------------------------------------------------------------------------------
 void CNPC_PlayerCompanion::HandleAnimEvent( animevent_t *pEvent )
 {
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 	// Create a flare and parent to our hand
 	if ( pEvent->event == AE_COMPANION_PRODUCE_FLARE )
 	{
@@ -1513,7 +1547,11 @@ void CNPC_PlayerCompanion::Touch( CBaseEntity *pOther )
 		if ( m_afMemory & bits_MEMORY_PROVOKED )
 			return;
 			
+#ifdef HL2SB
+		TestPlayerPushing( ( pOther->IsPlayer() ) ? pOther : AI_GetNearestPlayer( GetAbsOrigin() ) );
+#else
 		TestPlayerPushing( ( pOther->IsPlayer() ) ? pOther : AI_GetSinglePlayer() );
+#endif
 	}
 }
 
@@ -1567,7 +1605,7 @@ bool CNPC_PlayerCompanion::IsReadinessCapable()
 	if ( GlobalEntity_GetState("gordon_precriminal") == GLOBAL_ON )
 		return false;
 
-#ifndef HL2_EPISODIC
+#if !defined( HL2_EPISODIC ) && !defined( SBPP )
 	// Allow episodic companions to use readiness even if unarmed. This allows for the panicked 
 	// citizens in ep1_c17_05 (sjb)
 	if( !GetActiveWeapon() )
@@ -1897,7 +1935,11 @@ bool CNPC_PlayerCompanion::PickTacticalLookTarget( AILookTargetArgs_t *pArgs )
 		// 1/3rd chance to authoritatively look at player
 		if( random->RandomInt( 0, 2 ) == 0 )
 		{
+#ifdef HL2SB
+			pArgs->hTarget = AI_GetNearestPlayer( GetAbsOrigin() );
+#else
 			pArgs->hTarget = AI_GetSinglePlayer();
+#endif
 			return true;
 		}
 	}
@@ -2784,7 +2826,11 @@ void CNPC_PlayerCompanion::OnFriendDamaged( CBaseCombatCharacter *pSquadmate, CB
 			}
 		}
 
+#ifdef HL2SB
+		CBasePlayer *pPlayer = AI_GetNearestPlayer( GetAbsOrigin() );
+#else
 		CBasePlayer *pPlayer = AI_GetSinglePlayer();
+#endif
 		if ( pPlayer && IsInPlayerSquad() && ( pPlayer->GetAbsOrigin().AsVector2D() - GetAbsOrigin().AsVector2D() ).LengthSqr() < Square( 25*12 ) && IsAllowedToSpeak( TLK_WATCHOUT ) )
 		{
 			if ( !pPlayer->FInViewCone( pAttacker ) )
@@ -2883,7 +2929,7 @@ bool CNPC_PlayerCompanion::OverrideMove( float flInterval )
 		string_t iszEnvFire = AllocPooledString( "env_fire" );
 		string_t iszBounceBomb = AllocPooledString( "combine_mine" );
 
-#ifdef HL2_EPISODIC			
+#if defined( HL2_EPISODIC ) || defined( SBPP )			
 		string_t iszNPCTurretFloor = AllocPooledString( "npc_turret_floor" );
 		string_t iszEntityFlame = AllocPooledString( "entityflame" );
 #endif // HL2_EPISODIC
@@ -2917,7 +2963,7 @@ bool CNPC_PlayerCompanion::OverrideMove( float flInterval )
 					}
 				}
 			}
-#ifdef HL2_EPISODIC			
+#if defined( HL2_EPISODIC ) || defined( SBPP )			
 			else if ( pEntity->m_iClassname == iszNPCTurretFloor )
 			{
 				UTIL_TraceLine( WorldSpaceCenter(), pEntity->WorldSpaceCenter(), MASK_BLOCKLOS, pEntity, COLLISION_GROUP_NONE, &tr );
@@ -3084,8 +3130,10 @@ bool CNPC_PlayerCompanion::ShouldAlwaysTransition( void )
 //-----------------------------------------------------------------------------
 void CNPC_PlayerCompanion::InputOutsideTransition( inputdata_t &inputdata )
 {
+#ifndef HL2SB
 	if ( !AI_IsSinglePlayer() )
 		return;
+#endif
 
 	// Must want to do this
 	if ( ShouldAlwaysTransition() == false )
@@ -3095,7 +3143,11 @@ void CNPC_PlayerCompanion::InputOutsideTransition( inputdata_t &inputdata )
 	if ( IsInAVehicle() )
 		return;
 
+#ifdef HL2SB
+	CBaseEntity *pPlayer = UTIL_GetNearestPlayer( GetAbsOrigin() );
+#else
 	CBaseEntity *pPlayer = UTIL_GetLocalPlayer();
+#endif
 	const Vector &playerPos = pPlayer->GetAbsOrigin();
 
 	// Mark us as already having succeeded if we're vital or always meant to come with the player
@@ -3260,7 +3312,7 @@ void CNPC_PlayerCompanion::UnlockReadiness( void )
 }
 
 //------------------------------------------------------------------------------
-#ifdef HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -3523,7 +3575,7 @@ void CNPC_PlayerCompanion::InputGiveWeapon( inputdata_t &inputdata )
 	}
 }
 
-#if HL2_EPISODIC
+#if defined( HL2_EPISODIC ) || defined( SBPP )
 //------------------------------------------------------------------------------
 // Purpose: Delete all outputs from this NPC.
 //------------------------------------------------------------------------------
@@ -3684,7 +3736,11 @@ bool CNPC_PlayerCompanion::IsNavigationUrgent( void )
 		// could not see the player but the player could in fact see them.  Now the NPC's facing is
 		// irrelevant and the player's viewcone is more authorative. -- jdw
 
+#ifdef HL2SB
+		CBasePlayer *pLocalPlayer = AI_GetNearestPlayer( GetAbsOrigin() );
+#else
 		CBasePlayer *pLocalPlayer = AI_GetSinglePlayer();
+#endif
 		if ( pLocalPlayer->FInViewCone( EyePosition() ) )
 			return false;
 
