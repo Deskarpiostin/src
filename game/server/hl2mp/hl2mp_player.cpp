@@ -480,7 +480,7 @@ void CHL2MP_Player::Spawn(void)
 		GiveDefaultItems();
 	}
 
-#ifdef SBPP
+#ifndef SBPP
 	SetNumAnimOverlays( 3 );
 	ResetAnimation();
 #endif
@@ -981,7 +981,7 @@ Activity CHL2MP_Player::TranslateTeamActivity( Activity ActToTranslate )
 
 extern ConVar hl2_normspeed;
 
-#ifdef SBPP
+#ifndef SBPP
 // Set the activity based on an event or current state
 void CHL2MP_Player::SetAnimation( PLAYER_ANIM playerAnim )
 {
