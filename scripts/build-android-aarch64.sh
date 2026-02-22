@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 wget --retry-connrefused --tries=3 --timeout=30 --no-verbose -O android-ndk-r10e.zip https://dl.google.com/android/repository/android-ndk-r10e-linux-x86_64.zip
 unzip android-ndk-r10e.zip
 
@@ -18,5 +18,5 @@ export PATH="$ANDROID_NDK_HOME:$PATH"
 export PATH="$PWD/clang+llvm-11.1.0-x86_64-linux-gnu-ubuntu-16.04/bin:$PATH"
 export PATH="$ANDROID_SDK_ROOT/build-tools/29.0.3:$PATH"
 
-./waf configure -T release --build-game=hl2sbpp --prefix=srceng-mod-launcher/android --togles --android=armeabi-v7a-hard,host,21 --target=../armeabi-v7a --disable-warns &&
+./waf configure -T release --build-game=hl2sbpp --prefix=srceng-mod-launcher/android --togles --android=aarch64,host,21 --target=../aarch64 -8 --disable-warns &&
 ./waf install --target=client,server,GameUI,engine,studiorender,matsys_controls
