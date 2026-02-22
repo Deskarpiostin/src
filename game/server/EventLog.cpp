@@ -220,7 +220,7 @@ bool CEventLog::PrintPlayerEvent( IGameEvent *event )
 			UTIL_LogPrintf( "\"%s<%i><%s>\" committed suicide with \"world\"\n",
 							pPlayer->GetPlayerName(),
 							userid,
-							pPlayer->GetNetworkIDString(),
+							pPlayer->GetNetworkIDString()
 							);
 #else
 			// killed by the world
