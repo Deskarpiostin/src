@@ -19,6 +19,9 @@
 #include "iservervehicle.h"
 #include "items.h"
 #include "hl2_gamerules.h"
+#ifdef SBPP
+#include "hl2mp_player.h"
+#endif
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
