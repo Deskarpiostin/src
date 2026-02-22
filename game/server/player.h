@@ -841,7 +841,7 @@ public:
 
 private:
 	// How much of a movement time buffer can we process from this user?
-#ifdef SBPP
+#ifndef SBPP
  	float				m_nMovementTicksForUserCmdProcessingRemaining;
 #else
 	float				m_flMovementTimeForUserCmdProcessingRemaining;
