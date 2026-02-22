@@ -113,6 +113,12 @@ const GLMValueEntry_t g_d3d_formats[] =
 
 	VE( D3DFMT_UNKNOWN ),
 
+#ifdef MOON
+	// ETC2 compressed formats (for ToGL(ES) abstraction)
+	VE( D3DFMT_ETC2_RGB8 ),	// N - no alpha
+	VE( D3DFMT_ETC2_RGBA8 ),	// A - alpha present
+#endif
+
 	VE( TERMVALUE )
 };
 

@@ -3166,6 +3166,10 @@ bool CTexture::SetupDebuggingTextures( IVTFTexture *pVTFTexture )
 	return false;
 }
 
+#ifdef MOON
+ConVar mat_enable_etc2_tex_compression( "mat_enable_etc2_tex_compression", "0", FCVAR_ARCHIVE | FCVAR_REPLICATED, "Enable ETC2 texture compression for textures. \n (0) - Convert to uncompressed RGB(A) format / (1) - Convert to ETC2 format" );
+#endif
+
 //-----------------------------------------------------------------------------
 // Converts the texture to the actual format
 // Returns true if conversion applied, false otherwise
@@ -3182,6 +3186,26 @@ bool CTexture::ConvertToActualFormat( IVTFTexture *pVTFTexture )
 	ImageFormat fmt = m_ImageFormat;
 
 	ImageFormat dstFormat = ComputeActualFormat( pVTFTexture->Format() );
+#ifdef MOON
+	if (IsAndroid()) //cherrybtw TODO: add check for dxt support!
+	{
+		switch (pVTFTexture->Format())
+			{
+				case IMAGE_FORMAT_DXT1:
+					dstFormat = mat_enable_etc2_tex_compression.GetBool() ? IMAGE_FORMAT_ETC2_RGB8 : IMAGE_FORMAT_RGB888;
+					break;
+
+				case IMAGE_FORMAT_DXT3:
+				case IMAGE_FORMAT_DXT5:
+					dstFormat = mat_enable_etc2_tex_compression.GetBool() ? IMAGE_FORMAT_ETC2_RGBA8 : IMAGE_FORMAT_RGBA8888;
+					break;
+
+				default:
+					break;
+			}
+	}
+#endif
+
 	if ( fmt != dstFormat )
 	{
 		tmZone( TELEMETRY_LEVEL0, TMZF_NONE, "%s - conversion from (%d to %d)", __FUNCTION__, fmt, dstFormat );

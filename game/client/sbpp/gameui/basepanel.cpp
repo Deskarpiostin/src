@@ -389,8 +389,14 @@ void CBackgroundPanel::Paint()
     if (m_BackgroundTextureIDs.Count() == 0)
         return;
 
+	if (engine->IsInGame())
+		return;
+
     int wide, tall;
     GetSize(wide, tall);
+
+	surface()->DrawSetColor(0, 0, 0, 255);
+    surface()->DrawFilledRect(0, 0, wide, tall);
 
     float frametime = engine->Time();
 

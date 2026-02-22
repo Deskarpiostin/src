@@ -70,6 +70,10 @@ namespace ImageLoader
 			case IMAGE_FORMAT_BGRA5551:
 			case IMAGE_FORMAT_ATI1N:
 			case IMAGE_FORMAT_ATI2N:
+#ifdef MOON
+			case IMAGE_FORMAT_ETC2_RGB8:
+			case IMAGE_FORMAT_ETC2_RGBA8:
+#endif
 				break;
 		}
 
