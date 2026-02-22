@@ -536,9 +536,9 @@ LauncherMain_t GetLaunchEntryPoint( char *pNewCommandLine )
 	bool bDoChooser = false;
 	if ( !ParseCommandLineArg( pCmdLine, "-game", gameName, sizeof( gameName ) ) )
 	{
-		// usage of remote share requires a game (default to hl2) 
+		// usage of remote share requires a game (default to hl2sbpp) 
 		// remote share mandates an absolute game path which is detected by the host
-		strcpy( gameName, "hl2" );
+		strcpy( gameName, "hl2sbpp" );
 		bDoChooser = true;
 	}
 	else

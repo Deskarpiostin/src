@@ -80,7 +80,7 @@ int MessageBox( HWND hWnd, const char *message, const char *header, unsigned uTy
 #endif // USE_SDL
 
 #if defined( POSIX )
-#define RELAUNCH_FILE "/tmp/hl2_relaunch"
+#define RELAUNCH_FILE "/tmp/hl2sbpp_relaunch"
 #endif
 
 #if defined ( ANDROID )
@@ -91,7 +91,7 @@ int MessageBox( HWND hWnd, const char *message, const char *header, unsigned uTy
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
-#define DEFAULT_HL2_GAMEDIR	"hl2"
+#define DEFAULT_HL2_GAMEDIR	"hl2sbpp"
 
 #if defined( USE_SDL )
 extern void* CreateSDLMgr();
@@ -419,7 +419,7 @@ void CLogAllFiles::Init()
 
 	// game directory has not been established yet, must derive ourselves
 	char path[MAX_PATH];
-	Q_snprintf( path, sizeof(path), "%s/%s", GetBaseDirectory(), CommandLine()->ParmValue( "-game", "hl2" ) );
+	Q_snprintf( path, sizeof(path), "%s/%s", GetBaseDirectory(), CommandLine()->ParmValue( "-game", "hl2sbpp" ) );
 	Q_FixSlashes( path );
 #ifdef WIN32
 	Q_strlower( path );
@@ -818,7 +818,7 @@ bool CSourceAppSystemGroup::PreInit()
 	if ( IsPC() )
 	{
 		// This will get called multiple times due to being here, but only the first one will do anything
-		reslistgenerator->Init( GetBaseDirectory(), CommandLine()->ParmValue( "-game", "hl2" ) );
+		reslistgenerator->Init( GetBaseDirectory(), CommandLine()->ParmValue( "-game", "hl2sbpp" ) );
 
 		// This will also get called each time, but will actually fix up the command line as needed
 		reslistgenerator->SetupCommandLine();
@@ -930,7 +930,7 @@ bool GrabSourceMutex()
 	if ( IsPC() )
 	{
 		// don't allow more than one instance to run
-		g_hMutex = ::CreateMutex(NULL, FALSE, TEXT("hl2_singleton_mutex"));
+		g_hMutex = ::CreateMutex(NULL, FALSE, TEXT("hl2sbpp_singleton_mutex"));
 
 		unsigned int waitResult = ::WaitForSingleObject(g_hMutex, 0);
 
