@@ -795,7 +795,7 @@ public:
 	uint64		GetSteamIDAsUInt64( void );
 #endif
 
-#ifndef SBPP
+#ifdef SBPP
 	int GetRemainingMovementTicksForUserCmdProcessing() const { return m_nMovementTicksForUserCmdProcessingRemaining; }
 	int ConsumeMovementTicksForUserCmdProcessing( int nTicks )
 	{
@@ -841,7 +841,7 @@ public:
 
 private:
 	// How much of a movement time buffer can we process from this user?
-#ifndef SBPP
+#ifdef SBPP
  	float				m_nMovementTicksForUserCmdProcessingRemaining;
 #else
 	float				m_flMovementTimeForUserCmdProcessingRemaining;
