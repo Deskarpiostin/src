@@ -13,7 +13,7 @@ $Configuration
 {
 	$Compiler
 	{
-		$AdditionalIncludeDirectories		"$BASE;hl2mp\ui,.\hl2mp,$SRCDIR\game\shared\hl2mp,.\hl2,.\hl2\elements,$SRCDIR\game\shared\hl2,$SRCDIR\game\shared\Multiplayer,$SRCDIR\game\shared\sbpp,.\sbpp,$SRCDIR\thirdparty\curl\include"
+		$AdditionalIncludeDirectories		"$BASE;hl2mp\ui,.\hl2mp,$SRCDIR\game\shared\hl2mp,.\hl2,.\hl2\elements,$SRCDIR\game\shared\hl2,$SRCDIR\game\shared\Multiplayer,$SRCDIR\game\shared\sbpp,.\sbpp"
 		$PreprocessorDefinitions			"$BASE;HL2MP;HL2_CLIENT_DLL;SBPP;ARGG;LUA_SDK;NEXT_BOT;GLOWS_ENABLE"
 	}
 }
@@ -98,8 +98,6 @@ $Project "Client (SBPP)"
 			$File "$SRCDIR\game\shared\lua\luacachefile.cpp"
 			$File "$SRCDIR\game\shared\lua\luacachefile.h"
 			$File "$SRCDIR\public\zip_utils.cpp"
-			$File "sbpp\api\workshop.h"
-			$File "sbpp\api\workshop.cpp"
 		}
 
 		$Folder	"HL2 DLL"
