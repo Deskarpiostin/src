@@ -8,7 +8,7 @@
 #include <ivp_compact_recursive.hxx>
 #include <ivp_surbuild_pointsoup.hxx>
 
-IVP_Compact_Recursive::IVP_Compact_Recursive() : ledges(128) {
+IVP_Compact_Recursive::IVP_Compact_Recursive() : ledges(128), hull(NULL) {
 
 }
 
@@ -45,9 +45,9 @@ void IVP_Compact_Recursive::build_convex_hull(){
     for (int t = ledge->get_n_triangles()-1; t>=0; t--){
       for (int e = 0; e<3;e++){
 	const IVP_Compact_Edge *edge = tri->get_edge(e);
-	const IVP_U_Float_Point *p = &point_array[edge->get_start_point_index()];
-	if ( point_hash.find( (char *)p )) continue;
-	point_hash.add((char *)p,(void *)p);
+	IVP_U_Float_Point *p = &point_array[edge->get_start_point_index()];
+	if ( point_hash.find( (const char *)p )) continue;
+	point_hash.add((const char *)p, p);
 	points.add( new IVP_U_Point(p));
       }
       tri = tri->get_next_tri();
@@ -63,14 +63,15 @@ void IVP_Compact_Recursive::build_convex_hull(){
 
 void IVP_Compact_Recursive::set_rekursive_convex_hull(){
   IVP_Hash point_hash( 1024, sizeof(IVP_U_Float_Point),(void *)-1);
-  intp n_points_in_hash = 0;
+  int n_points_in_hash = 0;
   
   struct Triangle_Key {
     int point_index[3];
     void set_tri(int a, int b, int c){
-      if (b<a){ int x = a;a=b;b=a;a=x; };
-      if (c<a){ int x = a;a=c;c=a;a=x; };
-      if (b<a){ int x = a;a=b;b=a;a=x; };
+      // Fix sorting
+      if (b<a){ int x = a;a=b;b=x; };
+      if (c<a){ int x = a;a=c;c=x; };
+      if (b<a){ int x = a;a=b;b=x; };
       // now a < b < c
       point_index[0] = a; point_index[1] = b; point_index[2] = c;
     }
@@ -79,8 +80,9 @@ void IVP_Compact_Recursive::set_rekursive_convex_hull(){
   struct Edge_Key {
     int point_index[2];
     void set_edge(int a, int b){
-      if (b<a){ int x = a;a=b;b=a;a=x; };
-      // now a < b < c
+      // Fix sorting
+      if (b<a){ int x = a;a=b;b=x; };
+      // now a < b
       point_index[0] = a; point_index[1] = b;
     }
   } edge_key;
@@ -103,9 +105,9 @@ void IVP_Compact_Recursive::set_rekursive_convex_hull(){
       int pi[3];
       // convert points to unique point nums
       for (int i = 0; i<3;i++){
-	intp ind = (intp)point_hash.find( (char *)p[i]);
+	int ind = (int)(intp)point_hash.find( (char *)p[i]);
 	if (ind<0){
-	  point_hash.add( (char *)p[i], (void *)n_points_in_hash);
+	  point_hash.add( (char *)p[i], (void *)(intp)n_points_in_hash);
 	  ind = n_points_in_hash++;
 	}
 	pi[i] = ind;
@@ -140,7 +142,7 @@ void IVP_Compact_Recursive::set_rekursive_convex_hull(){
       int pi[3];
       // convert points to unique point nums
       for (int i = 0; i<3;i++){
-    intp ind = (intp)point_hash.find( (char *)p[i]);
+    int ind = (int)(intp)point_hash.find( (char *)p[i]);
 	pi[i] = ind;
       }
       // find triangle in hash

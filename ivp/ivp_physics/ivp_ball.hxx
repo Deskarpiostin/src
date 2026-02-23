@@ -9,13 +9,14 @@
  *  Classes:	    IVP_Ball
  ********************************************************************************/
 
-#ifndef _IVP_BALL_INCLUDED
-#define _IVP_BALL_INCLUDED
+#ifndef IVP_BALL_INCLUDED
+#define IVP_BALL_INCLUDED
+
+#include <ivp_real_object.hxx>
 
 class IVP_Template_Ball;
 
-
- /********************************************************************************
+/********************************************************************************
  *  Class:	    IVP_Ball
  *  Description:    Base class for a non-polygonal (perfectly shaped) ball.
  *  Note:	    All balls share a global dummy surface manager and ledge.
@@ -23,7 +24,8 @@ class IVP_Template_Ball;
  *  Version Info:   Not fully implemented (yet).
  *******************************************************************************/
 
-class IVP_Ball : public IVP_Real_Object {
+class IVP_Ball : public IVP_Real_Object
+{
     friend class IVP_Environment;
     friend class IVP_Contact_Point;
 
@@ -33,15 +35,15 @@ protected:
     virtual ~IVP_Ball();
 
 public:
-
     /******************************************************************************
      *  Method:		get_radius
      *  Description:    Use this method to retrieve the ball's radius.
      *	Output:		Radius of ball/sphere.
      *****************************************************************************/
-    IVP_FLOAT get_radius() const {
-	return( get_extra_radius() );
+    IVP_FLOAT get_radius() const
+    {
+        return (get_extra_radius());
     };
 };
 
-#endif
+#endif // IVP_BALL_INCLUDED

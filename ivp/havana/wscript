@@ -43,7 +43,8 @@ def build(bld):
 		'havok',
 		'../ivp_physics',
 		'../ivp_utility',
-		'../ivp_controller'
+		'../ivp_controller',
+		'../ivp_collision'
 	]
 
 	defines = []

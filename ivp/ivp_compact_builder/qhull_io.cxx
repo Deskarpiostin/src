@@ -187,9 +187,9 @@ static int qh_compare_facetvisit(const void *p1, const void *p2) {
   int i,j;
 
   if (!(i= a->visitid))
-    i= - a->id; /* do not convert to int */
+    i= a->id; /* do not convert to int */
   if (!(j= b->visitid))
-    j= - b->id;
+    j= b->id;
   return (i - j);
 } /* compare_facetvisit */
 #ifdef SUN
@@ -1156,7 +1156,7 @@ void qh_printafacet(FILE *fp, int format, facetT *facet, boolT printall) {
     fprintf (fp, "%d", qh_setsize (facet->neighbors));
     FOREACHneighbor_(facet)
       fprintf (fp, " %d", 
-	       neighbor->visitid ? neighbor->visitid - 1: - neighbor->id);
+	       neighbor->visitid ? neighbor->visitid - 1: neighbor->id);
     fprintf (fp, "\n");
     break;
   case qh_PRINTpointintersect:
@@ -1674,7 +1674,7 @@ void qh_printend4geom (FILE *fp, facetT *facet, int *nump, boolT printall) {
     return;
   if (!facet->normal)
     return;
-  if (fp) {
+  {
     for (i=0; i < 3; i++) {
       color[i]= (facet->normal[i]+1.0)/2.0;
       maximize_(color[i], -1.0);
@@ -1685,8 +1685,7 @@ void qh_printend4geom (FILE *fp, facetT *facet, int *nump, boolT printall) {
   if (facet->simplicial) {
     FOREACHneighbor_(facet) {
       if (neighbor->visitid != qh visit_id) {
-	if (fp)
-          fprintf (fp, "3 %d %d %d %8.4g %8.4g %8.4g 1 # f%d f%d\n",
+        fprintf (fp, "3 %d %d %d %8.4g %8.4g %8.4g 1 # f%d f%d\n",
 		 3*num, 3*num+1, 3*num+2, color[0], color[1], color[2],
 		 facet->id, neighbor->id);
 	num++;
@@ -1696,8 +1695,7 @@ void qh_printend4geom (FILE *fp, facetT *facet, int *nump, boolT printall) {
     FOREACHridge_(facet->ridges) {
       neighbor= otherfacet_(ridge, facet);
       if (neighbor->visitid != qh visit_id) {
-	if (fp)
-          fprintf (fp, "3 %d %d %d %8.4g %8.4g %8.4g 1 #r%d f%d f%d\n",
+        fprintf (fp, "3 %d %d %d %8.4g %8.4g %8.4g 1 #r%d f%d f%d\n",
 		 3*num, 3*num+1, 3*num+2, color[0], color[1], color[2],
 		 ridge->id, facet->id, neighbor->id);
 	num++;
@@ -3414,11 +3412,11 @@ void qh_printvneighbors (FILE *fp, facetT* facetlist, setT *facets, boolT printa
              sizeof (facetT *), qh_compare_facetvisit);
       FOREACHneighbor_(vertex) 
         fprintf (fp, " %d", 
-		 neighbor->visitid ? neighbor->visitid - 1 : - neighbor->id);
+		 neighbor->visitid ? neighbor->visitid - 1 : neighbor->id);
       fprintf (fp, "\n");
     }else if ((facet= SETelemt_(coplanar_points, vertex_i, facetT)))
       fprintf (fp, "1 %d\n",
-                  facet->visitid ? facet->visitid - 1 : - facet->id);
+                  facet->visitid ? facet->visitid - 1 : facet->id);
     else
       fprintf (fp, "0\n");
   }
@@ -3524,7 +3522,7 @@ void qh_printvoronoi (FILE *fp, int format, facetT *facetlist, setT *facets, boo
     if (format == qh_PRINTgeom) {
       if (vertex) {
 	fprintf (fp, "%d", numneighbors);
-	if (vertex) {
+	{
 	  FOREACHneighbor_(vertex) {
 	    if (neighbor->visitid && neighbor->visitid < numfacets)
 	      fprintf (fp, " %d", neighbor->visitid);

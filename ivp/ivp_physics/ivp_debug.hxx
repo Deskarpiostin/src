@@ -1,19 +1,24 @@
 // Copyright (C) Ipion Software GmbH 1999-2000. All rights reserved.
 
+#ifndef IVP_DEBUG_INCLUDED
+#define IVP_DEBUG_INCLUDED
+
+class IVP_Mindist;
+
 class IVP_Draw_Vector_Debug
 {
 public:
     IVP_Draw_Vector_Debug *next;
-    IVP_U_Point first_point; 
+    IVP_U_Point first_point;
     IVP_U_Point direction_vec;
     int color;
-    char *debug_text; //may be null. must be freed afterwards
+    char *debug_text; // may be null. must be freed afterwards
     IVP_Draw_Vector_Debug();
     ~IVP_Draw_Vector_Debug();
 };
 
 // returns IVP_TRUEif mindist is interesting
-IVP_BOOL ivp_check_debug_mindist( IVP_Mindist *md );
+IVP_BOOL ivp_check_debug_mindist(IVP_Mindist *md);
 
 #if 0
 #define IVP_DEBUG_OBJECT0 "box0_5"
@@ -26,3 +31,5 @@ IVP_BOOL ivp_check_debug_mindist( IVP_Mindist *md );
 #define IVP_DEBUG_TIME 0
 
 #endif
+
+#endif // IVP_DEBUG_INCLUDED

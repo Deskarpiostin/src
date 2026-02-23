@@ -5,17 +5,17 @@
 /* constructor / assignment */
 
 inline hk_Vector3::hk_Vector3(hk_real a, hk_real b, hk_real c)
-	: x(a), y(b), z(c)
+	: x(a), y(b), z(c), w(0)
 {
 }
 
 inline hk_Vector3::hk_Vector3(const double* d)
-	: x(hk_real(d[0])), y(hk_real(d[1])), z(hk_real(d[2]))
+	: x(hk_real(d[0])), y(hk_real(d[1])), z(hk_real(d[2])), w(0)
 {
 }
 
 inline hk_Vector3::hk_Vector3(const float* d)
-	: x(hk_real(d[0])), y(hk_real(d[1])), z(hk_real(d[2]))
+	: x(hk_real(d[0])), y(hk_real(d[1])), z(hk_real(d[2])), w(0)
 {
 }
 
@@ -29,6 +29,7 @@ inline void hk_Vector3::operator= (const hk_Vector3& v)
 	x = v.x;
 	y = v.y;
 	z = v.z;
+	w = v.w;
 }
 
 
@@ -59,7 +60,11 @@ inline void hk_Vector3::operator= (ConsT hkVector3ExpressionPlus HK_REF v)
 	y = v.m_a.y + v.m_b.y;
 	z = v.m_a.z + v.m_b.z;
 }
-inline hk_Vector3::hk_Vector3(ConsT hkVector3ExpressionPlus HK_REF v) { operator= (v); }
+inline hk_Vector3::hk_Vector3(ConsT hkVector3ExpressionPlus HK_REF v)
+{
+	operator= (v);
+	w = 0;
+}
 
 inline void hk_Vector3::operator= (ConsT hkVector3ExpressionMinus HK_REF v)
 {
@@ -67,7 +72,11 @@ inline void hk_Vector3::operator= (ConsT hkVector3ExpressionMinus HK_REF v)
 	y = v.m_a.y - v.m_b.y;
 	z = v.m_a.z - v.m_b.z;
 }
-inline hk_Vector3::hk_Vector3(ConsT hkVector3ExpressionMinus HK_REF  v) { operator= (v); }
+inline hk_Vector3::hk_Vector3(ConsT hkVector3ExpressionMinus HK_REF  v)
+{
+	operator= (v);
+	w = 0;
+}
 
 void hk_Vector3::operator+= (const hk_Vector3& v)
 {

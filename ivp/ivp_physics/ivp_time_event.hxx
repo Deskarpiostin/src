@@ -1,6 +1,5 @@
 // Copyright (C) Ipion Software GmbH 1999-2000. All rights reserved.
 
-
 // IVP_EXPORT_PUBLIC
 
 #ifndef IVP_TIME_EVENT_INCLUDED
@@ -8,11 +7,17 @@
 
 class IVP_Environment;
 
-class IVP_Time_Event {
+class IVP_Time_Event
+{
 public:
-    int index;    
-    IVP_Time_Event() = default;
-    virtual void simulate_time_event(IVP_Environment *){ CORE; }; // to be implemented by application
+    int index;
+
+    IVP_Time_Event() : index(-1) {}
+
+    // dimhotepus: Make pure instead of CORE.
+    virtual void simulate_time_event(IVP_Environment *) = 0; // to be implemented by application
+
+    virtual ~IVP_Time_Event();
 };
 
 #endif

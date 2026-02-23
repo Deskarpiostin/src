@@ -40,6 +40,7 @@ def build(bld):
 		'../ivp_collision/ivp_oo_watcher.cxx',
 		'../ivp_collision/ivp_range_manager.cxx',
 		'../ivp_collision/ivp_ray_solver.cxx',
+		'../ivp_controller/ivp_controller.cxx',
 		'../ivp_controller/ivp_actuator.cxx',
 		'../ivp_controller/ivp_actuator_spring.cxx',
 		'../ivp_controller/ivp_buoyancy_solver.cxx',
@@ -105,7 +106,6 @@ def build(bld):
 		'../ivp_utility/ivu_os_dep.cxx',
 		'../ivp_utility/ivu_quat.cxx',
 		'../ivp_utility/ivu_string.cxx',
-		'../ivp_utility/ivu_types.cxx',
 		'../ivp_utility/ivu_vector.cxx',
 		'../ivp_utility/ivu_vhash.cxx'
 	]

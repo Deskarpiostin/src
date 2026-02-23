@@ -1,5 +1,8 @@
 // Copyright (C) Ipion Software GmbH 1999-2000. All rights reserved.
 
+#ifndef IVP_COMPACT_BUILDER_COMPACT_LEDGE_GEN_INCLUDED
+#define IVP_COMPACT_BUILDER_COMPACT_LEDGE_GEN_INCLUDED
+
 /********************************************************************************
  *	Name:	       	IVP_Compact_Ledge_Generator	
  *	Description:	used for generation of compacted ledge representation
@@ -34,4 +37,4 @@ public:
     ~IVP_Compact_Ledge_Generator();
 };
 
-
+#endif // IVP_COMPACT_BUILDER_COMPACT_LEDGE_GEN_INCLUDED

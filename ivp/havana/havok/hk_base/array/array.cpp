@@ -1,21 +1,34 @@
 #include <hk_base/base.h>
 #include <hk_base/memory/memory.h>
-#include <string.h>
+#include <climits>
+#include <cstring>
 
 void hk_Array_Base::alloc_mem( int size, int num)
 {
+	HK_ASSERT(size >= 0 && num >= 0);
+	HK_ASSERT(num <= USHRT_MAX);
+
 	m_elems = hk_allocate( char, size * num, HK_MEMORY_CLASS_ARRAY );
 	m_memsize = num;
 }
 
 void hk_Array_Base::grow_mem( int size )
 {
-	int new_memsize = m_memsize + m_memsize;
+	HK_ASSERT(size >= 0);
+	HK_ASSERT(m_memsize != USHRT_MAX);
+
+	// Ensure m_memsize * 2 doesn't overflow unsigned short
+	int double_memsize = m_memsize + m_memsize;
+	int new_memsize = (double_memsize > USHRT_MAX) ? USHRT_MAX : double_memsize;
 	if (!new_memsize) {
 		new_memsize = 2;
 	}
 
 	char *new_array = hk_allocate( char, new_memsize * size, HK_MEMORY_CLASS_ARRAY );
+	if (!new_array) {
+		HK_BREAK;
+		return;
+	}
 
 	if( m_elems )
 		memcpy( new_array, m_elems, m_memsize * size );
@@ -30,8 +43,18 @@ void hk_Array_Base::grow_mem( int size )
 
 void hk_Array_Base::grow_mem( int size, int n_elems )
 {
+	HK_ASSERT(size >= 0);
+	HK_ASSERT(n_elems >= 0);
+
 	int new_memsize = m_memsize + n_elems;
+
+	HK_ASSERT(new_memsize <= USHRT_MAX);
+
 	char *new_array = hk_allocate( char, new_memsize * size, HK_MEMORY_CLASS_ARRAY );
+	if (!new_array) {
+		HK_BREAK;
+		return;
+	}
 
 	memcpy( new_array, m_elems, m_memsize * size );
 	if ( m_elems && ((char *)m_elems != (char *)(this + 1)))
