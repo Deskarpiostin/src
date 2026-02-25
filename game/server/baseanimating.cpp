@@ -1029,7 +1029,9 @@ float CBaseAnimating::SequenceDuration( CStudioHdr *pStudioHdr, int iSequence )
 	}
 	if (iSequence >= pStudioHdr->GetNumSeq() || iSequence < 0 )
 	{
+#ifndef SBPP
 		DevWarning( 2, "CBaseAnimating::SequenceDuration( %d ) out of range\n", iSequence );
+#endif
 		return 0.1;
 	}
 
