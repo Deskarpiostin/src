@@ -37,33 +37,41 @@
 #ifdef CLIENT_DLL
 class CHudLuaWeaponDraw : public CHudElement, public vgui::Panel
 {
-    DECLARE_CLASS_SIMPLE( CHudLuaWeaponDraw, vgui::Panel );
+	DECLARE_CLASS_SIMPLE( CHudLuaWeaponDraw, vgui::Panel );
 
 public:
-    CHudLuaWeaponDraw( const char *pElementName ) : CHudElement( pElementName ), Panel( NULL, "HudLuaWeaponDraw" )
-    {
-        SetHiddenBits( HIDEHUD_PLAYERDEAD | HIDEHUD_NEEDSUIT );
-        SetPaintBackgroundEnabled( false );
+	CHudLuaWeaponDraw( const char *pElementName ) : CHudElement( pElementName ), Panel( NULL, "HudLuaWeaponDraw" )
+	{
+		SetHiddenBits( HIDEHUD_PLAYERDEAD | HIDEHUD_NEEDSUIT );
+		SetPaintEnabled( true );
+		SetPaintBackgroundEnabled( false );
+
+		vgui::ivgui()->AddTickSignal( GetVPanel() );
 
 		SetParent( g_pClientMode->GetViewport() );
-    }
+	}
 
-    virtual void Paint()
-    {
-        C_BasePlayer *pPlayer = C_BasePlayer::GetLocalPlayer();
-        if ( !pPlayer )
-            return;
+	virtual void Paint() OVERRIDE
+	{
+		C_BasePlayer *pPlayer = C_BasePlayer::GetLocalPlayer();
+		if ( !pPlayer )
+			return;
 
-        CBaseCombatWeapon *pWpn = pPlayer->GetActiveWeapon();
-        if ( !pWpn )
-            return;
+		CBaseCombatWeapon *pWpn = pPlayer->GetActiveWeapon();
+		if ( !pWpn )
+			return;
 
-        CHL2MPScriptedWeapon *pScriptWpn = dynamic_cast<CHL2MPScriptedWeapon*>( pWpn );
-        if ( !pScriptWpn )
-            return;
+		CHL2MPScriptedWeapon *pScriptWpn = dynamic_cast<CHL2MPScriptedWeapon*>( pWpn );
+		if ( !pScriptWpn )
+			return;
 
-        pScriptWpn->CallDrawHUD();
-    }
+		pScriptWpn->CallDrawHUD();
+	}
+
+	virtual void OnTick( void ) OVERRIDE
+	{
+		Paint();
+	}
 };
 
 DECLARE_HUDELEMENT( CHudLuaWeaponDraw );
@@ -91,46 +99,46 @@ extern ConVar v_viewmodel_fov;
 #if defined( LUA_SDK )
 static bool PushTableFromRef(lua_State *L, int ref)
 {
-    if (ref == LUA_NOREF || !L)
-        return false;
+	if (ref == LUA_NOREF || !L)
+		return false;
 
-    lua_getref(L, ref);
-    if (!lua_istable(L, -1))
-    {
-        lua_pop(L, 1);
-        return false;
-    }
+	lua_getref(L, ref);
+	if (!lua_istable(L, -1))
+	{
+		lua_pop(L, 1);
+		return false;
+	}
 
-    return true;
+	return true;
 }
 
 static bool GetFieldRemoveTable(lua_State *L, const char *key)
 {
-    if (!L || !key)
-        return false;
+	if (!L || !key)
+		return false;
 
-    if (!lua_istable(L, -1))
-        return false;
+	if (!lua_istable(L, -1))
+		return false;
 
-    lua_pushvalue(L, -1);
-    int table_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+	lua_pushvalue(L, -1);
+	int table_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-    lua_rawgeti(L, LUA_REGISTRYINDEX, table_ref);
-    lua_getfield(L, -1, key);
+	lua_rawgeti(L, LUA_REGISTRYINDEX, table_ref);
+	lua_getfield(L, -1, key);
 
-    if (lua_isnil(L, -1))
-    {
-        lua_pop(L, 2);
-        luaL_unref(L, LUA_REGISTRYINDEX, table_ref);
-        return false;
-    }
+	if (lua_isnil(L, -1))
+	{
+		lua_pop(L, 2);
+		luaL_unref(L, LUA_REGISTRYINDEX, table_ref);
+		return false;
+	}
 
-    lua_remove(L, -3);
+	lua_remove(L, -3);
 
-    lua_remove(L, -2);
-    luaL_unref(L, LUA_REGISTRYINDEX, table_ref);
+	lua_remove(L, -2);
+	luaL_unref(L, LUA_REGISTRYINDEX, table_ref);
 
-    return true;
+	return true;
 }
 
 #endif
@@ -200,47 +208,47 @@ void ResetWeaponFactoryDatabase( void )
 // implemented in Lua.
 acttable_t *CHL2MPScriptedWeapon::ActivityList( void ) {
 #ifdef LUA_SDK
-    if ( !PushTableFromRef( L, m_nTableReference ) )
-        return m_acttable;
+	if ( !PushTableFromRef( L, m_nTableReference ) )
+		return m_acttable;
 
-    lua_getfield( L, -1, "m_acttable" );
-    lua_remove( L, -2 );
+	lua_getfield( L, -1, "m_acttable" );
+	lua_remove( L, -2 );
 
-    if ( lua_istable( L, -1 ) )
-    {
-        for( int i = 0 ; i < LUA_MAX_WEAPON_ACTIVITIES ; i++ )
-        {
-            lua_pushinteger( L, i );
-            lua_gettable( L, -2 );
-            if ( lua_istable( L, -1 ) )
-            {
-                m_acttable[i].baseAct = ACT_INVALID;
-                lua_pushinteger( L, 1 );
-                lua_gettable( L, -2 );
-                if ( lua_isnumber( L, -1 ) )
-                    m_acttable[i].baseAct = lua_tointeger( L, -1 );
-                lua_pop( L, 1 );
+	if ( lua_istable( L, -1 ) )
+	{
+		for( int i = 0 ; i < LUA_MAX_WEAPON_ACTIVITIES ; i++ )
+		{
+			lua_pushinteger( L, i );
+			lua_gettable( L, -2 );
+			if ( lua_istable( L, -1 ) )
+			{
+				m_acttable[i].baseAct = ACT_INVALID;
+				lua_pushinteger( L, 1 );
+				lua_gettable( L, -2 );
+				if ( lua_isnumber( L, -1 ) )
+					m_acttable[i].baseAct = lua_tointeger( L, -1 );
+				lua_pop( L, 1 );
 
-                m_acttable[i].weaponAct = ACT_INVALID;
-                lua_pushinteger( L, 2 );
-                lua_gettable( L, -2 );
-                if ( lua_isnumber( L, -1 ) )
-                    m_acttable[i].weaponAct = lua_tointeger( L, -1 );
-                lua_pop( L, 1 );
+				m_acttable[i].weaponAct = ACT_INVALID;
+				lua_pushinteger( L, 2 );
+				lua_gettable( L, -2 );
+				if ( lua_isnumber( L, -1 ) )
+					m_acttable[i].weaponAct = lua_tointeger( L, -1 );
+				lua_pop( L, 1 );
 
-                m_acttable[i].required = false;
-                lua_pushinteger( L, 3 );
-                lua_gettable( L, -2 );
-                if ( lua_isboolean( L, -1 ) )
-                    m_acttable[i].required = (bool)lua_toboolean( L, -1 );
-                lua_pop( L, 1 );
-            }
-            lua_pop( L, 1 );
-        }
-    }
-    lua_pop( L, 1 );
+				m_acttable[i].required = false;
+				lua_pushinteger( L, 3 );
+				lua_gettable( L, -2 );
+				if ( lua_isboolean( L, -1 ) )
+					m_acttable[i].required = (bool)lua_toboolean( L, -1 );
+				lua_pop( L, 1 );
+			}
+			lua_pop( L, 1 );
+		}
+	}
+	lua_pop( L, 1 );
 #endif
-    return m_acttable;
+	return m_acttable;
 }
 int CHL2MPScriptedWeapon::ActivityListCount( void ) { return LUA_MAX_WEAPON_ACTIVITIES; }
 
@@ -249,9 +257,9 @@ int CHL2MPScriptedWeapon::ActivityListCount( void ) { return LUA_MAX_WEAPON_ACTI
 //-----------------------------------------------------------------------------
 CHL2MPScriptedWeapon::CHL2MPScriptedWeapon( void )
 {
-    m_nTableReference = LUA_NOREF;
-    m_pLuaWeaponInfo = dynamic_cast<CHL2MPSWeaponInfo*>( CreateWeaponInfo() );
-    m_pLuaWeaponInfo->bParsedScript = false;
+	m_nTableReference = LUA_NOREF;
+	m_pLuaWeaponInfo = dynamic_cast<CHL2MPSWeaponInfo*>( CreateWeaponInfo() );
+	m_pLuaWeaponInfo->bParsedScript = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -748,9 +756,9 @@ void CHL2MPScriptedWeapon::InitScriptedWeapon( void )
 		}
 	}
 
-    if ( PushTableFromRef( L, m_nTableReference ) )
-    {
-        if (GetFieldRemoveTable( L, "TextureData" ))
+	if ( PushTableFromRef( L, m_nTableReference ) )
+	{
+		if (GetFieldRemoveTable( L, "TextureData" ))
 		{
 			if ( lua_istable( L, -1 ) )
 			{
@@ -836,7 +844,7 @@ void CHL2MPScriptedWeapon::InitScriptedWeapon( void )
 			}
 			lua_pop( L, 1 );
 		}
-    }
+	}
 
 	if ( PushTableFromRef( L, m_nTableReference ) )
 	{
@@ -995,11 +1003,11 @@ const FileWeaponInfo_t &CHL2MPScriptedWeapon::GetWpnData( void ) const
 
 const char *CHL2MPScriptedWeapon::GetViewModel( int ) const
 {
-    if (m_nTableReference == LUA_NOREF)
-    {
-        const char *model = m_pLuaWeaponInfo->szViewModel;
-        return (model && model[0]) ? model : NULL;
-    }
+	if (m_nTableReference == LUA_NOREF)
+	{
+		const char *model = m_pLuaWeaponInfo->szViewModel;
+		return (model && model[0]) ? model : NULL;
+	}
 
 #if defined ( LUA_SDK )
 	if ( !PushTableFromRef( L, m_nTableReference ) )
@@ -1014,11 +1022,11 @@ const char *CHL2MPScriptedWeapon::GetViewModel( int ) const
 
 const char *CHL2MPScriptedWeapon::GetWorldModel( void ) const
 {
-    if (m_nTableReference == LUA_NOREF)
-    {
-        const char *model = m_pLuaWeaponInfo->szWorldModel;
-        return (model && model[0]) ? model : NULL;
-    }
+	if (m_nTableReference == LUA_NOREF)
+	{
+		const char *model = m_pLuaWeaponInfo->szWorldModel;
+		return (model && model[0]) ? model : NULL;
+	}
 
 #if defined ( LUA_SDK )
 	if ( !PushTableFromRef( L, m_nTableReference ) )
@@ -1069,10 +1077,10 @@ int CHL2MPScriptedWeapon::GetMaxClip1( void ) const
 		return -1;
 
 #if defined ( LUA_SDK )
-    if ( !PushTableFromRef( L, m_nTableReference ) )
-        return m_pLuaWeaponInfo->iMaxClip1;
+	if ( !PushTableFromRef( L, m_nTableReference ) )
+		return m_pLuaWeaponInfo->iMaxClip1;
 
-    if (GetFieldRemoveTable( L, "Primary" ))
+	if (GetFieldRemoveTable( L, "Primary" ))
 	{
 		if ( !lua_istable( L, -1 ) )
 		{
@@ -1102,10 +1110,10 @@ int CHL2MPScriptedWeapon::GetMaxClip2( void ) const
 		return m_pLuaWeaponInfo->iMaxClip2;
 
 #if defined ( LUA_SDK )
-    if ( !PushTableFromRef( L, m_nTableReference ) )
-        return m_pLuaWeaponInfo->iMaxClip2;
+	if ( !PushTableFromRef( L, m_nTableReference ) )
+		return m_pLuaWeaponInfo->iMaxClip2;
 
-    if (GetFieldRemoveTable( L, "Secondary" ))
+	if (GetFieldRemoveTable( L, "Secondary" ))
 	{
 		if ( !lua_istable( L, -1 ) )
 		{
@@ -1123,7 +1131,7 @@ int CHL2MPScriptedWeapon::GetMaxClip2( void ) const
 
 		lua_pop( L, 2 );
 		
-    	return v;
+		return v;
 	}
 #endif
 
@@ -1136,10 +1144,10 @@ int CHL2MPScriptedWeapon::GetDefaultClip1( void ) const
 		return m_pLuaWeaponInfo->iDefaultClip1;
 
 #if defined ( LUA_SDK )
-    if ( !PushTableFromRef( L, m_nTableReference ) )
-        return m_pLuaWeaponInfo->iDefaultClip1;
+	if ( !PushTableFromRef( L, m_nTableReference ) )
+		return m_pLuaWeaponInfo->iDefaultClip1;
 
-    if (GetFieldRemoveTable( L, "Primary" ))
+	if (GetFieldRemoveTable( L, "Primary" ))
 	{
 		if ( !lua_istable( L, -1 ) )
 		{
@@ -1169,10 +1177,10 @@ int CHL2MPScriptedWeapon::GetDefaultClip2( void ) const
 		return m_pLuaWeaponInfo->iDefaultClip2;
 
 #if defined ( LUA_SDK )
-    if ( !PushTableFromRef( L, m_nTableReference ) )
-        return m_pLuaWeaponInfo->iDefaultClip2;
+	if ( !PushTableFromRef( L, m_nTableReference ) )
+		return m_pLuaWeaponInfo->iDefaultClip2;
 
-    if (GetFieldRemoveTable( L, "Secondary" ))
+	if (GetFieldRemoveTable( L, "Secondary" ))
 	{
 		if ( !lua_istable( L, -1 ) )
 		{
@@ -1235,14 +1243,14 @@ bool CHL2MPScriptedWeapon::IsMeleeWeapon() const
 void CHL2MPScriptedWeapon::CallDrawHUD()
 {
 #if defined( LUA_SDK )
-    if ( m_nTableReference == LUA_NOREF )
-        return;
+	if ( m_nTableReference == LUA_NOREF )
+		return;
 
-    if ( !PushTableFromRef( L, m_nTableReference ) )
-        return;
+	if ( !PushTableFromRef( L, m_nTableReference ) )
+		return;
 
-    BEGIN_LUA_CALL_WEAPON_METHOD( "DrawHUD" );
-    END_LUA_CALL_WEAPON_METHOD( 0, 0 );
+	BEGIN_LUA_CALL_WEAPON_METHOD( "DrawHUD" );
+	END_LUA_CALL_WEAPON_METHOD( 0, 0 );
 #endif
 }
 #endif
