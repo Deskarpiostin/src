@@ -404,14 +404,14 @@ public:
 			{
 			case MOUSE_WHEEL_UP:
 				m_bInWeapon1 = true;
-				// gHUD.m_iKeyBits |= IN_WEAPON1;
+				gHUD.m_iKeyBits |= IN_WEAPON1;
 				if ( gpGlobals->maxClients > 1 )
 					gHUD.m_bSkipClear = true;
 				return 0;
 
 			case MOUSE_WHEEL_DOWN:
 				m_bInWeapon2 = true;
-				// gHUD.m_iKeyBits |= IN_WEAPON2;
+				gHUD.m_iKeyBits |= IN_WEAPON2;
 				if ( gpGlobals->maxClients > 1 )
 					gHUD.m_bSkipClear = true;
 				return 0;
@@ -1124,20 +1124,40 @@ void CWeaponPhysicsGun::EffectUpdate( void )
 			}
 		}
 
-		if ( ( pOwner->m_nButtons & IN_USE ) && ( pOwner->m_nButtons & IN_FORWARD ) )
+		if ( m_useDown )
 		{
 #ifndef CLIENT_DLL
 			pOwner->SetPhysicsFlag( PFLAG_DIROVERRIDE, true );
 #endif
-			m_distance = Approach( 1024, m_distance, m_distance * 0.1 );
+			if ( pOwner->m_nButtons & IN_FORWARD )
+			{
+				m_distance = Approach( 1024, m_distance, gpGlobals->frametime * 100 );
+			}
+			if ( pOwner->m_nButtons & IN_BACK )
+			{
+				m_distance = Approach( 40, m_distance, gpGlobals->frametime * 100 );
+			}
 		}
 
-		if ( ( pOwner->m_nButtons & IN_USE ) && ( pOwner->m_nButtons & IN_BACK ) )
+		if ( pOwner->m_nButtons & IN_WEAPON1 )
 		{
-#ifndef CLIENT_DLL
-			pOwner->SetPhysicsFlag( PFLAG_DIROVERRIDE, true );
+			m_distance = Approach( 1024, m_distance, m_distance * 0.1 );
+#ifdef CLIENT_DLL
+			if ( gpGlobals->maxClients > 1 )
+			{
+				gHUD.m_bSkipClear = false;
+			}
 #endif
+		}
+		if ( pOwner->m_nButtons & IN_WEAPON2 )
+		{
 			m_distance = Approach( 40, m_distance, m_distance * 0.1 );
+#ifdef CLIENT_DLL
+			if ( gpGlobals->maxClients > 1 )
+			{
+				gHUD.m_bSkipClear = false;
+			}
+#endif
 		}
 
 		IPhysicsObject *pPhys = GetPhysObjFromPhysicsBone( pObject, m_physicsBone );
