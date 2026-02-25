@@ -10,6 +10,7 @@
 
 #include "cbase.h"
 #include "kbutton.h"
+#include "platform.h"
 #include "usercmd.h"
 #include "in_buttons.h"
 #include "input.h"
@@ -948,7 +949,8 @@ void CInput::ControllerMove( float frametime, CUserCmd *cmd )
 
 	JoyStickMove( frametime, cmd);
 
-	TouchMove( cmd );
+	if (IsAndroid())
+		TouchMove( cmd );
 
 	// NVNT if we have a haptic device..
 	if(haptics && haptics->HasDevice())

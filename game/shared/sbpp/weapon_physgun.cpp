@@ -844,6 +844,41 @@ bool CGravControllerPoint::UpdateObject( CBasePlayer *pPlayer, CBaseEntity *pEnt
 		return false;
 	}
 
+#ifdef ARGG
+	// adnan
+	// if we've been rotating it, set it to its proper new angles (change m_attachedAnglesPlayerSpace while modifier)
+	//Pickup_GetRotatedCarryAngles( pEntity, pPlayer, pPlayer->EntityToWorldTransform(), angles );
+	// added the ... && (mousedx | mousedy) so we dont have to calculate if no mouse movement
+	// UPDATE: m_vecRotatedCarryAngles has become a temp variable... can be cleaned up by using actual temp vars
+#ifdef CLIENT_DLL
+	if( m_bHasRotatedCarryAngles && (pPlayer->m_pCurrentCommand->mousedx || pPlayer->m_pCurrentCommand->mousedy) )
+#else
+	if( m_bHasRotatedCarryAngles && (pPlayer->GetCurrentCommand()->mousedx || pPlayer->GetCurrentCommand()->mousedy) )
+#endif
+	{
+		// method II: relative orientation
+		VMatrix vDeltaRotation, vCurrentRotation, vNewRotation;
+		
+		MatrixFromAngles( m_targetRotation, vCurrentRotation );
+
+#ifdef CLIENT_DLL
+		m_vecRotatedCarryAngles[YAW] = pPlayer->m_pCurrentCommand->mousedx*0.05;
+		m_vecRotatedCarryAngles[PITCH] = pPlayer->m_pCurrentCommand->mousedy*-0.05;
+#else
+		m_vecRotatedCarryAngles[YAW] = pPlayer->GetCurrentCommand()->mousedx*0.05;
+		m_vecRotatedCarryAngles[PITCH] = pPlayer->GetCurrentCommand()->mousedy*-0.05;
+#endif
+		m_vecRotatedCarryAngles[ROLL] = 0;
+		MatrixFromAngles( m_vecRotatedCarryAngles, vDeltaRotation );
+
+		MatrixMultiply(vDeltaRotation, vCurrentRotation, vNewRotation);
+		MatrixToAngles( vNewRotation, m_targetRotation );
+	}
+	// end adnan
+#endif
+
+	SetTargetPosition( m_targetPosition, m_targetRotation );
+
 	return true;
 }
 
