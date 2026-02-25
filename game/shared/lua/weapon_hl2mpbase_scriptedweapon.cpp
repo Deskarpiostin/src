@@ -25,6 +25,7 @@
 #include "lhl2mp_player_shared.h"
 #ifdef CLIENT_DLL
 #include <vgui_controls/Panel.h>
+#include <vgui/IVGui.h>
 #include <vgui/ISurface.h>
 #include "hudelement.h"
 #include "iclientmode.h"
