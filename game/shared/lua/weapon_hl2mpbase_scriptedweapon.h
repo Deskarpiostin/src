@@ -59,6 +59,10 @@ public:
 	virtual bool	Holster( CBaseCombatWeapon *pSwitchingTo );
 
 #ifdef CLIENT_DLL
+    void CallDrawHUD();
+#endif
+
+#ifdef CLIENT_DLL
 	virtual void	OnDataChanged( DataUpdateType_t updateType );
 	virtual const char *GetScriptedClassname( void );
 
