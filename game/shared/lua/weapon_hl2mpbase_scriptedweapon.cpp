@@ -26,6 +26,8 @@
 #ifdef CLIENT_DLL
 #include <vgui_controls/Panel.h>
 #include <vgui/ISurface.h>
+#include "hud.h"
+#include "iclientmode.h"
 #include "hud_macros.h"
 #endif
 
