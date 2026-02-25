@@ -86,8 +86,8 @@ bool CEventLog::PrintPlayerEvent( IGameEvent *event )
 			team = pPlayer->GetTeam();
 		}
 
-#ifndef SBPP
-		UTIL_LogPrintf( "\"%s<%i><%s><%s>\" disconnected (reason \"%s\")\n", name, userid, networkid, "", reason );
+#ifdef SBPP
+		UTIL_LogPrintf( "\"%s<%i><%s>\" disconnected (reason \"%s\")\n", name, userid, networkid, reason );
 #else
 		UTIL_LogPrintf( "\"%s<%i><%s><%s>\" disconnected (reason \"%s\")\n", name, userid, networkid, team ? team->GetName() : "", reason );
 #endif
