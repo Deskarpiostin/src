@@ -23,60 +23,9 @@
 #include "lbasecombatweapon_shared.h"
 #include "mathlib/lvector.h"
 #include "lhl2mp_player_shared.h"
-#ifdef CLIENT_DLL
-#include <vgui_controls/Panel.h>
-#include <vgui/IVGui.h>
-#include <vgui/ISurface.h>
-#include "hudelement.h"
-#include "iclientmode.h"
-#include "hud_macros.h"
-#endif
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
-
-#ifdef CLIENT_DLL
-class CHudLuaWeaponDraw : public CHudElement, public vgui::Panel
-{
-	DECLARE_CLASS_SIMPLE( CHudLuaWeaponDraw, vgui::Panel );
-
-public:
-	CHudLuaWeaponDraw( const char *pElementName ) : CHudElement( pElementName ), Panel( NULL, "HudLuaWeaponDraw" )
-	{
-		SetHiddenBits( HIDEHUD_PLAYERDEAD | HIDEHUD_NEEDSUIT );
-		SetPaintEnabled( true );
-		SetPaintBackgroundEnabled( false );
-
-		vgui::ivgui()->AddTickSignal( GetVPanel() );
-
-		SetParent( g_pClientMode->GetViewport() );
-	}
-
-	virtual void Paint() OVERRIDE
-	{
-		C_BasePlayer *pPlayer = C_BasePlayer::GetLocalPlayer();
-		if ( !pPlayer )
-			return;
-
-		CBaseCombatWeapon *pWpn = pPlayer->GetActiveWeapon();
-		if ( !pWpn )
-			return;
-
-		CHL2MPScriptedWeapon *pScriptWpn = dynamic_cast<CHL2MPScriptedWeapon*>( pWpn );
-		if ( !pScriptWpn )
-			return;
-
-		pScriptWpn->CallDrawHUD();
-	}
-
-	virtual void OnTick( void ) OVERRIDE
-	{
-		Paint();
-	}
-};
-
-DECLARE_HUDELEMENT( CHudLuaWeaponDraw );
-#endif
 
 IMPLEMENT_NETWORKCLASS_ALIASED( HL2MPScriptedWeapon, DT_HL2MPScriptedWeapon )
 
@@ -1239,22 +1188,6 @@ bool CHL2MPScriptedWeapon::IsMeleeWeapon() const
 
 	return m_pLuaWeaponInfo->m_bMeleeWeapon;
 }
-
-#ifdef CLIENT_DLL
-void CHL2MPScriptedWeapon::CallDrawHUD()
-{
-#if defined( LUA_SDK )
-	if ( m_nTableReference == LUA_NOREF )
-		return;
-
-	if ( !PushTableFromRef( L, m_nTableReference ) )
-		return;
-
-	BEGIN_LUA_CALL_WEAPON_METHOD( "DrawHUD" );
-	END_LUA_CALL_WEAPON_METHOD( 0, 0 );
-#endif
-}
-#endif
 
 bool CHL2MPScriptedWeapon::DrawAmmo() const
 {

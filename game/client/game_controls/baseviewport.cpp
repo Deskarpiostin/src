@@ -782,6 +782,19 @@ void CBaseViewport::Paint()
 	{
 		BEGIN_LUA_CALL_HOOK("PostChildUIPaint");
     	END_LUA_CALL_HOOK(0, 0);
+
+#ifdef SBPP
+		// SWEP-specific hook
+		C_BasePlayer *pPlayer = C_BasePlayer::GetLocalPlayer();
+		if ( pPlayer )
+		{
+			if ( pPlayer->GetActiveWeapon() )
+			{
+				BEGIN_LUA_CALL_WEAPON_HOOK( "DrawHUD" , pPlayer->GetActiveWeapon() );
+				END_LUA_CALL_WEAPON_HOOK( 0, 0 );
+			}
+		}
+#endif
 	}
 #endif
 	if ( cl_leveloverviewmarker.GetInt() > 0 )

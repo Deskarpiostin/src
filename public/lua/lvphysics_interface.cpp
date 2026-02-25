@@ -15,6 +15,7 @@
 #include "lvphysics_interface.h"
 #include "vphysics/lperformance.h"
 #include "mathlib/lvector.h"
+#include "constraints.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
