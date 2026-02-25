@@ -4018,7 +4018,10 @@ void C_BaseEntity::RemoveFromLeafSystem()
 	// Detach from the leaf lists.
 	if( m_hRender != INVALID_CLIENT_RENDER_HANDLE )
 	{
-		ClientLeafSystem()->RemoveRenderable( m_hRender );
+#ifdef SBPP
+		if (ClientLeafSystem())
+#endif
+			ClientLeafSystem()->RemoveRenderable( m_hRender );
 		m_hRender = INVALID_CLIENT_RENDER_HANDLE;
 	}
 	DestroyShadow();
