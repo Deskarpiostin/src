@@ -407,11 +407,13 @@ void CRagdollProp::OnPhysGunDrop( CBasePlayer *pPhysGunUser, PhysGunDrop_t Reaso
 		s_RagdollLRU.MoveToTopOfLRU( this );
 	}
 
+#ifndef SBPP
 	// Make sure it's interactive debris for at most 5 seconds
 	if ( GetCollisionGroup() == COLLISION_GROUP_INTERACTIVE_DEBRIS )
 	{
 		SetContextThink( &CRagdollProp::SetDebrisThink, gpGlobals->curtime + 5, s_pDebrisContext );
 	}
+#endif
 
 	if ( Reason != LAUNCHED_BY_CANNON )
 		return;
@@ -678,11 +680,13 @@ void CRagdollProp::InitRagdoll( const Vector &forceVector, int forceBone, const 
 {
 	SetCollisionGroup( collisionGroup );
 
+#ifndef SBPP
 	// Make sure it's interactive debris for at most 5 seconds
 	if ( collisionGroup == COLLISION_GROUP_INTERACTIVE_DEBRIS )
 	{
 		SetContextThink( &CRagdollProp::SetDebrisThink, gpGlobals->curtime + 5, s_pDebrisContext );
 	}
+#endif
 
 	SetMoveType( MOVETYPE_VPHYSICS );
 	SetSolid( SOLID_VPHYSICS );
@@ -1009,6 +1013,7 @@ void CRagdollProp::VPhysicsUpdate( IPhysicsObject *pPhysics )
 		}
 	}
 	
+#ifndef SBPP
 	// Interactive debris converts back to debris when it comes to rest
 	if ( m_allAsleep && GetCollisionGroup() == COLLISION_GROUP_INTERACTIVE_DEBRIS )
 	{
@@ -1016,6 +1021,7 @@ void CRagdollProp::VPhysicsUpdate( IPhysicsObject *pPhysics )
 		RecheckCollisionFilter();
 		SetContextThink( NULL, gpGlobals->curtime, s_pDebrisContext );
 	}
+#endif
 
 	Vector vecFullMins, vecFullMaxs;
 	vecFullMins = m_ragPos[0];
