@@ -2463,7 +2463,7 @@ int CStudioRender::R_StudioDrawStaticMesh( IMatRenderContext *pRenderContext, ms
 		}
 		if ( bUseSOFlex )
 		{
-#ifdef MOON
+#ifndef MOON
 			pGroup->m_pMesh->DisableFlexMesh();	// clear flex stream
 #endif
 		}
