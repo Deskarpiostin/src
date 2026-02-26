@@ -31,7 +31,6 @@ static const luaL_Reg luasrclibs[] = {
   {LUA_NAVMESHLIBNAME, luaopen_navmesh},
 #else
   {LUA_SPAWNMENULIBNAME, luaopen_sm},
-  {LUA_HINTLIBNAME, luaopen_hintlib},
 #endif
   {LUA_AMMODEFLIB_NAME, luaopen_AmmoDef},
   {LUA_HL2MPPLAYERLIBNAME, luaopen_CHL2MP_Player_shared},

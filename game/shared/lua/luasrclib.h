@@ -25,9 +25,6 @@ LUALIB_API int (luaopen_CBaseCombatWeapon) (lua_State *L);
 #define LUA_AMMODEFLIB_NAME "CAmmoDef"
 LUALIB_API int (luaopen_AmmoDef)(lua_State* L);
 
-#define LUA_HINTLIBNAME "hintlib"
-LUALIB_API int (luaopen_hintlib) (lua_State *L);
-
 #define LUA_BASEENTITYLIBNAME			"CBaseEntity"
 LUALIB_API int (luaopen_CBaseEntity) (lua_State *L);
 LUALIB_API int (luaopen_CBaseEntity_shared) (lua_State *L);
