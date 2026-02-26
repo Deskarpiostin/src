@@ -1,4 +1,4 @@
-//===== Copyright © 1996-2005, Valve Corporation, All rights reserved. ======//
+//===== Copyright ï¿½ 1996-2005, Valve Corporation, All rights reserved. ======//
 //
 // Purpose: 
 //
@@ -284,6 +284,11 @@ static int engine_Time (lua_State *L) {
   return 1;
 }
 
+static int engine_ClientCommand(lua_State *L) {
+  engine->ClientCommand(luaL_checkentity(L, 1)->edict(), luaL_checkstring(L, 2));
+  return 0;
+}
+
 
 static const luaL_Reg enginelib[] = {
   {"AllowImmediateEdictReuse",   engine_AllowImmediateEdictReuse},
@@ -335,6 +340,7 @@ static const luaL_Reg enginelib[] = {
   {"SetAreaPortalState", engine_SetAreaPortalState},
   {"SetDedicatedServerBenchmarkMode", engine_SetDedicatedServerBenchmarkMode},
   {"Time", engine_Time},
+  {"ClientCommand", engine_ClientCommand},
   {NULL, NULL}
 };
 
