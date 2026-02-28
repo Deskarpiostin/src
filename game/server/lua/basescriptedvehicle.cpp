@@ -1,3 +1,9 @@
+//========== Copyright (C) 2026, Team HL2SB++, All rights reserved. ===========//
+//
+// Purpose:
+//
+//===========================================================================//
+
 #include "cbase.h"
 #include "basescriptedvehicle.h"
 #include "luamanager.h"
@@ -6,6 +12,7 @@
 #include "lbaseplayer_shared.h"
 #include "lbaseanimating.h"
 #include "limovehelper.h"
+#include "lmovedata.h"
 #include "mathlib/lvector.h"
 
 BEGIN_DATADESC( CBaseScriptedVehicle )
@@ -16,69 +23,62 @@ static CUtlDict< CEntityFactory<CBaseScriptedVehicle>*, unsigned short > m_Trigg
 #if defined( LUA_SDK )
 static bool PushTableFromRef(lua_State *L, int ref)
 {
-    if (ref == LUA_NOREF || !L)
-        return false;
+	if (ref == LUA_NOREF || !L)
+		return false;
 
-    lua_getref(L, ref);
-    if (!lua_istable(L, -1))
-    {
-        lua_pop(L, 1);
-        return false;
-    }
+	lua_getref(L, ref);
+	if (!lua_istable(L, -1))
+	{
+		lua_pop(L, 1);
+		return false;
+	}
 
-    return true;
+	return true;
 }
-
 
 static bool GetFieldRemoveTable(lua_State *L, const char *key)
 {
-    if (!lua_istable(L, -1))
-    {
-        lua_pop(L, 1);
-        return false;
-    }
-    
-    lua_getfield(L, -1, key); // table[key]
-    
-    if (lua_isnil(L, -1))
-    {
-        lua_pop(L, 2);
-        return false;
-    }
+	if (!lua_istable(L, -1))
+	{
+		lua_pop(L, 1);
+		return false;
+	}
 
-    lua_remove(L, -2);
-    return true;
+	lua_getfield(L, -1, key);
+
+	if (lua_isnil(L, -1))
+	{
+		lua_pop(L, 2);
+		return false;
+	}
+
+	lua_remove(L, -2);
+	return true;
 }
 #endif
 
 void RegisterScriptedVehicle( const char *className )
 {
 	if ( EntityFactoryDictionary()->FindFactory( className ) )
-	{
 		return;
-	}
 
 	unsigned short lookup = m_TriggerFactoryDatabase.Find( className );
 	if ( lookup != m_TriggerFactoryDatabase.InvalidIndex() )
-	{
 		return;
-	}
 
 	CEntityFactory<CBaseScriptedVehicle> *pFactory = new CEntityFactory<CBaseScriptedVehicle>( className );
-
 	lookup = m_TriggerFactoryDatabase.Insert( className, pFactory );
 	Assert( lookup != m_TriggerFactoryDatabase.InvalidIndex() );
 }
 
 void ResetVehicleFactoryDatabase( void )
 {
-	for ( int i=m_TriggerFactoryDatabase.First(); i != m_TriggerFactoryDatabase.InvalidIndex(); i=m_TriggerFactoryDatabase.Next( i ) )
+	for ( int i = m_TriggerFactoryDatabase.First(); i != m_TriggerFactoryDatabase.InvalidIndex(); i = m_TriggerFactoryDatabase.Next( i ) )
 	{
 		delete m_TriggerFactoryDatabase[ i ];
 	}
 	m_TriggerFactoryDatabase.RemoveAll();
 }
-
 
 CBaseScriptedVehicle::CBaseScriptedVehicle()
 {
@@ -98,13 +98,12 @@ CBaseScriptedVehicle::~CBaseScriptedVehicle()
 void CBaseScriptedVehicle::Spawn()
 {
 	InitScriptedVehicle();
-
 	BaseClass::Spawn();
 }
 
 void CBaseScriptedVehicle::InitScriptedVehicle()
 {
-#if defined ( LUA_SDK )
+#if defined( LUA_SDK )
 	if ( m_nTableReference != LUA_NOREF )
 		return;
 
@@ -142,18 +141,14 @@ void CBaseScriptedVehicle::InitScriptedVehicle()
 		m_nTableReference = luaL_ref( L, LUA_REGISTRYINDEX );
 	}
 
-	// Vehicle script
+	// VehicleScript
 	if ( PushTableFromRef( L, m_nTableReference ) )
 	{
 		GetFieldRemoveTable( L, "VehicleScript" );
 		if ( lua_isstring( L, -1 ) )
-		{
 			m_vehicleScript = AllocPooledString( lua_tostring( L, -1 ) );
-		}
 		else
-		{
 			m_vehicleScript = AllocPooledString( "scripts/vehicles/jeep_test.txt" );
-		}
 		lua_pop( L, 1 );
 	}
 	else
@@ -161,7 +156,7 @@ void CBaseScriptedVehicle::InitScriptedVehicle()
 		m_vehicleScript = AllocPooledString( "scripts/vehicles/jeep_test.txt" );
 	}
 
-	// Vehicle model
+	// ModelName
 	if ( PushTableFromRef( L, m_nTableReference ) )
 	{
 		GetFieldRemoveTable( L, "ModelName" );
@@ -210,7 +205,8 @@ void CBaseScriptedVehicle::SetupMove( CBasePlayer *pPlayer, CUserCmd *ucmd, IMov
 	BEGIN_LUA_CALL_ENTITY_METHOD( "SetupMove" );
 		lua_pushplayer( L, pPlayer );
 		lua_pushmovehelper( L, pHelper );
-	END_LUA_CALL_ENTITY_METHOD( 2, 0 );
+		lua_pushmovedata( L, move );
+	END_LUA_CALL_ENTITY_METHOD( 3, 0 );
 #endif
 }
 
@@ -221,24 +217,25 @@ void CBaseScriptedVehicle::ProcessMovement( CBasePlayer *pPlayer, CMoveData *mov
 #ifdef LUA_SDK
 	BEGIN_LUA_CALL_ENTITY_METHOD( "ProcessMovement" );
 		lua_pushplayer( L, pPlayer );
-	END_LUA_CALL_ENTITY_METHOD( 1, 0 );
+		lua_pushmovedata( L, move );
+	END_LUA_CALL_ENTITY_METHOD( 2, 0 );
 #endif
 }
 
-void CBaseScriptedVehicle::FinishMove( CBasePlayer *player, CUserCmd *ucmd, CMoveData *move )
+void CBaseScriptedVehicle::FinishMove( CBasePlayer *pPlayer, CUserCmd *ucmd, CMoveData *move )
 {
-	BaseClass::FinishMove( player, ucmd, move );
+	BaseClass::FinishMove( pPlayer, ucmd, move );
 
 #ifdef LUA_SDK
 	BEGIN_LUA_CALL_ENTITY_METHOD( "FinishMove" );
-		lua_pushplayer( L, player );
-	END_LUA_CALL_ENTITY_METHOD( 1, 0 );
+		lua_pushplayer( L, pPlayer );
+		lua_pushmovedata( L, move );
+	END_LUA_CALL_ENTITY_METHOD( 2, 0 );
 #endif
 }
 
 void CBaseScriptedVehicle::CreateServerVehicle( void )
 {
-	// Create our server vehicle
 	m_pServerVehicle = new CScriptedServerVehicle();
 	m_pServerVehicle->SetVehicle( this );
 }

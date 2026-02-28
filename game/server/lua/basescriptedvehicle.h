@@ -1,3 +1,9 @@
+//========== Copyright (C) 2026, Team HL2SB++, All rights reserved. ===========//
+//
+// Purpose:
+//
+//===========================================================================//
+
 #ifndef BASESCRIPTEDVEHICLE_H
 #define BASESCRIPTEDVEHICLE_H
 #ifdef _WIN32
