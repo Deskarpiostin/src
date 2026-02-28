@@ -27,10 +27,15 @@ static const luaL_Reg luasrclibs[] = {
 #ifndef CLIENT_DLL
   {LUA_EFFECTSLIBNAME, luaopen_Effects},
   {LUA_HL2MPPLAYERLIBNAME, luaopen_CHL2MP_Player},
+#ifdef SBPP
   {LUA_NAVAREALIBNAME, luaopen_CNavArea},
   {LUA_NAVMESHLIBNAME, luaopen_navmesh},
+  {LUA_MOVEDATALIBNAME, luaopen_CMoveData},
+#endif
 #else
+#ifdef SBPP
   {LUA_SPAWNMENULIBNAME, luaopen_sm},
+#endif
 #endif
   {LUA_AMMODEFLIB_NAME, luaopen_AmmoDef},
   {LUA_HL2MPPLAYERLIBNAME, luaopen_CHL2MP_Player_shared},

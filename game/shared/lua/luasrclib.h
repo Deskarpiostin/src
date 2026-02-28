@@ -49,8 +49,18 @@ LUALIB_API int (luaopen_Color) (lua_State *L);
 #define LUA_CONCOMMANDLIBNAME			"ConCommand"
 LUALIB_API int (luaopen_ConCommand) (lua_State *L);
 
+#ifdef SBPP
 #define LUA_SPAWNMENULIBNAME			"smlib_Private"
 LUALIB_API int (luaopen_sm)( lua_State* L );
+
+#define LUA_MOVEDATALIBNAME             "CMoveData"
+LUALIB_API int luaopen_CMoveData(lua_State *L);
+
+#define LUA_NAVAREALIBNAME "CNavArea"
+#define LUA_NAVMESHLIBNAME "navmesh"
+LUALIB_API int (luaopen_CNavArea) (lua_State *L);
+LUALIB_API int (luaopen_navmesh) (lua_State *L);
+#endif
 
 #define LUA_CONTENTSLIBNAME				"CONTENTS"
 LUALIB_API int (luaopen_CONTENTS) (lua_State *L);
@@ -196,11 +206,6 @@ LUALIB_API int (luaopen_vgui) (lua_State *L);
 
 #define LUA_VMATRIXLIBNAME				"vmatrix"
 LUALIB_API int (luaopen_VMatrix) (lua_State *L);
-
-#define LUA_NAVAREALIBNAME "CNavArea"
-#define LUA_NAVMESHLIBNAME "navmesh"
-LUALIB_API int (luaopen_CNavArea) (lua_State *L);
-LUALIB_API int (luaopen_navmesh) (lua_State *L);
 
 /* open all Source Engine libraries */
 LUALIB_API void (luasrc_openlibs) (lua_State *L); 

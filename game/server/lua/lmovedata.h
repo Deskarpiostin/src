@@ -16,12 +16,8 @@
 #include "luasrclib.h"
 #include "igamemovement.h"
 
-#define LUA_MOVEDATALIBNAME "CMoveData"
-
 LUA_API void       lua_pushmovedata(lua_State *L, CMoveData *mv);
 LUA_API CMoveData *lua_tomovedata(lua_State *L, int idx);
 LUA_API CMoveData *luaL_checkmovedata(lua_State *L, int narg);
-
-LUALIB_API int luaopen_CMoveData(lua_State *L);
 
 #endif // LMOVEDATA_H
