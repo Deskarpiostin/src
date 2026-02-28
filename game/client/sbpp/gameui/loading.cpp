@@ -22,7 +22,7 @@
 #include "filesystem.h"
 #include "tier2/renderutils.h"
 #include "materialsystem/imesh.h"
-#include "tier1/utlvector.h"
+#include "VGuiMatSurface/IMatSystemSurface.h"
 
 #include "stb_image.h"
 
@@ -136,6 +136,13 @@ void CLoadingScreen::Initialize()
 
 	CreateMaterials();
 
+	m_hFont = g_pMatSystemSurface->CreateFont();
+	g_pMatSystemSurface->SetFontGlyphSet( m_hFont, "Arial", 18, 400, 0, 0,
+		vgui::ISurface::FONTFLAG_ANTIALIAS );
+
+	const wchar_t *pPrecache = L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,:;!?-_%/\\";
+	g_pMatSystemSurface->PrecacheFontCharacters( m_hFont, pPrecache );
+
 	m_bInitialized = true;
 }
 
@@ -209,9 +216,18 @@ void CLoadingScreen::DestroyMaterials()
 	}
 }
 
-//TODO
 void CLoadingScreen::RenderText( const char *text, int x, int y, int r, int g, int b, int a )
 {
+    if ( m_hFont == vgui::INVALID_FONT || !g_pMatSystemSurface )
+        return;
+
+    vgui::VPANEL root = vgui::surface()->GetEmbeddedPanel();
+    vgui::surface()->PushMakeCurrent( root, false );
+
+    g_pMatSystemSurface->DrawColoredText( m_hFont, x, y, r, g, b, a, "%s", text );
+    vgui::surface()->DrawFlushText();
+
+    vgui::surface()->PopMakeCurrent( root );
 }
 
 void CLoadingScreen::UpdateState( const char *pszMessage, float progress )
