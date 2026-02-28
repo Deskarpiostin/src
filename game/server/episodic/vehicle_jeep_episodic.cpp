@@ -318,7 +318,7 @@ LINK_ENTITY_TO_CLASS( info_target_vehicle_transition, CInfoTargetVehicleTransiti
 //	CPropJeepEpisodic
 //
 
-#ifndef SBPP
+#ifdef SBPP
 LINK_ENTITY_TO_CLASS( prop_vehicle_jalopy, CPropJeepEpisodic );
 #else
 LINK_ENTITY_TO_CLASS( prop_vehicle_jeep, CPropJeepEpisodic );
