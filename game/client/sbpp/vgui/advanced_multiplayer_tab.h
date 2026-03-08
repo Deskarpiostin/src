@@ -130,6 +130,8 @@ private:
 	vgui::ComboBox				*m_pHandModelSelector;
 	std::vector< HandModelInfo > m_HandModels;
 
+	vgui::Button 				*m_pRefreshPMBtn;
+
 	const char *m_pszCurrentPM;
 };
 

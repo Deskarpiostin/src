@@ -49,6 +49,38 @@ static void LoadSettingsFromFile( CUtlString &outPlayerName, CUtlString &outHand
 	kv->deleteThis();
 }
 
+static bool LoadPMCache( std::vector<std::string> &out )
+{
+	out.clear();
+	FileHandle_t fh = g_pFullFileSystem->Open( "cache/pm_cache.txt", "r" );
+	if ( fh == FILESYSTEM_INVALID_HANDLE )
+		return false;
+
+	char line[MAX_PATH];
+	while ( g_pFullFileSystem->ReadLine( line, sizeof(line), fh ) )
+	{
+		int len = Q_strlen(line);
+		while ( len > 0 && (line[len-1] == '\n' || line[len-1] == '\r') )
+			line[--len] = '\0';
+		if ( len > 0 )
+			out.push_back( line );
+	}
+	g_pFullFileSystem->Close( fh );
+	return !out.empty();
+}
+
+static void SavePMCache( const std::vector<std::string> &paths )
+{
+	FileHandle_t fh = g_pFullFileSystem->Open( "cache/pm_cache.txt", "w" );
+	if ( fh == FILESYSTEM_INVALID_HANDLE ) return;
+	for ( auto &p : paths )
+	{
+		g_pFullFileSystem->Write( p.c_str(), p.size(), fh );
+		g_pFullFileSystem->Write( "\n", 1, fh );
+	}
+	g_pFullFileSystem->Close( fh );
+}
+
 ColorPreset GlobalPresets[] = { { "Red", 255, 0, 0 }, { "Green", 0, 255, 0 }, { "Blue", 0, 0, 255 }, { "White", 255, 255, 255 }, { "Cyan", 0, 255, 255 }, { "Purple", 128, 0, 128 }, { "Yellow", 255, 255, 0 }, { "Orange", 255, 128, 0 } };
 
 static void LoadHandModelsFromLua( std::vector< HandModelInfo > &out )
@@ -318,6 +350,8 @@ CAdvancedOptionsMultiplayer::CAdvancedOptionsMultiplayer( Panel *parent, const c
 
 	m_pHandModelSelector = new ComboBox( this, "HandModelSelector", 4, false );
 
+	m_pRefreshPMBtn = new Button( this, "RefreshPMBtn", "Refresh", this, "RefreshModels" );
+
 	for ( int i = 0; i < ARRAYSIZE( GlobalPresets ); i++ )
 	{
 		char buf[256];
@@ -354,47 +388,54 @@ void CAdvancedOptionsMultiplayer::PopulatePlayerModels()
 
 	auto shouldExclude = []( const char *filename ) -> bool
 	{
-		return ( V_stristr( filename, "_anim" ) != nullptr || V_stristr( filename, ".phy.mdl" ) != nullptr || V_stristr( filename, ".dx80.vtx" ) != nullptr || V_stristr( filename, ".dx90.vtx" ) != nullptr ||
-				 V_stristr( filename, ".sw.vtx" ) != nullptr || V_stristr( filename, ".vvd" ) != nullptr || V_stristr( filename, ".vtx" ) != nullptr );
+		return V_stristr( filename, ".phy.mdl" ) != nullptr
+			|| V_stristr( filename, "_anim" ) != nullptr;
 	};
 
-	std::vector< std::string > stack;
-	stack.push_back( "models/player" );
-
-	while ( !stack.empty() )
+	if ( !LoadPMCache( m_PMPaths ) )
 	{
-		std::string dir = stack.back();
-		stack.pop_back();
+        m_PMPaths.reserve( 256 );
 
-		FileFindHandle_t fh;
-		const char		*file = g_pFullFileSystem->FindFirst( ( dir + "/*" ).c_str(), &fh );
+		std::vector< std::string > stack;
+		stack.push_back( "models/player" );
 
-		while ( file )
+		while ( !stack.empty() )
 		{
-			if ( file[0] != '.' )
-			{
-				std::string fullPath = dir + "/" + file;
+			std::string dir = stack.back();
+			stack.pop_back();
 
-				if ( g_pFullFileSystem->IsDirectory( fullPath.c_str() ) )
+			FileFindHandle_t fh;
+			const char		*file = g_pFullFileSystem->FindFirst( ( dir + "/*" ).c_str(), &fh );
+
+			while ( file )
+			{
+				if ( file[0] != '.' )
 				{
-					stack.push_back( fullPath );
-				}
-				else
-				{
-					const char *ext = Q_GetFileExtension( file );
-					if ( ext && Q_stricmp( ext, "mdl" ) == 0 && !shouldExclude( file ) )
+					std::string fullPath = dir + "/" + file;
+
+					if ( g_pFullFileSystem->IsDirectory( fullPath.c_str() ) )
 					{
-						m_PMPaths.push_back( fullPath );
-						m_pPMSelector->AddItem( fullPath.c_str(), nullptr );
+						stack.push_back( fullPath );
+					}
+					else
+					{
+						const char *ext = Q_GetFileExtension( file );
+						if ( ext && Q_stricmp( ext, "mdl" ) == 0 && !shouldExclude( file ) )
+							m_PMPaths.push_back( fullPath );
 					}
 				}
+
+				file = g_pFullFileSystem->FindNext( fh );
 			}
 
-			file = g_pFullFileSystem->FindNext( fh );
+			g_pFullFileSystem->FindClose( fh );
 		}
 
-		g_pFullFileSystem->FindClose( fh );
+		SavePMCache( m_PMPaths );
 	}
+
+	for ( auto &path : m_PMPaths )
+		m_pPMSelector->AddItem( path.c_str(), nullptr );
 
 	ConVar	   *pm = cvar->FindVar( "cl_playermodel" );
 	const char *defaultModel = "models/player/kleiner.mdl";
@@ -590,6 +631,15 @@ void CAdvancedOptionsMultiplayer::OnCommand( const char *command )
 {
 	BaseClass::OnCommand( command );
 
+	if ( !Q_stricmp( command, "RefreshModels" ) )
+	{
+		g_pFullFileSystem->RemoveFile( "cache/pm_cache.txt" );
+		m_PMPaths.clear();
+		m_pPMSelector->DeleteAllItems();
+		PopulatePlayerModels();
+		return;
+	}
+
 	for ( int i = 0; i < ARRAYSIZE( GlobalPresets ); i++ )
 	{
 		char buf[MAX_PATH];
@@ -641,7 +691,7 @@ void CAdvancedOptionsMultiplayer::PerformLayout()
 	int comboW = modelW;
 	int comboH = 25;
 
-	m_pPMSelector->SetBounds( comboX, comboY, comboW, comboH );
+	//m_pPMSelector->SetBounds( comboX, comboY, comboW, comboH );
 
 	int btnY = comboY + comboH + 15;
 	int spacing = 8;
@@ -650,6 +700,9 @@ void CAdvancedOptionsMultiplayer::PerformLayout()
 
 	m_pPlayerColorBtn->SetBounds( comboX, btnY, btnW, btnH );
 	m_pWeaponColorBtn->SetBounds( comboX + btnW + spacing, btnY, btnW, btnH );
+
+	m_pPMSelector->SetBounds( comboX, comboY, comboW - 60, comboH );
+	m_pRefreshPMBtn->SetBounds( comboX + comboW - 55, comboY, 55, comboH );
 
 	if ( m_pPlayerColorBtn )
 	{
