@@ -283,9 +283,14 @@ void CMDLPanelAdv::PlayActivity( Activity activity )
 	if ( h == MDLHANDLE_INVALID )
 		return;
 
+	mdlcache->BeginLock();
+		
 	studiohdr_t *pStudioHdr = mdlcache->GetStudioHdr( h );
 	if ( !pStudioHdr )
+	{
+		mdlcache->EndLock();
 		return;
+	}
 
 	CStudioHdr hdr( pStudioHdr, mdlcache );
 
@@ -303,10 +308,12 @@ void CMDLPanelAdv::PlayActivity( Activity activity )
 		}
 	}
 
+	mdlcache->EndLock();
+
 	if ( bestSeq >= 0 )
 		SetSequence( bestSeq, true );
 	else
-		DevWarning( "no seq for act %d\n", (int)activity );
+		SetSequence( 0, true );
 }
 
 CAdvancedOptionsMultiplayer::CAdvancedOptionsMultiplayer( Panel *parent, const char *panelName ) :
@@ -394,7 +401,7 @@ void CAdvancedOptionsMultiplayer::PopulatePlayerModels()
 
 	if ( !LoadPMCache( m_PMPaths ) )
 	{
-        m_PMPaths.reserve( 256 );
+		m_PMPaths.reserve( 256 );
 
 		std::vector< std::string > stack;
 		stack.push_back( "models/player" );
