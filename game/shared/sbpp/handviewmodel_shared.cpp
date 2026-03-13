@@ -7,9 +7,11 @@
 #include "cbase.h"
 #include "baseviewmodel_shared.h"
 
-#include "materialsystem/imaterial.h"
+#ifdef CLIENT_DLL
 #include "materialsystem/imaterialvar.h"
-#include "materialsystem/imaterialproxy.h"
+#include "proxyentity.h"
+#include "c_hl2mp_player.h"
+#endif
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -25,11 +27,11 @@ ConVar playercolor_r( "playercolor_r", "0", FCVAR_USERINFO | FCVAR_CLIENTDLL | F
 ConVar playercolor_g( "playercolor_g", "229", FCVAR_USERINFO | FCVAR_CLIENTDLL | FCVAR_ARCHIVE );
 ConVar playercolor_b( "playercolor_b", "238", FCVAR_USERINFO | FCVAR_CLIENTDLL | FCVAR_ARCHIVE );
 
-class PlayerColorProxy : public IMaterialProxy
+class PlayerColorProxy : public CEntityMaterialProxy
 {
 public:
 	virtual bool	   Init( IMaterial *pMaterial, KeyValues *pKeyValues );
-	virtual void	   OnBind( void *pC_BaseEntity );
+	virtual void 	   OnBind( C_BaseEntity *pBaseEntity );
 	virtual void	   Release();
 	virtual IMaterial *GetMaterial();
 
@@ -46,16 +48,37 @@ bool PlayerColorProxy::Init( IMaterial *pMaterial, KeyValues *pKeyValues )
 	return foundVar;
 }
 
-void PlayerColorProxy::OnBind( void *pC_BaseEntity )
+void PlayerColorProxy::OnBind( C_BaseEntity *pBaseEntity )
 {
-	if ( m_pResultVar )
-	{
-		float r = playercolor_r.GetFloat() / 255.0f;
-		float g = playercolor_g.GetFloat() / 255.0f;
-		float b = playercolor_b.GetFloat() / 255.0f;
+    if ( !m_pResultVar )
+        return;
 
-		m_pResultVar->SetVecValue( r, g, b );
-	}
+    float r, g, b;
+
+    C_HL2MP_Player *pPlayer = nullptr;
+    pPlayer = dynamic_cast<C_HL2MP_Player *>( pBaseEntity );
+
+    if ( !pPlayer )
+    {
+        C_BaseViewModel *pVM = dynamic_cast<C_BaseViewModel *>( pBaseEntity );
+        if ( pVM )
+            pPlayer = ToHL2MPPlayer( pVM->GetOwner() );
+    }
+
+    if ( pPlayer )
+    {
+        r = pPlayer->GetPlayerColorR() / 255.0f;
+        g = pPlayer->GetPlayerColorG() / 255.0f;
+        b = pPlayer->GetPlayerColorB() / 255.0f;
+    }
+    else
+    {
+        r = playercolor_r.GetFloat() / 255.0f;
+        g = playercolor_g.GetFloat() / 255.0f;
+        b = playercolor_b.GetFloat() / 255.0f;
+    }
+
+    m_pResultVar->SetVecValue( r, g, b );
 }
 
 void PlayerColorProxy::Release()

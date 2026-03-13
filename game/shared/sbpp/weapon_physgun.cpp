@@ -50,9 +50,8 @@
 #endif
 
 #ifdef CLIENT_DLL
-#include "materialsystem/imaterial.h"
 #include "materialsystem/imaterialvar.h"
-#include "materialsystem/imaterialproxy.h"
+#include "proxyentity.h"
 #endif
 
 #ifdef CLIENT_DLL
@@ -79,9 +78,9 @@ class CWeaponPhysicsGun;
 
 #ifdef CLIENT_DLL
 CLIENTEFFECT_REGISTER_BEGIN( PrecacheEffectGravityGun )
-CLIENTEFFECT_MATERIAL( PHYSGUN_BEAM_SPRITE1 )
-CLIENTEFFECT_MATERIAL( PHYSGUN_BEAM_SPRITE )
-CLIENTEFFECT_MATERIAL( PHYSGUN_BEAM_GLOW )
+	CLIENTEFFECT_MATERIAL( PHYSGUN_BEAM_SPRITE1 )
+	CLIENTEFFECT_MATERIAL( PHYSGUN_BEAM_SPRITE )
+	CLIENTEFFECT_MATERIAL( PHYSGUN_BEAM_GLOW )
 CLIENTEFFECT_REGISTER_END()
 #endif
 
@@ -89,7 +88,7 @@ ConVar physgun_r( "physgun_r", "0", FCVAR_USERINFO | FCVAR_ARCHIVE );
 ConVar physgun_g( "physgun_g", "229", FCVAR_USERINFO | FCVAR_ARCHIVE );
 ConVar physgun_b( "physgun_b", "238", FCVAR_USERINFO | FCVAR_ARCHIVE );
 
-ConVar physgun_halo_override( "physgun_halo_override", "0", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_CHEAT );
+ConVar physgun_halo_override( "physgun_halo_override", "0", FCVAR_USERINFO | FCVAR_CHEAT );
 ConVar physgun_halo_override_r( "physgun_halo_override_r", "0", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_CHEAT );
 ConVar physgun_halo_override_g( "physgun_halo_override_g", "229", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_CHEAT );
 ConVar physgun_halo_override_b( "physgun_halo_override_b", "238", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_CHEAT );
@@ -667,12 +666,12 @@ float		 fadeSpeed = 0.5f;
 bool		 fadingOut = true;
 static float lastPhysgunR = -1.0f, lastPhysgunG = -1.0f, lastPhysgunB = -1.0f;
 
-class PlayerWeaponColorProxy : public IMaterialProxy
+class PlayerWeaponColorProxy : public CEntityMaterialProxy
 {
 public:
 	virtual bool	   Init( IMaterial *pMaterial, KeyValues *pKeyValues );
-	virtual void	   OnBind( void *pC_BaseEntity );
-	virtual void	   Release();
+	virtual void 	   OnBind( C_BaseEntity *pBaseEntity );
+
 	virtual IMaterial *GetMaterial();
 
 private:
@@ -688,18 +687,46 @@ bool PlayerWeaponColorProxy::Init( IMaterial *pMaterial, KeyValues *pKeyValues )
 	return foundVar;
 }
 
-void PlayerWeaponColorProxy::OnBind( void *pC_BaseEntity )
+void PlayerWeaponColorProxy::OnBind( C_BaseEntity *pBaseEntity )
 {
 	if ( !m_pResultVar )
 		return;
 
 	float currentR, currentG, currentB;
 
-	C_BasePlayer *pPlayer = C_BasePlayer::GetLocalPlayer();
-	if ( !pPlayer )
-		return;
+	C_WeaponPhysicsGun *pPhysgun = nullptr;
+	C_BasePlayer *pPlayer = nullptr;
 
-	C_WeaponPhysicsGun *pPhysgun = dynamic_cast< C_WeaponPhysicsGun * >( pPlayer->GetActiveWeapon() );
+	if ( pBaseEntity )
+	{
+		pPhysgun = dynamic_cast<C_WeaponPhysicsGun *>( pBaseEntity );
+
+		if ( !pPhysgun )
+		{
+			C_BaseViewModel *pVM = dynamic_cast<C_BaseViewModel *>( pBaseEntity );
+			if ( pVM )
+				pPhysgun = dynamic_cast<C_WeaponPhysicsGun *>( pVM->GetOwningWeapon() );
+		}
+
+		if ( !pPhysgun )
+		{
+			C_BaseCombatWeapon *pWeapon = dynamic_cast<C_BaseCombatWeapon *>( pBaseEntity );
+			if ( pWeapon )
+			{
+				pPlayer = ToBasePlayer( pWeapon->GetOwner() );
+				if ( pPlayer )
+					pPhysgun = dynamic_cast<C_WeaponPhysicsGun *>( pPlayer->GetActiveWeapon() );
+			}
+		}
+
+		if ( !pPhysgun )
+		{
+			pPlayer = dynamic_cast<C_BasePlayer *>( pBaseEntity );
+			if ( pPlayer )
+				pPhysgun = dynamic_cast<C_WeaponPhysicsGun *>( pPlayer->GetActiveWeapon() );
+		}
+	}
+
 	if ( pPhysgun )
 	{
 		currentR = pPhysgun->GetPhysgunColorR();
@@ -708,6 +735,10 @@ void PlayerWeaponColorProxy::OnBind( void *pC_BaseEntity )
 	}
 	else
 	{
+		// Dirty check
+		if ( !pPlayer )
+			return;
+
 		CBaseCombatWeapon *pWeapon = pPlayer->GetActiveWeapon();
 		if ( !pWeapon )
 			return;
@@ -747,10 +778,6 @@ void PlayerWeaponColorProxy::OnBind( void *pC_BaseEntity )
 	m_pResultVar->SetVecValue( r / 255.0f, g / 255.0f, b / 255.0f );
 }
 
-void PlayerWeaponColorProxy::Release()
-{
-}
-
 IMaterial *PlayerWeaponColorProxy::GetMaterial()
 {
 	return m_pMaterial;
@@ -788,6 +815,16 @@ void CWeaponPhysicsGun::UpdatePhysgunColors( void )
 	if ( pOwner )
 	{
 #ifndef CLIENT_DLL
+		// Bots.
+		if ( pOwner->GetFlags() & FL_FAKECLIENT )
+		{
+			int seed = pOwner->entindex();
+			m_iPhysgunColorR = ( seed * 73 + 31 ) % 256;
+			m_iPhysgunColorG = ( seed * 127 + 97 ) % 256;
+			m_iPhysgunColorB = ( seed * 197 + 53 ) % 256;
+			return;
+		}
+
 		const char *pszR = engine->GetClientConVarValue( pOwner->entindex(), "physgun_r" );
 		const char *pszG = engine->GetClientConVarValue( pOwner->entindex(), "physgun_g" );
 		const char *pszB = engine->GetClientConVarValue( pOwner->entindex(), "physgun_b" );
@@ -1613,8 +1650,21 @@ int CWeaponPhysicsGun::DrawModel( int flags )
 		IMaterial *pMat = materials->FindMaterial( PHYSGUN_BEAM_SPRITE1, TEXTURE_GROUP_CLIENT_EFFECTS );
 		if ( pObject )
 			pMat = materials->FindMaterial( PHYSGUN_BEAM_SPRITE, TEXTURE_GROUP_CLIENT_EFFECTS );
+
+		// HACKHACK!! How does this even work?
+		bool bFound;
+		IMaterialVar *pTintVar = pMat->FindVar( "$selfillumtint", &bFound, false );
+		if ( bFound && pTintVar )
+		{
+			pTintVar->SetVecValue(
+				GetPhysgunColorR() / 255.0f,
+				GetPhysgunColorG() / 255.0f,
+				GetPhysgunColorB() / 255.0f
+			);
+		}
+
 		Vector color;
-		color.Init( 1, 1, 1 );
+		color.Init( 1.0f, 1.0f, 1.0f );
 
 		float scrollOffset = gpGlobals->curtime - (int)gpGlobals->curtime;
 		pRenderContext->Bind( pMat );
@@ -1765,8 +1815,20 @@ void CWeaponPhysicsGun::ViewModelDrawn( C_BaseViewModel *pBaseViewModel )
 	if ( pObject )
 		pMat = materials->FindMaterial( PHYSGUN_BEAM_SPRITE, TEXTURE_GROUP_CLIENT_EFFECTS );
 
+	// HACKHACK!! How does this even work?
+	bool bFound;
+	IMaterialVar *pTintVar = pMat->FindVar( "$selfillumtint", &bFound, false );
+	if ( bFound && pTintVar )
+	{
+		pTintVar->SetVecValue(
+			GetPhysgunColorR() / 255.0f,
+			GetPhysgunColorG() / 255.0f,
+			GetPhysgunColorB() / 255.0f
+		);
+	}
+
 	Vector color;
-	color.Init( 1, 1, 1 );
+	color.Init( 1.0f, 1.0f, 1.0f );
 
 	// Now draw it.
 	CViewSetup beamView2 = *view->GetPlayerViewSetup();

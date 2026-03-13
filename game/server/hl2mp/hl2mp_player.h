@@ -174,6 +174,12 @@ public:
 	virtual bool IsTaunting() const { return m_bTaunting; }
 	virtual Activity GetDanceAct() const { return m_aCurrentTaunt; }
 
+	virtual int GetPlayerColorR() const { return m_iPlayerColorR; }
+	virtual int GetPlayerColorG() const { return m_iPlayerColorG; }
+	virtual int GetPlayerColorB() const { return m_iPlayerColorB; }
+
+	virtual void UpdatePlayerColors();
+
 public:
     CUtlString m_CurrentHandModel;
 #endif
@@ -194,8 +200,13 @@ private:
 	float m_flNextModelChangeTime;
 	float m_flNextTeamChangeTime;
 #ifdef SBPP
-	CNetworkVar(bool, m_bTaunting);
-	CNetworkVar(Activity, m_aCurrentTaunt);
+	CNetworkVar( bool, m_bTaunting );
+	CNetworkVar( Activity, m_aCurrentTaunt );
+
+	// player color
+	CNetworkVar( int, m_iPlayerColorR );
+	CNetworkVar( int, m_iPlayerColorG );
+	CNetworkVar( int, m_iPlayerColorB );
 #endif
 
 	float m_flSlamProtectTime;	

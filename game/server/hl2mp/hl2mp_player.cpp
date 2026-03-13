@@ -145,6 +145,10 @@ IMPLEMENT_SERVERCLASS_ST(CHL2MP_Player, DT_HL2MP_Player)
 	
 	SendPropBool( SENDINFO( m_bTaunting) ),
 	SendPropInt( SENDINFO( m_aCurrentTaunt ) ),
+
+	SendPropInt( SENDINFO( m_iPlayerColorR ) ),
+	SendPropInt( SENDINFO( m_iPlayerColorG ) ),
+	SendPropInt( SENDINFO( m_iPlayerColorB ) ),
 #endif
 END_SEND_TABLE()
 
@@ -247,12 +251,16 @@ CHL2MP_Player::CHL2MP_Player() : m_PlayerAnimState( this )
 
 	m_iSpawnInterpCounter = 0;
 
-    m_bEnterObserver = false;
+	m_bEnterObserver = false;
 	m_bReady = false;
 
 #ifdef SBPP
 	m_aCurrentTaunt = ACT_INVALID;
 	m_bTaunting = false;
+
+	m_iPlayerColorR = 255;
+	m_iPlayerColorG = 255;
+	m_iPlayerColorB = 255;
 
 	m_CurrentHandModel = "";
 
@@ -820,6 +828,22 @@ void CHL2MP_Player::PreThink( void )
 #endif
 }
 
+#ifdef SBPP
+void CHL2MP_Player::UpdatePlayerColors()
+{
+	const char *pszR = engine->GetClientConVarValue( entindex(), "playercolor_r" );
+	const char *pszG = engine->GetClientConVarValue( entindex(), "playercolor_g" );
+	const char *pszB = engine->GetClientConVarValue( entindex(), "playercolor_b" );
+
+	if ( pszR && pszG && pszB )
+	{
+		m_iPlayerColorR = clamp( atoi( pszR ), 0, 255 );
+		m_iPlayerColorG = clamp( atoi( pszG ), 0, 255 );
+		m_iPlayerColorB = clamp( atoi( pszB ), 0, 255 );
+	}
+}
+#endif
+
 void CHL2MP_Player::PostThink( void )
 {
 	BaseClass::PostThink();
@@ -839,6 +863,10 @@ void CHL2MP_Player::PostThink( void )
 	QAngle angles = GetLocalAngles();
 	angles[PITCH] = 0;
 	SetLocalAngles( angles );
+
+#ifdef SBPP
+	UpdatePlayerColors();
+#endif
 
 #if defined(LUA_SDK)
 	CUtlString desiredModel;
@@ -1302,25 +1330,25 @@ bool CHL2MP_Player::HandleCommand_JoinTeam( int team )
 #ifdef SBPP
 void SendStartMessageMode( CBasePlayer *pPlayer, int mode )
 {
-    if ( !pPlayer )
-        return;
+	if ( !pPlayer )
+		return;
 
-    CSingleUserRecipientFilter filter( pPlayer );
-    filter.MakeReliable();
+	CSingleUserRecipientFilter filter( pPlayer );
+	filter.MakeReliable();
 
-    int msg_index = usermessages->LookupUserMessage( "StartMessageMode" );
-    if ( msg_index == -1 )
-    {
-        Warning( "Could not find StartMessageMode usermessage!\n" );
-        return;
-    }
+	int msg_index = usermessages->LookupUserMessage( "StartMessageMode" );
+	if ( msg_index == -1 )
+	{
+		Warning( "Could not find StartMessageMode usermessage!\n" );
+		return;
+	}
 
-    bf_write *pBuf = engine->UserMessageBegin( &filter, msg_index );
-    if ( !pBuf )
-        return;
+	bf_write *pBuf = engine->UserMessageBegin( &filter, msg_index );
+	if ( !pBuf )
+		return;
 
-    pBuf->WriteByte( mode );
-    engine->MessageEnd();
+	pBuf->WriteByte( mode );
+	engine->MessageEnd();
 }
 #endif
 
@@ -1357,7 +1385,7 @@ bool CHL2MP_Player::ClientCommand( const CCommand &args )
 	else if ( FStrEq( args[0], "messagemode" ) )
 	{
 		CBasePlayer *pPlayer = UTIL_GetCommandClient();
-    	SendStartMessageMode( pPlayer, 0 );
+		SendStartMessageMode( pPlayer, 0 );
 		return true;
 	}
 #endif
@@ -1882,7 +1910,7 @@ CON_COMMAND( timeleft, "prints the time remaining in the match" )
 	CHL2MP_Player *pPlayer = ToHL2MPPlayer( UTIL_GetCommandClient() );
 
 	int iTimeRemaining = (int)HL2MPRules()->GetMapRemainingTime();
-    
+	
 	if ( iTimeRemaining == 0 )
 	{
 		if ( pPlayer )
@@ -2259,8 +2287,8 @@ void CHL2MP_Player::StartTaunt(Activity aDance)
 			break;
 	}
 
-    SetThink(&CHL2MP_Player::EndTaunt);
-    SetNextThink(gpGlobals->curtime + duration);
+	SetThink(&CHL2MP_Player::EndTaunt);
+	SetNextThink(gpGlobals->curtime + duration);
 }
 
 void CHL2MP_Player::EndTaunt()
@@ -2276,26 +2304,26 @@ void CHL2MP_Player::EndTaunt()
 
 void CC_PlayAct(const CCommand &args)
 {
-    if (args.ArgC() < 2)
-    {
-        Msg("Usage: act <act_name>\n");
-        return;
-    }
+	if (args.ArgC() < 2)
+	{
+		Msg("Usage: act <act_name>\n");
+		return;
+	}
 
-    const char* actName = args[1];
-    Activity act = ACT_INVALID;
+	const char* actName = args[1];
+	Activity act = ACT_INVALID;
 
-    if (FStrEq(actName, "dance")) act = ACT_GMOD_TAUNT_DANCE;
+	if (FStrEq(actName, "dance")) act = ACT_GMOD_TAUNT_DANCE;
 	else if (FStrEq(actName, "muscle")) act = ACT_GMOD_TAUNT_MUSCLE;
 	else if (FStrEq(actName, "laugh")) act = ACT_GMOD_TAUNT_LAUGH;
-    else
-    {
-        Msg("Unknown act: %s\n", actName);
-        return;
-    }
+	else
+	{
+		Msg("Unknown act: %s\n", actName);
+		return;
+	}
 
-    CHL2MP_Player* pPlayer = ToHL2MPPlayer( UTIL_GetCommandClient() );
-    if (!pPlayer) return;
+	CHL2MP_Player* pPlayer = ToHL2MPPlayer( UTIL_GetCommandClient() );
+	if (!pPlayer) return;
 
 	pPlayer->StartTaunt(act);
 }
