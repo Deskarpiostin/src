@@ -36,8 +36,8 @@ extern ConVar sv_spawnmenu_allowed;
 
 using namespace vgui;
 
-// 5 spaces
-#define STARTER_SPACES_TAB "     "
+// 6 spaces
+#define STARTER_SPACES_TAB "      "
 
 ConVar cl_showspawnmenu( "cl_showspawnmenu", "0", FCVAR_CLIENTDLL, "Sets the state of spawn menu" );
 
