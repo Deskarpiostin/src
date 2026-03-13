@@ -179,6 +179,7 @@ extern vgui::IInputInternal *g_InputInternal;
 #ifdef SBPP
 #include "sbpp/dynamicsky.h"
 #include "sbpp/gameui/loading.h"
+#include "sbpp/mount.h"
 
 #ifdef _WIN32
 #undef MessageBox
@@ -896,16 +897,6 @@ CHLClient::CHLClient()
 
 extern IGameSystem *ViewportClientSystem();
 
-#ifdef SBPP
-ConVar hl2_mounted("hl2_mounted", "0", FCVAR_DEVELOPMENTONLY);
-ConVar portal_mounted("portal_mounted", "0", FCVAR_DEVELOPMENTONLY);
-ConVar css_mounted("css_mounted", "0", FCVAR_DEVELOPMENTONLY);
-ConVar hl1_mounted("hl1_mounted", "0", FCVAR_DEVELOPMENTONLY);
-ConVar hl2mp_mounted("hl2mp_mounted", "0", FCVAR_DEVELOPMENTONLY);
-ConVar ep2_mounted("ep2_mounted", "0", FCVAR_DEVELOPMENTONLY);
-ConVar episodic_mounted("episodic_mounted", "0", FCVAR_DEVELOPMENTONLY);
-#endif
-
 //-----------------------------------------------------------------------------
 ISourceVirtualReality *g_pSourceVR = NULL;
 
@@ -1002,105 +993,6 @@ int CHLClient::Init( CreateInterfaceFn appSystemFactory, CreateInterfaceFn physi
 	if (!g_pMatSystemSurface)
 		return false;
 
-#ifdef SBPP
-	const char* pFullPath = engine->GetGameDirectory();
-	DevMsg("full path: %s\n", pFullPath);
-
-    const char* relativeTargets[] = {
-        "hl2mp/hl2mp_english_dir.vpk",
-        "hl2mp/hl2mp_pak_dir.vpk",
-        "lostcoast/lostcoast_sound_vo_english_dir.vpk",
-        "lostcoast/lostcoast_pak_dir.vpk",
-        "cstrike/cstrike_pak_dir.vpk",
-        "dod/dod_pak_dir.vpk",
-        "hl1/hl1_pak_dir.vpk",
-        "episodic/ep1_pak_dir.vpk",
-        "ep2/ep2_pak_dir.vpk",
-        "portal/portal_sound_vo_english_dir.vpk",
-        "portal/portal_pak_dir.vpk",
-        "cstrike/cstrike_english_dir.vpk",
-        "dod/dod_english_dir.vpk",
-        "hl1_hd/hl1_hd_pak_dir.vpk",
-        "hl1/hl1_sound_vo_english_dir.vpk",
-        "hl1/hl1_pak_dir.vpk",
-        "hl1mp/hl1mp_pak_dir.vpk",
-        "episodic/ep1_sound_vo_english_dir.vpk",
-        "ep2/ep2_sound_vo_english_dir.vpk",
-
-        "episodic",
-        "ep2",
-        "hl2mp",
-        "hl1",
-        "dod",
-        "portal",
-        "cstrike"
-    };
-
-    bool cssMounted    = false;
-    bool hl2Mounted    = false;
-    bool portalMounted = false;
-    bool hl1Mounted    = false;
-	bool hl2mpMounted  = false;
-	bool episodicMounted = false;
-	bool ep2Mounted    = false;
-
-    for (int i = 0; i < ARRAYSIZE(relativeTargets); ++i)
-    {
-        char candidate[MAX_PATH * 3];
-        Q_snprintf(candidate, sizeof(candidate), "%s/../%s", pFullPath, relativeTargets[i]);
-
-        // normalize
-        V_FixSlashes(candidate);
-
-        const char *lastSlash = Q_strrchr(candidate, '/');
-        const char *lastName = lastSlash ? lastSlash + 1 : candidate;
-        bool isDir = (candidate[Q_strlen(candidate) - 1] == '/') || (Q_strrchr(lastName, '.') == NULL);
-
-        if (isDir)
-            V_AppendSlash(candidate, sizeof(candidate));
-
-        if (g_pFullFileSystem->FileExists(candidate, "GAME"))
-        {
-			if (!isDir)
-			{
-				DevMsg("Mounting VPK: %s\n", candidate);
-				g_pFullFileSystem->AddSearchPath(candidate, "GAME", PATH_ADD_TO_TAIL);
-			}
-			else
-			{
-				DevMsg("Mounting directory: %s\n", candidate);
-				g_pFullFileSystem->AddSearchPath(candidate, "GAME", PATH_ADD_TO_TAIL);
-			}
-
-			if (Q_stristr(candidate, "cstrike"))
-				cssMounted = true;
-			if (Q_stristr(candidate, "hl1"))
-				hl1Mounted = true;
-			if (Q_stristr(candidate, "hl2mp"))
-				hl2mpMounted = true;
-			if (Q_stristr(candidate, "hl2"))
-				hl2Mounted = true;
-			if (Q_stristr(candidate, "episodic"))
-				episodicMounted = true;
-			if (Q_stristr(candidate, "ep2"))
-				ep2Mounted = true;
-			if (Q_stristr(candidate, "portal"))
-				portalMounted = true;
-
-        }
-        else
-            DevMsg("Skipping missing: %s\n", candidate);
-    }
-
-    css_mounted.SetValue(cssMounted ? 1 : 0);
-    hl2_mounted.SetValue(hl2Mounted ? 1 : 0);
-    portal_mounted.SetValue(portalMounted ? 1 : 0);
-    hl1_mounted.SetValue(hl1Mounted ? 1 : 0);
-	hl2mp_mounted.SetValue(hl2mpMounted ? 1 : 0);
-	episodic_mounted.SetValue(episodicMounted ? 1 : 0);
-	ep2_mounted.SetValue(ep2Mounted ? 1 : 0);
-#endif
-
 #ifdef WORKSHOP_IMPORT_ENABLED
 	if ( !ConnectDataModel( appSystemFactory ) )
 		return false;
@@ -1109,6 +1001,9 @@ int CHLClient::Init( CreateInterfaceFn appSystemFactory, CreateInterfaceFn physi
 	InitFbx();
 #endif
 
+#ifdef SBPP
+	loadMount();
+#endif
 #ifdef LUA_SDK
 	MountAddons();
 #endif

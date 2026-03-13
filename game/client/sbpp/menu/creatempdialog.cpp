@@ -27,138 +27,74 @@ using namespace vgui;
 ConVar selmap( "selmap", "", FCVAR_DEVELOPMENTONLY );
 ConVar mpdialog( "mpdialog", "0" );
 
-CUtlVector< const char * > hardcodedMaps;
-const char				  *hl2_maps[] = { "d1_trainstation_01", "d1_trainstation_02", "d1_trainstation_03", "d1_trainstation_04", "d1_trainstation_05", "d1_trainstation_06",
-
-				   "d1_canals_01", "d1_canals_01a", "d1_canals_02", "d1_canals_03", "d1_canals_05", "d1_canals_06", "d1_canals_07", "d1_canals_08", "d1_canals_09", "d1_canals_10", "d1_canals_11", "d1_canals_12", "d1_canals_13",
-
-				   "d1_eli_01", "d1_eli_02",
-
-				   "d1_town_01", "d1_town_01a", "d1_town_02", "d1_town_03", "d1_town_02a", "d1_town_04", "d1_town_05",
-
-				   "d2_coast_01", "d2_coast_03", "d2_coast_04", "d2_coast_05", "d2_coast_07", "d2_coast_08",
-
-				   "d2_coast_09", "d2_coast_10", "d2_coast_11", "d2_coast_12", "d2_prison_01",
-
-				   "d2_prison_02", "d2_prison_03", "d2_prison_04", "d2_prison_05",
-
-				   "d2_prison_06", "d2_prison_07", "d2_prison_08", "d3_c17_01", "d3_c17_02", "d3_c17_03", "d3_c17_04", "d3_c17_05", "d3_c17_06", "d3_c17_07", "d3_c17_08", "d3_c17_09", "d3_c17_10a", "d3_c17_10b", "d3_c17_11", "d3_c17_12", "d3_c17_12b",
-				   "d3_c17_13",
-
-				   "d3_citadel_01", "d3_citadel_02", "d3_citadel_03", "d3_citadel_04", "d3_citadel_05",
-
-				   "d3_breen_01" };
-
-const char *hl2mp_maps[] = { "dm_lockdown", "dm_overwatch", "dm_powerhouse", "dm_resistance", "dm_runoff", "dm_steamlab", "dm_underpass", "halls3" };
-
-const char *episodic_maps[] = { "ep1_citadel_00", "ep1_citadel_01", "ep1_citadel_02", "ep1_citadel_02b",
-
-	"ep1_citadel_03", "ep1_citadel_04",
-
-	"ep1_c17_00", "ep1_c17_00a",
-
-	"ep1_c17_01", "ep1_c17_02", "ep1_c17_02b", "ep1_c17_02a",
-
-	"ep1_c17_05", "ep1_c17_06" };
-
-const char *ep2_maps[] = { "ep2_outland_01", "ep2_outland_01a",
-
-	"ep2_outland_02", "ep2_outland_03", "ep2_outland_04",
-
-	"ep2_outland_05", "ep2_outland_06",
-
-	"ep2_outland_06a", "ep2_outland_07", "ep2_outland_08",
-
-	"ep2_outland_09", "ep2_outland_10", "ep2_outland_10a",
-
-	"ep2_outland_11", "ep2_outland_11a", "ep2_outland_11b",
-
-	"ep2_outland_12", "ep2_outland_12a" };
-
-const char *css_maps[] = { "de_dust", "de_dust2", "de_inferno", "de_nuke", "de_train", "de_aztec", "de_mirage", "de_prodigy", "de_chateau", "cs_office", "cs_assault", "cs_compound", "cs_havana", "cs_italy", "cs_militia" };
-
-const char *portal_maps[] = { "testchmb_a_00", "testchmb_a_01", "testchmb_a_02", "testchmb_a_03", "testchmb_a_04", "testchmb_a_05", "testchmb_a_06", "testchmb_a_07", "testchmb_a_08", "testchmb_a_09", "testchmb_a_10", "testchmb_a_11",
-	"testchmb_a_12", "testchmb_a_13", "testchmb_a_14", "testchmb_a_15", "testchmb_a_16", "testchmb_a_17", "testchmb_a_18", "testchmb_a_19", "escape_00", "escape_01", "escape_02" };
-
-const char *hl1_maps[] = { "c0a0", "c0a0a", "c0a0b", "c0a0c", "c0a0d", "c0a0e",
-
-	"c1a0", "c1a0d", "c1a0a", "c1a0b", "c1a0e",
-
-	"c1a1a", "c1a1f", "c1a1b", "c1a1c", "c1a1d",
-
-	"c1a2", "c1a2a", "c1a2b", "c1a2c", "c1a2d",
-
-	"c1a3", "c1a3a", "c1a3b", "c1a3c", "c1a3d",
-
-	"c1a4", "c1a4k", "c1a4b", "c1a4f", "c1a4d", "c1a4e", "c1a4i", "c1a4g", "c1a4j",
-
-	"c2a1", "c2a1a", "c2a1b",
-
-	"c2a2", "c2a2a", "c2a2b1", "c2a2b2", "c2a2c", "c2a2d", "c2a2e", "c2a2f", "c2a2g", "c2a2h",
-
-	"c2a3", "c2a3a", "c2a3b", "c2a3c", "c2a3d", "c2a3e",
-
-	"c2a4", "c2a4a", "c2a4b", "c2a4c",
-
-	"c2a4d", "c2a4e", "c2a4f", "c2a4g",
-
-	"c2a5", "c2a5w", "c2a5x", "c2a5a", "c2a5b", "c2a5c", "c2a5d", "c2a5e", "c2a5f", "c2a5g",
-
-	"c3a1", "c3a1a", "c3a1b",
-
-	"c3a2e", "c3a2", "c3a2a", "c3a2b", "c3a2c", "c3a2d", "c3a2f",
-
-	"c4a1",
-
-	"c4a2", "c4a2a", "c4a2b",
-
-	"c4a1a", "c4a1b", "c4a1c", "c4a1d", "c4a1e", "c4a1f",
-
-	"c4a3",
-
-	"c5a1",
-
-	"t0a0", "t0a0a", "t0a0b", "t0a0b1", "t0a0b2", "t0a0c", "t0a0d" };
-
-extern ConVar hl2_mounted;
-extern ConVar portal_mounted;
-extern ConVar css_mounted;
-extern ConVar hl1_mounted;
-extern ConVar hl2mp_mounted;
-extern ConVar episodic_mounted;
-extern ConVar ep2_mounted;
+static CUtlVector<const char*> hardcodedMaps;
 
 GameMapsPanel::GameMapsPanel( vgui::Panel *parent, const char *pName ) : MapListPanel( parent, pName )
 {
 	SetBounds( 0, 0, 800, 640 );
 
-	if ( hl2_mounted.GetBool() )
-		for ( int i = 0; i < ARRAYSIZE( hl2_maps ); i++ )
-			hardcodedMaps.AddToTail( hl2_maps[i] );
+	char gamePaths[8192];
+	char modPath[1024];
 
-	if ( css_mounted.GetBool() )
-		for ( int i = 0; i < ARRAYSIZE( css_maps ); i++ )
-			hardcodedMaps.AddToTail( css_maps[i] );
+	g_pFullFileSystem->GetSearchPath( "GAME", true, gamePaths, sizeof( gamePaths ) );
+	g_pFullFileSystem->GetSearchPath( "MOD", true, modPath, sizeof( modPath ) );
 
-	if ( portal_mounted.GetBool() )
-		for ( int i = 0; i < ARRAYSIZE( portal_maps ); i++ )
-			hardcodedMaps.AddToTail( portal_maps[i] );
+	char *path = strtok( gamePaths, ";" );
 
-	if ( hl1_mounted.GetBool() )
-		for ( int i = 0; i < ARRAYSIZE( hl1_maps ); i++ )
-			hardcodedMaps.AddToTail( hl1_maps[i] );
+	while ( path )
+	{
+		if ( !Q_stristr( path, modPath ) &&
+			 !Q_stristr( path, "addons" ) )
+		{
+			const char *tempID = "MAPSCAN";
+			g_pFullFileSystem->AddSearchPath( path, tempID );
 
-	if ( hl2mp_mounted.GetBool() )
-		for ( int i = 0; i < ARRAYSIZE( hl2mp_maps ); i++ )
-			hardcodedMaps.AddToTail( hl2mp_maps[i] );
+			FileFindHandle_t handle;
+			const char *file = g_pFullFileSystem->FindFirstEx( "maps/*.bsp", tempID, &handle );
 
-	if ( episodic_mounted.GetBool() )
-		for ( int i = 0; i < ARRAYSIZE( episodic_maps ); i++ )
-			hardcodedMaps.AddToTail( episodic_maps[i] );
+			if ( file )
+			{
+				do
+				{
+					if ( g_pFullFileSystem->FindIsDirectory( handle ) )
+						continue;
 
-	if ( ep2_mounted.GetBool() )
-		for ( int i = 0; i < ARRAYSIZE( ep2_maps ); i++ )
-			hardcodedMaps.AddToTail( ep2_maps[i] );
+					const char *mapName = file;
+
+					if ( !Q_strnicmp( mapName, "maps/", 5 ) )
+						mapName += 5;
+
+					char mapNoExt[MAX_PATH];
+					Q_StripExtension( mapName, mapNoExt, sizeof( mapNoExt ) );
+
+					bool duplicate = false;
+
+					for ( int i = 0; i < hardcodedMaps.Count(); i++ )
+					{
+						if ( !Q_stricmp( hardcodedMaps[i], mapNoExt ) )
+						{
+							duplicate = true;
+							break;
+						}
+					}
+
+					if ( !duplicate )
+					{
+						char *copy = new char[strlen( mapNoExt ) + 1];
+						Q_strcpy( copy, mapNoExt );
+						hardcodedMaps.AddToTail( copy );
+					}
+
+				} while ( ( file = g_pFullFileSystem->FindNext( handle ) ) );
+
+				g_pFullFileSystem->FindClose( handle );
+			}
+
+			g_pFullFileSystem->RemoveSearchPath( path, tempID );
+		}
+
+		path = strtok( NULL, ";" );
+	}
 
 	for ( int i = 0; i < hardcodedMaps.Count(); i++ )
 	{
@@ -169,9 +105,7 @@ GameMapsPanel::GameMapsPanel( vgui::Panel *parent, const char *pName ) : MapList
 		Q_snprintf( command, sizeof( command ), "select %s", hardcodedMaps[i] );
 
 		if ( g_pFullFileSystem->FileExists( pngPath ) )
-		{
 			AddButton( this, pngPath, command, hardcodedMaps[i] );
-		}
 		else
 			AddButton( this, "materials/gui/noicon.png", command, hardcodedMaps[i] );
 	}
