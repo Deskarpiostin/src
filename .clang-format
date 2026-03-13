@@ -1,0 +1,31 @@
+# .clang-format
+BasedOnStyle: Microsoft
+IndentWidth: 4
+UseTab: Always
+BreakBeforeBraces: Allman
+SpaceBeforeParens: ControlStatements
+SpacesInParentheses: true
+PointerAlignment: Right
+AllowShortFunctionsOnASingleLine: None
+ColumnLimit: 240 # fuck.
+AlignAfterOpenBracket: DontAlign
+Cpp11BracedListStyle: false
+SortIncludes: false
+SpacesInAngles: true
+PackConstructorInitializers: CurrentLine
+BreakConstructorInitializers: AfterColon
+ConstructorInitializerIndentWidth: 4
+AccessModifierOffset: -4
+ReflowComments: false
+CommentPragmas: '^ Purpose: '
+AllowAllParametersOfDeclarationOnNextLine: true
+MacroBlockBegin: '^IMPLEMENT_SERVERCLASS_ST|^BEGIN_DATADESC'
+MacroBlockEnd: '^END_SEND_TABLE|^END_DATADESC'
+AlignConsecutiveDeclarations: true
+BraceWrapping:
+  AfterClass: true
+  AfterStruct: true
+  AfterFunction: true
+  AfterControlStatement: true
+  IndentBraces: false
+  SplitEmptyFunction: false
