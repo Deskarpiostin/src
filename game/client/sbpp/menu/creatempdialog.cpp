@@ -27,7 +27,7 @@ using namespace vgui;
 ConVar selmap( "selmap", "", FCVAR_DEVELOPMENTONLY );
 ConVar mpdialog( "mpdialog", "0" );
 
-static CUtlVector<const char*> hardcodedMaps;
+CUtlVector< const char * > hardcodedMaps;
 
 GameMapsPanel::GameMapsPanel( vgui::Panel *parent, const char *pName ) : MapListPanel( parent, pName )
 {
@@ -35,40 +35,48 @@ GameMapsPanel::GameMapsPanel( vgui::Panel *parent, const char *pName ) : MapList
 
 	char gamePaths[8192];
 	char modPath[1024];
-
 	g_pFullFileSystem->GetSearchPath( "GAME", true, gamePaths, sizeof( gamePaths ) );
 	g_pFullFileSystem->GetSearchPath( "MOD", true, modPath, sizeof( modPath ) );
 
-	char *path = strtok( gamePaths, ";" );
+	CUtlVector< const char * > modPaths;
+	char					  *modTok = strtok( modPath, ";" );
+	while ( modTok )
+	{
+		modPaths.AddToTail( modTok );
+		modTok = strtok( NULL, ";" );
+	}
 
+	char *path = strtok( gamePaths, ";" );
 	while ( path )
 	{
-		if ( !Q_stristr( path, modPath ) &&
-			 !Q_stristr( path, "addons" ) )
+		bool isMod = false;
+		for ( int i = 0; i < modPaths.Count(); i++ )
+		{
+			if ( !Q_stricmp( path, modPaths[i] ) )
+			{
+				isMod = true;
+				break;
+			}
+		}
+
+		if ( !isMod && !Q_stristr( path, "addons" ) )
 		{
 			const char *tempID = "MAPSCAN";
 			g_pFullFileSystem->AddSearchPath( path, tempID );
-
 			FileFindHandle_t handle;
-			const char *file = g_pFullFileSystem->FindFirstEx( "maps/*.bsp", tempID, &handle );
-
+			const char		*file = g_pFullFileSystem->FindFirstEx( "maps/*.bsp", tempID, &handle );
 			if ( file )
 			{
 				do
 				{
 					if ( g_pFullFileSystem->FindIsDirectory( handle ) )
 						continue;
-
 					const char *mapName = file;
-
 					if ( !Q_strnicmp( mapName, "maps/", 5 ) )
 						mapName += 5;
-
 					char mapNoExt[MAX_PATH];
 					Q_StripExtension( mapName, mapNoExt, sizeof( mapNoExt ) );
-
 					bool duplicate = false;
-
 					for ( int i = 0; i < hardcodedMaps.Count(); i++ )
 					{
 						if ( !Q_stricmp( hardcodedMaps[i], mapNoExt ) )
@@ -77,22 +85,17 @@ GameMapsPanel::GameMapsPanel( vgui::Panel *parent, const char *pName ) : MapList
 							break;
 						}
 					}
-
 					if ( !duplicate )
 					{
 						char *copy = new char[strlen( mapNoExt ) + 1];
 						Q_strcpy( copy, mapNoExt );
 						hardcodedMaps.AddToTail( copy );
 					}
-
 				} while ( ( file = g_pFullFileSystem->FindNext( handle ) ) );
-
 				g_pFullFileSystem->FindClose( handle );
 			}
-
 			g_pFullFileSystem->RemoveSearchPath( path, tempID );
 		}
-
 		path = strtok( NULL, ";" );
 	}
 

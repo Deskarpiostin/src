@@ -23,8 +23,8 @@ ConVar dod_mounted( "dod_mounted", "0", FCVAR_DEVELOPMENTONLY );
 
 struct GameMount
 {
-    const char* name;
-    ConVar* var;
+	const char *name;
+	ConVar	   *var;
 };
 
 static GameMount mounts[] = { { "hl2", &hl2_mounted }, { "cstrike", &css_mounted }, { "portal", &portal_mounted }, { "hl1", &hl1_mounted }, { "hl2mp", &hl2mp_mounted }, { "ep2", &ep2_mounted }, { "episodic", &episodic_mounted },
@@ -35,24 +35,32 @@ static void ConcatPaths( char *dest, const char *basePath, const char *fileName,
 	snprintf( dest, destSize, "%s/%s", basePath, fileName );
 }
 
-static void StripDirFromFileName( char *fileName )
+static void StripDirFromFileName( char *fileName, size_t bufSize )
 {
-	size_t len = strlen( fileName );
-	if ( len > 8 && strcmp( fileName + len - 8, "_dir.vpk" ) == 0 )
+	size_t		 len = Q_strlen( fileName );
+	const char	*suffix = "_dir.vpk";
+	const size_t suffixLen = Q_strlen( suffix ); // 8
+	if ( len > suffixLen && Q_stricmp( fileName + len - suffixLen, suffix ) == 0 )
 	{
-		fileName[len - 8] = '\0';
-		strcat( fileName, ".vpk" );
+		fileName[len - suffixLen] = '\0';
+		Q_strncat( fileName, ".vpk", bufSize );
 	}
 }
 
 static void AddDirectoryAndVPks( const char *directoryPath )
 {
-	// Dirty hack to get sourcemods mounting too
-	g_pFullFileSystem->AddSearchPath( directoryPath, "GAME" );
+	if ( !directoryPath || !directoryPath[0] )
+		return;
+
+	char dir[MAX_PATH];
+	Q_strncpy( dir, directoryPath, sizeof( dir ) );
+	V_FixSlashes( dir );
+	V_AppendSlash( dir, sizeof( dir ) );
+
+	g_pFullFileSystem->AddSearchPath( dir, "GAME" );
 
 	char searchPattern[MAX_PATH];
-	Q_snprintf( searchPattern, sizeof( searchPattern ), "%s/*_dir.vpk", directoryPath );
-
+	Q_snprintf( searchPattern, sizeof( searchPattern ), "%s*_dir.vpk", dir );
 	FileFindHandle_t findHandle;
 	const char		*fileName = g_pFullFileSystem->FindFirst( searchPattern, &findHandle );
 
@@ -64,10 +72,9 @@ static void AddDirectoryAndVPks( const char *directoryPath )
 			char modifiedFileName[MAX_PATH];
 
 			Q_strncpy( modifiedFileName, fileName, sizeof( modifiedFileName ) );
+			StripDirFromFileName( modifiedFileName, sizeof( modifiedFileName ) );
 
-			StripDirFromFileName( modifiedFileName );
-
-			ConcatPaths( vpkPath, directoryPath, modifiedFileName, sizeof( vpkPath ) );
+			Q_snprintf( vpkPath, sizeof( vpkPath ), "%s%s", dir, modifiedFileName );
 			DevMsg( "Adding VPK: %s\n", vpkPath );
 			g_pFullFileSystem->AddSearchPath( vpkPath, "GAME" );
 
@@ -75,50 +82,57 @@ static void AddDirectoryAndVPks( const char *directoryPath )
 
 		g_pFullFileSystem->FindClose( findHandle );
 	}
-	else
-	{
-		DevWarning( "No .vpk files found in directory: %s\n", directoryPath );
-	}
 }
 
 void loadMount()
 {
 	KeyValues *pKeyValues = new KeyValues( "mounts" );
-	pKeyValues->LoadFromFile( g_pFullFileSystem, "cfg/mounts.kv", "MOD", true );
 
-	if ( pKeyValues )
+	bool loaded = pKeyValues->LoadFromFile( g_pFullFileSystem, "cfg/mounts.kv", "GAME", true );
+	if ( !loaded )
 	{
-		KeyValues *pSubKey = pKeyValues->GetFirstSubKey();
-		while ( pSubKey )
+		if ( !pKeyValues->LoadFromFile( g_pFullFileSystem, "cfg/mounts.kv", NULL, true ) )
 		{
-			const char *gameName = pSubKey->GetName();
-			const char *path = pSubKey->GetString();
-
-			// Folder doesn't exist
-			if ( !filesystem->IsDirectory( path, "GAME" ) )
-			{
-				Warning( "Mount path does not exist: %s\n", path );
-				pSubKey = pSubKey->GetNextKey();
-				continue;
-			}
-
-			for ( const auto &m : mounts )
-			{
-				if ( !Q_stricmp( gameName, m.name ) )
-				{
-					m.var->SetValue( 1 );
-					break;
-				}
-			}
-
-			Msg( "Mounting %s from %s\n", gameName, path );
-
-			AddDirectoryAndVPks( path );
-
-			pSubKey = pSubKey->GetNextKey();
+			pKeyValues->deleteThis();
+			return;
 		}
 	}
 
+	KeyValues *pSubKey = pKeyValues->GetFirstSubKey();
+
+	while ( pSubKey )
+	{
+		const char *gameName = pSubKey->GetName();
+		const char *path = pSubKey->GetString();
+
+		if ( !path || !path[0] )
+		{
+			Warning( "loadMount: empty path for game %s in mounts.kv\n", gameName );
+			pSubKey = pSubKey->GetNextKey();
+			continue;
+		}
+
+		if ( !g_pFullFileSystem->IsDirectory( path, "GAME" ) && !g_pFullFileSystem->IsDirectory( path, NULL ) )
+		{
+			Warning( "Mount path does not exist: %s (game %s)\n", path, gameName );
+			pSubKey = pSubKey->GetNextKey();
+			continue;
+		}
+
+		for ( const auto &m : mounts )
+		{
+			if ( !Q_stricmp( gameName, m.name ) )
+			{
+				m.var->SetValue( 1 );
+				break;
+			}
+		}
+
+		Msg( "Mounting %s from %s\n", gameName, path );
+		AddDirectoryAndVPks( path );
+
+		pSubKey = pSubKey->GetNextKey();
+	}
+
 	pKeyValues->deleteThis();
-	return;
 }
