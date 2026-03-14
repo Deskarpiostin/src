@@ -6,6 +6,7 @@
 
 #include "cbase.h"
 #include "beam_shared.h"
+#include "iconvar.h"
 #ifndef CLIENT_DLL
 #include "player.h"
 #endif
@@ -94,6 +95,7 @@ ConVar physgun_halo_override_g( "physgun_halo_override_g", "229", FCVAR_USERINFO
 ConVar physgun_halo_override_b( "physgun_halo_override_b", "238", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_CHEAT );
 
 ConVar physgun_light( "physgun_light", "0", FCVAR_REPLICATED );
+ConVar physgun_vm_glow( "physgun_vm_glow", "1", FCVAR_USERINFO | FCVAR_ARCHIVE );
 
 static IPhysicsObject *GetPhysObjFromPhysicsBone( CBaseEntity *pEntity, short physicsbone )
 {
@@ -1521,7 +1523,7 @@ int CWeaponPhysicsGun::DrawModel( int flags )
 			return 0;
 
 		// hack
-		if ( pOwner->InPerspectiveView() && pOwner->InFirstPersonView() )
+		if ( pOwner->InPerspectiveView() || pOwner->InFirstPersonView() )
 			return 0;
 
 		Vector points[3];
@@ -1543,9 +1545,12 @@ int CWeaponPhysicsGun::DrawModel( int flags )
 		pRenderContext->DepthRange( 0.1f, 0.2f );
 
 		pRenderContext->Bind( pMat1 );
-		for ( int i = 0; i < 3; ++i )
+		if ( physgun_vm_glow.GetBool() )
 		{
-			DrawSprite( points[0], scale1, scale1, clr );
+			for ( int i = 0; i < 3; ++i )
+			{
+				DrawSprite( points[0], scale1, scale1, clr );
+			}
 		}
 
 		pRenderContext->Flush();
@@ -1715,9 +1720,12 @@ void CWeaponPhysicsGun::ViewModelDrawn( C_BaseViewModel *pBaseViewModel )
 	pRenderContext->DepthRange( 0.1f, 0.2f );
 
 	pRenderContext->Bind( pMat1 );
-	for ( int i = 0; i < 3; ++i )
+	if ( physgun_vm_glow.GetBool() )
 	{
-		DrawSprite( points[0], scale1, scale1, clr );
+		for ( int i = 0; i < 3; ++i )
+		{
+			DrawSprite( points[0], scale1, scale1, clr );
+		}
 	}
 
 	pRenderContext->Flush();
