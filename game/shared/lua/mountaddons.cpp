@@ -129,6 +129,46 @@ static void ExtractZIP( const char *zipPath, const char *cacheBase, const char *
 	DevMsg( "Mounted ZIP addon: %s -> %s\n", zipPath, absOutBase );
 }
 
+static void MountAddonFolder( const char *folder, const char *gamePath )
+{
+	FileFindHandle_t fh;
+	char			 searchPath[MAX_PATH];
+	Q_snprintf( searchPath, sizeof( searchPath ), "%s/*", folder );
+
+	const char *fn = g_pFullFileSystem->FindFirstEx( searchPath, "MOD", &fh );
+	while ( fn )
+	{
+		if ( fn[0] != '.' )
+		{
+			char fullPath[MAX_PATH];
+			Q_snprintf( fullPath, sizeof( fullPath ), "%s/%s/%s", gamePath, folder, fn );
+			Q_FixSlashes( fullPath );
+
+			if ( g_pFullFileSystem->FindIsDirectory( fh ) )
+			{
+				DevMsg( "Mounting %s dir: %s\n", folder, fullPath );
+				filesystem->AddSearchPath( fullPath, "MOD", PATH_ADD_TO_HEAD );
+				filesystem->AddSearchPath( fullPath, "GAME", PATH_ADD_TO_HEAD );
+			}
+			else if ( Q_stristr( fn, ".vpk" ) )
+			{
+				DevMsg( "Mounting %s VPK: %s\n", folder, fullPath );
+				filesystem->AddSearchPath( fullPath, "MOD", PATH_ADD_TO_HEAD );
+				filesystem->AddSearchPath( fullPath, "GAME", PATH_ADD_TO_HEAD );
+			}
+			else if ( Q_stristr( fn, ".zip" ) )
+			{
+				DevMsg( "Mounting %s ZIP: %s\n", folder, fullPath );
+				ExtractZIP( fullPath, "cache", gamePath );
+			}
+		}
+
+		fn = g_pFullFileSystem->FindNext( fh );
+	}
+
+	g_pFullFileSystem->FindClose( fh );
+}
+
 void MountAddons()
 {
 	if ( CommandLine()->CheckParm( "-noaddons" ) )
@@ -150,38 +190,9 @@ void MountAddons()
 	filesystem->AddSearchPath( LUA_PATH_CACHE, "MOD", PATH_ADD_TO_HEAD );
 	filesystem->AddSearchPath( LUA_PATH_CACHE, "GAME", PATH_ADD_TO_HEAD );
 
-	FileFindHandle_t fh;
-	const char		*fn = g_pFullFileSystem->FindFirstEx( "addons/*", "MOD", &fh );
-	while ( fn )
-	{
-		if ( fn[0] != '.' )
-		{
-			char fullPath[MAX_PATH];
-			Q_snprintf( fullPath, sizeof( fullPath ), "%s/addons/%s", gamePath, fn );
-			Q_FixSlashes( fullPath );
-
-			if ( g_pFullFileSystem->FindIsDirectory( fh ) )
-			{
-				DevMsg( "Mounting addon dir: %s\n", fullPath );
-				filesystem->AddSearchPath( fullPath, "MOD", PATH_ADD_TO_HEAD );
-				filesystem->AddSearchPath( fullPath, "GAME", PATH_ADD_TO_HEAD );
-			}
-			else if ( Q_stristr( fn, ".vpk" ) )
-			{
-				DevMsg( "Mounting VPK: %s\n", fullPath );
-				filesystem->AddSearchPath( fullPath, "MOD", PATH_ADD_TO_HEAD );
-				filesystem->AddSearchPath( fullPath, "GAME", PATH_ADD_TO_HEAD );
-			}
-			else if ( Q_stristr( fn, ".zip" ) )
-			{
-				DevMsg( "Mounting ZIP: %s\n", fullPath );
-				ExtractZIP( fullPath, "cache", gamePath );
-			}
-		}
-
-		fn = g_pFullFileSystem->FindNext( fh );
-	}
-	g_pFullFileSystem->FindClose( fh );
+	MountAddonFolder( "addons", gamePath );
+	MountAddonFolder( "custom", gamePath );
+	MountAddonFolder( "mods", gamePath );
 }
 
 extern void lcf_recursivedeletefile( const char *current );
