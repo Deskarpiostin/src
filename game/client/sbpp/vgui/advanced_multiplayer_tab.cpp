@@ -81,7 +81,7 @@ static void SavePMCache( const std::vector<std::string> &paths )
 	g_pFullFileSystem->Close( fh );
 }
 
-ColorPreset GlobalPresets[] = { { "Red", 255, 0, 0 }, { "Green", 0, 255, 0 }, { "Blue", 0, 0, 255 }, { "White", 255, 255, 255 }, { "Cyan", 0, 255, 255 }, { "Purple", 128, 0, 128 }, { "Yellow", 255, 255, 0 }, { "Orange", 255, 128, 0 } };
+ColorPreset GlobalPresets[] = { { "Red", 255, 0, 0 }, { "Green", 0, 255, 0 }, { "Blue", 0, 0, 255 }, { "White", 255, 255, 255 }, { "Cyan", 38, 207, 232 }, { "Purple", 128, 0, 128 }, { "Yellow", 255, 255, 0 }, { "Orange", 255, 128, 0 } };
 
 static void LoadHandModelsFromLua( std::vector< HandModelInfo > &out )
 {
