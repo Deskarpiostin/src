@@ -1,9 +1,11 @@
 #!/bin/sh
-wget --retry-connrefused --tries=3 --timeout=30 --no-verbose -O android-ndk-r10e.zip https://dl.google.com/android/repository/android-ndk-r10e-linux-x86_64.zip
-unzip android-ndk-r10e.zip
+wget -q --retry-connrefused --tries=3 --timeout=30 \
+  -O android-ndk-r10e.zip \
+  https://dl.google.com/android/repository/android-ndk-r10e-linux-x86_64.zip
 
-wget --retry-connrefused --tries=3 --timeout=30 --no-verbose -O clang+llvm-11.1.0.tar.xz https://github.com/llvm/llvm-project/releases/download/llvmorg-11.1.0/clang+llvm-11.1.0-x86_64-linux-gnu-ubuntu-16.04.tar.xz
-tar -xf clang+llvm-11.1.0.tar.xz
+wget -q --retry-connrefused --tries=3 --timeout=30 \
+  -O clang+llvm-11.1.0.tar.xz \
+  https://github.com/llvm/llvm-project/releases/download/llvmorg-11.1.0/clang+llvm-11.1.0-x86_64-linux-gnu-ubuntu-16.04.tar.xz
 
 sudo dpkg --add-architecture i386
 sudo apt-get update
