@@ -889,6 +889,9 @@ public:
 			m_hoverTexId = sheet->LoadPNGTexture( "materials/gui/sm_hover.png" );
 		}
 
+		// todo: make this less hacky?
+		SetBgColor(Color(108, 111, 114, 128));
+
 		m_pVScroll = new ScrollBar( this, "PageScrollBar", true );
 		m_pVScroll->SetVisible( false );
 		m_pVScroll->AddActionSignalTarget( this );
@@ -1821,6 +1824,9 @@ CSpawnMenu::CSpawnMenu( vgui::VPANEL parent ) : BaseClass( NULL, "SpawnMenu" )
 	SetVisible( false );
 
 	SetScheme( vgui::scheme()->LoadSchemeFromFile( "resource/SourceScheme.res", "SourceScheme" ) );
+
+	// todo: make this less hacky?
+	SetBgColor(Color(108, 111, 114, 128));
 
 	vgui::ivgui()->AddTickSignal( GetVPanel(), 250 );
 
