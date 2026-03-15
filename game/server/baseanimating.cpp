@@ -363,7 +363,7 @@ void CBaseAnimating::SetGlowColorBlue(inputdata_t& inputdata)
 void CBaseAnimating::SetGlowColor(inputdata_t& inputdata)
 {
 	color32 color = inputdata.value.Color32();
-	SetGlowEffectColor(color.r/255, color.g/255, color.b/255);
+	SetGlowEffectColor((float)color.r/255, (float)color.g/255, (float)color.b/255);
 }
 
 

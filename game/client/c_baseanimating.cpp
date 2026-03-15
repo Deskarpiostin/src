@@ -4595,6 +4595,7 @@ void C_BaseAnimating::GetGlowEffectColor(float* r, float* g, float* b)
 //-----------------------------------------------------------------------------
 void C_BaseAnimating::UpdateGlowEffect( void )
 {
+#ifndef SBPP
 	// destroy the existing effect
 	if ( m_pGlowEffect )
 	{
@@ -4609,6 +4610,28 @@ void C_BaseAnimating::UpdateGlowEffect( void )
 
 		m_pGlowEffect = new CGlowObject( this, Vector( r, g, b ), 1.0, true );
 	}
+#else
+	float r, g, b;
+   	GetGlowEffectColor( &r, &g, &b );
+
+	if ( m_bGlowEnabled )
+	{
+		if ( m_pGlowEffect )
+		{
+			m_pGlowEffect->SetColor( Vector( r, g, b ) );
+		}
+		else
+		{
+			// create a new effect
+			m_pGlowEffect = new CGlowObject( this, Vector( r, g, b ), 1.0, false, true );
+		}
+	}
+	else
+	{
+		// destroy the existing effect
+		DestroyGlowEffect();
+	}
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -4789,7 +4812,7 @@ bool C_BaseAnimating::InitAsClientRagdoll( const matrix3x4_t *pDeltaBones0, cons
 	// Now set the dieragdoll sequence to get transforms for all
 	// non-simulated bones
 	m_nRestoreSequence = GetSequence();
-    SetSequence( SelectWeightedSequence( ACT_DIERAGDOLL ) );
+	SetSequence( SelectWeightedSequence( ACT_DIERAGDOLL ) );
 	m_nPrevSequence = GetSequence();
 	m_flPlaybackRate = 0;
 	UpdatePartitionListEntry();
@@ -4841,10 +4864,14 @@ void C_BaseAnimating::OnDataChanged( DataUpdateType_t updateType )
 
 
 #ifdef GLOWS_ENABLE
+#ifndef SBPP
 	if ( m_bOldGlowEnabled != m_bGlowEnabled )
 	{
+#endif
 		UpdateGlowEffect();
+#ifndef SBPP
 	}
+#endif
 #endif // GLOWS_ENABLE
 
 	bool modelchanged = false;
@@ -6307,7 +6334,7 @@ void C_BaseAnimating::CleanupToolRecordingState( KeyValues *msg )
 {
 	if ( !ToolsEnabled() )
 		return;
-		    
+			
 	BaseAnimatingRecordingState_t *pState = (BaseAnimatingRecordingState_t*)msg->GetPtr( "baseanimating" );
 	if ( pState && pState->m_pBoneList )
 	{

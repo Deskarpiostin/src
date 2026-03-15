@@ -89,11 +89,6 @@ ConVar physgun_r( "physgun_r", "0", FCVAR_USERINFO | FCVAR_ARCHIVE );
 ConVar physgun_g( "physgun_g", "229", FCVAR_USERINFO | FCVAR_ARCHIVE );
 ConVar physgun_b( "physgun_b", "238", FCVAR_USERINFO | FCVAR_ARCHIVE );
 
-ConVar physgun_halo_override( "physgun_halo_override", "0", FCVAR_USERINFO | FCVAR_CHEAT );
-ConVar physgun_halo_override_r( "physgun_halo_override_r", "0", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_CHEAT );
-ConVar physgun_halo_override_g( "physgun_halo_override_g", "229", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_CHEAT );
-ConVar physgun_halo_override_b( "physgun_halo_override_b", "238", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_CHEAT );
-
 ConVar physgun_light( "physgun_light", "0", FCVAR_REPLICATED );
 ConVar physgun_vm_glow( "physgun_vm_glow", "1", FCVAR_USERINFO | FCVAR_ARCHIVE );
 
@@ -784,9 +779,9 @@ void CWeaponPhysicsGun::UpdatePhysgunColors( void )
 
 		if ( pszR && pszG && pszB )
 		{
-			m_iPhysgunColorR = clamp( atoi( pszR ), 0, 255 );
-			m_iPhysgunColorG = clamp( atoi( pszG ), 0, 255 );
-			m_iPhysgunColorB = clamp( atoi( pszB ), 0, 255 );
+			m_iPhysgunColorR = atoi( pszR );
+			m_iPhysgunColorG = atoi( pszG );
+			m_iPhysgunColorB = atoi( pszB );
 		}
 #endif
 	}
@@ -1016,32 +1011,13 @@ void CWeaponPhysicsGun::EffectUpdate( void )
 		CBaseAnimating *pAnimating = pObject->GetBaseAnimating();
 		if ( pAnimating )
 		{
-			if ( !physgun_halo_override.GetBool() )
-			{
-				const char *physgun_r = engine->GetClientConVarValue( ENTINDEX( pOwner->edict() ), "physgun_r" );
-				const char *physgun_g = engine->GetClientConVarValue( ENTINDEX( pOwner->edict() ), "physgun_g" );
-				const char *physgun_b = engine->GetClientConVarValue( ENTINDEX( pOwner->edict() ), "physgun_b" );
+			float r = GetPhysgunColorR() / 255.f;
+			float g = GetPhysgunColorG() / 255.f;
+			float b = GetPhysgunColorB() / 255.f;
 
-				float r = atoi( physgun_r );
-				float g = atoi( physgun_g );
-				float b = atoi( physgun_b );
-
-				pAnimating->SetGlowEffectColor( r, g, b );
-			}
-			else
-			{
-				const char *physgun_r = engine->GetClientConVarValue( ENTINDEX( pOwner->edict() ), "physgun_halo_override_r" );
-				const char *physgun_g = engine->GetClientConVarValue( ENTINDEX( pOwner->edict() ), "physgun_halo_override_g" );
-				const char *physgun_b = engine->GetClientConVarValue( ENTINDEX( pOwner->edict() ), "physgun_halo_override_b" );
-
-				float r = atoi( physgun_r );
-				float g = atoi( physgun_g );
-				float b = atoi( physgun_b );
-
-				pAnimating->SetGlowEffectColor( r, g, b );
-			}
-
-			pAnimating->AddGlowEffect();
+			pAnimating->SetGlowEffectColor( r, g, b );
+			if ( !pAnimating->IsGlowEffectActive() )
+				pAnimating->AddGlowEffect();
 		}
 #endif
 
@@ -1294,9 +1270,8 @@ void CWeaponPhysicsGun::EffectDestroy( void )
 	{
 		CBaseAnimating *pAnimating = pObject->GetBaseAnimating();
 		if ( pAnimating )
-		{
-			pAnimating->RemoveGlowEffect();
-		}
+			if ( pAnimating->IsGlowEffectActive() )
+				pAnimating->RemoveGlowEffect();
 	}
 #endif
 
