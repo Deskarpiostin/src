@@ -210,9 +210,17 @@ private:
 	void Interp_Copy( C_BaseAnimatingOverlay *pDestinationEntity );
 	void CreateHL2MPRagdoll( void );
 
+#ifndef SBPP
 private:
+#else
+public:
+#endif
 
 	EHANDLE	m_hPlayer;
+
+#ifdef SBPP
+private:
+#endif
 	CNetworkVector( m_vecRagdollVelocity );
 	CNetworkVector( m_vecRagdollOrigin );
 };

@@ -11,6 +11,7 @@
 #include "materialsystem/imaterialvar.h"
 #include "proxyentity.h"
 #include "c_hl2mp_player.h"
+#include "c_baseanimating.h"
 #endif
 
 // memdbgon must be the last include file in a .cpp file!!!
@@ -31,7 +32,7 @@ class PlayerColorProxy : public CEntityMaterialProxy
 {
 public:
 	virtual bool	   Init( IMaterial *pMaterial, KeyValues *pKeyValues );
-	virtual void 	   OnBind( C_BaseEntity *pBaseEntity );
+	virtual void	   OnBind( C_BaseEntity *pBaseEntity );
 	virtual void	   Release();
 	virtual IMaterial *GetMaterial();
 
@@ -50,35 +51,49 @@ bool PlayerColorProxy::Init( IMaterial *pMaterial, KeyValues *pKeyValues )
 
 void PlayerColorProxy::OnBind( C_BaseEntity *pBaseEntity )
 {
-    if ( !m_pResultVar )
-        return;
+	if ( !m_pResultVar || !pBaseEntity )
+		return;
 
-    float r, g, b;
+	CBaseAnimating *pAnimating = dynamic_cast< CBaseAnimating * >( pBaseEntity );
+	if ( !pAnimating )
+		return;
 
-    C_HL2MP_Player *pPlayer = nullptr;
-    pPlayer = dynamic_cast<C_HL2MP_Player *>( pBaseEntity );
+	float			r, g, b;
+	C_HL2MP_Player *pPlayer = nullptr;
 
-    if ( !pPlayer )
-    {
-        C_BaseViewModel *pVM = dynamic_cast<C_BaseViewModel *>( pBaseEntity );
-        if ( pVM )
-            pPlayer = ToHL2MPPlayer( pVM->GetOwner() );
-    }
+	// If entity is a ragdoll try to convert it into the player
+	// ( this applies to their corpses )
+	if ( pAnimating->IsRagdoll() )
+	{
+		C_HL2MPRagdoll *pRagdoll = dynamic_cast< C_HL2MPRagdoll * >( pAnimating );
+		if ( pRagdoll )
+			pPlayer = dynamic_cast< C_HL2MP_Player * >( pRagdoll->m_hPlayer.Get() );
+	}
 
-    if ( pPlayer )
-    {
-        r = pPlayer->GetPlayerColorR() / 255.0f;
-        g = pPlayer->GetPlayerColorG() / 255.0f;
-        b = pPlayer->GetPlayerColorB() / 255.0f;
-    }
-    else
-    {
-        r = playercolor_r.GetFloat() / 255.0f;
-        g = playercolor_g.GetFloat() / 255.0f;
-        b = playercolor_b.GetFloat() / 255.0f;
-    }
+	if ( !pPlayer )
+		pPlayer = dynamic_cast< C_HL2MP_Player * >( pAnimating );
 
-    m_pResultVar->SetVecValue( r, g, b );
+	if ( !pPlayer )
+	{
+		C_BaseViewModel *pVM = dynamic_cast< C_BaseViewModel * >( pAnimating );
+		if ( pVM )
+			pPlayer = ToHL2MPPlayer( pVM->GetOwner() );
+	}
+
+	if ( pPlayer )
+	{
+		r = pPlayer->GetPlayerColorR() / 255.0f;
+		g = pPlayer->GetPlayerColorG() / 255.0f;
+		b = pPlayer->GetPlayerColorB() / 255.0f;
+	}
+	else
+	{
+		r = playercolor_r.GetFloat() / 255.0f;
+		g = playercolor_g.GetFloat() / 255.0f;
+		b = playercolor_b.GetFloat() / 255.0f;
+	}
+
+	m_pResultVar->SetVecValue( r, g, b );
 }
 
 void PlayerColorProxy::Release()
