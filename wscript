@@ -313,7 +313,7 @@ def options(opt):
 	grp.add_option('--use-togl', action = 'store', dest = 'GL', type = int, default = int(sys.platform != 'win32'),
 		help = 'build engine with ToGL [default: %(default)s]')
 
-	grp.add_option('--build-games', action = 'store', dest = 'GAMES', type = str, default = 'hl2',
+	grp.add_option('--build-games', action = 'store', dest = 'GAMES', type = str, default = 'hl2sbpp',
 		help = 'build games [default: %(default)s]')
 
 	grp.add_option('--use-ccache', action = 'store_true', dest = 'CCACHE', default = False,
