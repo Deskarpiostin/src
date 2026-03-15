@@ -38,7 +38,11 @@
 #ifdef _LINUX
 #define HK_BREAKPOINT() raise(SIGINT)
 #else
+#ifndef __APPLE__
 #define HK_BREAKPOINT() __debugbreak()
+#else
+#define HK_BREAKPOINT() do {} while (0)
+#endif
 #endif
 
 
