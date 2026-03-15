@@ -76,7 +76,11 @@ typedef unsigned int 	hk_size_t;
 #ifdef _LINUX
 #define HK_BREAK raise(SIGINT)
 #else
+#ifndef __APPLE__
 #define HK_BREAK __debugbreak()
+#else
+#define HK_BREAK do {} while(0)
+#endif
 #endif
 
 #define HK_PUBLIC public
