@@ -120,7 +120,7 @@ static IPhysicsObject *GetPhysObjFromPhysicsBone( CBaseEntity *pEntity, short ph
 			{
 				CRagdoll *pCRagdoll = dynamic_cast< CRagdoll * >( pModel->m_pRagdoll );
 #else
-			CRagdollProp *pCRagdoll = dynamic_cast< CRagdollProp * >( pEntity );
+				CRagdollProp *pCRagdoll = dynamic_cast< CRagdollProp * >( pEntity );
 #endif
 				if ( pCRagdoll )
 				{
@@ -689,95 +689,46 @@ bool PlayerWeaponColorProxy::Init( IMaterial *pMaterial, KeyValues *pKeyValues )
 	return foundVar;
 }
 
+static Vector megaGravClr = Vector( 0.4, 1, 1 );
+
 void PlayerWeaponColorProxy::OnBind( C_BaseEntity *pBaseEntity )
 {
-	if ( !m_pResultVar )
+	if ( !m_pResultVar || !pBaseEntity )
 		return;
 
-	float currentR, currentG, currentB;
+	C_BaseViewModel *pVM = dynamic_cast<C_BaseViewModel *>( pBaseEntity );
+	if ( !pVM )
+		return;
 
-	C_WeaponPhysicsGun *pPhysgun = nullptr;
-	C_BasePlayer *pPlayer = nullptr;
+	CBaseCombatWeapon *pWeapon = pVM->GetOwningWeapon();
+	if ( !pWeapon )
+		return;
 
-	if ( pBaseEntity )
+	C_BasePlayer *player = ToBasePlayer( pWeapon->GetOwner() );
+	if ( !player )
+		return;
+
+	Vector col = Vector(0,0,0);
+
+	C_WeaponPhysicsGun *physgun = dynamic_cast<C_WeaponPhysicsGun*>( pWeapon );
+	if ( physgun )
 	{
-		pPhysgun = dynamic_cast<C_WeaponPhysicsGun *>( pBaseEntity );
-
-		if ( !pPhysgun )
-		{
-			C_BaseViewModel *pVM = dynamic_cast<C_BaseViewModel *>( pBaseEntity );
-			if ( pVM )
-				pPhysgun = dynamic_cast<C_WeaponPhysicsGun *>( pVM->GetOwningWeapon() );
-		}
-
-		if ( !pPhysgun )
-		{
-			C_BaseCombatWeapon *pWeapon = dynamic_cast<C_BaseCombatWeapon *>( pBaseEntity );
-			if ( pWeapon )
-			{
-				pPlayer = ToBasePlayer( pWeapon->GetOwner() );
-				if ( pPlayer )
-					pPhysgun = dynamic_cast<C_WeaponPhysicsGun *>( pPlayer->GetActiveWeapon() );
-			}
-		}
-
-		if ( !pPhysgun )
-		{
-			pPlayer = dynamic_cast<C_BasePlayer *>( pBaseEntity );
-			if ( pPlayer )
-				pPhysgun = dynamic_cast<C_WeaponPhysicsGun *>( pPlayer->GetActiveWeapon() );
-		}
+		col = Vector(
+			physgun->GetPhysgunColorR(),
+			physgun->GetPhysgunColorG(),
+			physgun->GetPhysgunColorB()
+		);
 	}
 
-	if ( pPhysgun )
-	{
-		currentR = pPhysgun->GetPhysgunColorR();
-		currentG = pPhysgun->GetPhysgunColorG();
-		currentB = pPhysgun->GetPhysgunColorB();
-	}
-	else
-	{
-		// Dirty check
-		if ( !pPlayer )
-			return;
+	// A hack for the mega gravity gun
+	if ( FClassnameIs( pWeapon, "weapon_physcannon" ) && !pWeapon->IsScripted() )
+		col = megaGravClr;
 
-		CBaseCombatWeapon *pWeapon = pPlayer->GetActiveWeapon();
-		if ( !pWeapon )
-			return;
+	col /= 255.0f;
+	float mul = ( 1.0f + sinf( gpGlobals->curtime * 5.0f ) ) * 0.5f;
+	Vector result = col + col * mul;
 
-		const char *szClass = pWeapon->GetClassname();
-		if ( szClass && strcmp( szClass, "weapon_physcannon" ) == 0 )
-		{
-			// fallback teal-ish lmfao
-			currentR = 150;
-			currentG = 255;
-			currentB = 255;
-		}
-		else
-		{
-			currentR = clamp( physgun_r.GetInt(), 0, 255 );
-			currentG = clamp( physgun_g.GetInt(), 0, 255 );
-			currentB = clamp( physgun_b.GetInt(), 0, 255 );
-		}
-	}
-
-	const float period = 1.0f;
-	const float amp = 25.0f;
-
-	float t = ( sinf( gpGlobals->curtime * ( 2.0f * M_PI / period ) ) + 1.0f ) * 0.5f; // [0,1]
-
-	float minR = currentR;
-	float maxR = min( 255.0f, minR + amp * 2.0f );
-	float minG = currentG;
-	float maxG = min( 255.0f, minG + amp * 2.0f );
-	float minB = currentB;
-	float maxB = min( 255.0f, minB + amp * 2.0f );
-
-	float r = minR + t * ( maxR - minR );
-	float g = minG + t * ( maxG - minG );
-	float b = minB + t * ( maxB - minB );
-
-	m_pResultVar->SetVecValue( r / 255.0f, g / 255.0f, b / 255.0f );
+	m_pResultVar->SetVecValue( result.x, result.y, result.z );
 }
 
 IMaterial *PlayerWeaponColorProxy::GetMaterial()
