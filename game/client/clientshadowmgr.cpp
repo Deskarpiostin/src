@@ -86,6 +86,7 @@
 #include "client_factorylist.h" // FactoryList_Retrieve
 #include "eiface.h" // IVEngineServer
 #include "filesystem.h"
+#include <cstdint> // Just making sure
 
 static IVEngineServer *g_pEngineServer = nullptr;
 //static CWorldLights s_WorldLights;
@@ -4362,7 +4363,7 @@ bool CShadowProxy::Init( IMaterial *pMaterial, KeyValues *pKeyValues )
 
 void CShadowProxy::OnBind( void *pProxyData )
 {
-	unsigned short clientShadowHandle = ( unsigned short )(int)pProxyData&0xffff;
+	unsigned short clientShadowHandle = ( unsigned short )(intptr_t)pProxyData&0xffff;
 	ITexture* pTex = s_ClientShadowMgr.GetShadowTexture( clientShadowHandle );
 	m_BaseTextureVar->SetTextureValue( pTex );
 	if ( ToolsEnabled() )
@@ -4443,7 +4444,7 @@ bool CShadowModelProxy::Init( IMaterial *pMaterial, KeyValues *pKeyValues )
 
 void CShadowModelProxy::OnBind( void *pProxyData )
 {
-	unsigned short clientShadowHandle = ( unsigned short )((int)pProxyData&0xffff);
+	unsigned short clientShadowHandle = ( unsigned short )((intptr_t)pProxyData&0xffff);
 	ITexture* pTex = s_ClientShadowMgr.GetShadowTexture( clientShadowHandle );
 	m_BaseTextureVar->SetTextureValue( pTex );
 
