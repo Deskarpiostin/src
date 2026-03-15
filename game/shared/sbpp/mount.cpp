@@ -52,36 +52,41 @@ static void AddDirectoryAndVPks( const char *directoryPath )
 	if ( !directoryPath || !directoryPath[0] )
 		return;
 
+	char resolvedPath[MAX_PATH];
+	if ( !g_pFullFileSystem->RelativePathToFullPath( directoryPath, "GAME", resolvedPath, sizeof( resolvedPath ) ) )
+	{
+		if ( !g_pFullFileSystem->RelativePathToFullPath( directoryPath, NULL, resolvedPath, sizeof( resolvedPath ) ) )
+			Q_strncpy( resolvedPath, directoryPath, sizeof( resolvedPath ) );
+	}
+
 	char dir[MAX_PATH];
-	Q_strncpy( dir, directoryPath, sizeof( dir ) );
+	Q_strncpy( dir, resolvedPath, sizeof( dir ) );
 	V_FixSlashes( dir );
 	V_AppendSlash( dir, sizeof( dir ) );
 
-	g_pFullFileSystem->AddSearchPath( dir, "GAME" );
+	g_pFullFileSystem->AddSearchPath( dir, "GAME_MOUNT_TEMP" );
 
-	char searchPattern[MAX_PATH];
-	Q_snprintf( searchPattern, sizeof( searchPattern ), "%s*_dir.vpk", dir );
 	FileFindHandle_t findHandle;
-	const char		*fileName = g_pFullFileSystem->FindFirst( searchPattern, &findHandle );
-
+	const char		*fileName = g_pFullFileSystem->FindFirstEx( "*", "GAME_MOUNT_TEMP", &findHandle );
 	if ( fileName )
 	{
 		do
 		{
-			char vpkPath[MAX_PATH];
-			char modifiedFileName[MAX_PATH];
-
-			Q_strncpy( modifiedFileName, fileName, sizeof( modifiedFileName ) );
-			StripDirFromFileName( modifiedFileName, sizeof( modifiedFileName ) );
-
-			Q_snprintf( vpkPath, sizeof( vpkPath ), "%s%s", dir, modifiedFileName );
-			DevMsg( "Adding VPK: %s\n", vpkPath );
-			g_pFullFileSystem->AddSearchPath( vpkPath, "GAME" );
-
+			size_t len = Q_strlen( fileName );
+			if ( len > 8 && Q_stricmp( fileName + len - 8, "_dir.vpk" ) == 0 )
+			{
+				char vpkPath[MAX_PATH];
+				Q_snprintf( vpkPath, sizeof( vpkPath ), "%s%s", dir, fileName );
+				DevMsg( "Adding VPK: %s\n", vpkPath );
+				g_pFullFileSystem->AddSearchPath( vpkPath, "GAME" );
+			}
 		} while ( ( fileName = g_pFullFileSystem->FindNext( findHandle ) ) );
 
 		g_pFullFileSystem->FindClose( findHandle );
 	}
+
+	g_pFullFileSystem->AddSearchPath( dir, "GAME" );
+	g_pFullFileSystem->RemoveSearchPath( dir, "GAME_MOUNT_TEMP" );
 }
 
 void loadMount()
