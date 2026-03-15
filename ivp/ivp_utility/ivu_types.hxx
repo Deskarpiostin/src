@@ -62,7 +62,11 @@ Exactly DEBUG or NDEBUG has to be defined, check Makefile
 #endif
 
 #ifndef WIN32
+#ifndef __APPLE__
 #define CORE raise(SIGINT) /* send fatal signal */
+#else
+#define CORE do {} while(0)
+#endif
 #else
 #define CORE __debugbreak()
 #endif
