@@ -28,6 +28,7 @@ def build(bld):
 		'console/textconsole.cpp',
 		'../filesystem/filetracker.cpp',
 		'../filesystem/basefilesystem.cpp',
+		'../filesystem/gma_store.cpp',
 		'../filesystem/packfile.cpp',
 		'../filesystem/filesystem_async.cpp',
 		'../filesystem/filesystem_stdio.cpp',

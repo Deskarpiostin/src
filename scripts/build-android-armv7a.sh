@@ -7,6 +7,14 @@ wget -q --retry-connrefused --tries=3 --timeout=30 \
   -O clang+llvm-11.1.0.tar.xz \
   https://github.com/llvm/llvm-project/releases/download/llvmorg-11.1.0/clang+llvm-11.1.0-x86_64-linux-gnu-ubuntu-16.04.tar.xz
 
+if [ ! -d "android-ndk-r10e" ]; then
+    unzip -q android-ndk-r10e.zip
+fi
+
+if [ ! -d "clang+llvm-11.1.0-x86_64-linux-gnu-ubuntu-16.04" ]; then
+    tar -xf clang+llvm-11.1.0.tar.xz
+fi
+
 sudo dpkg --add-architecture i386
 sudo apt-get update
 sudo apt-get install -y aptitude

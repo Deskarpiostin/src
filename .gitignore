@@ -38,3 +38,12 @@ waf3*/
 .depproj/
 source-engine.sln
 *.lock
+
+# crappy hack
+!lib/
+!lib/win32
+!lib/win32/amd64
+!lib/win32/amd64/SDL2.dll
+!lib/win32/amd64/SDL2.pdb
+!lib/win32/x86
+!lib/win32/x86/ftol3.obj
