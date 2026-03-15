@@ -684,7 +684,7 @@ bool PlayerWeaponColorProxy::Init( IMaterial *pMaterial, KeyValues *pKeyValues )
 	return foundVar;
 }
 
-static Vector megaGravClr = Vector( 0.4, 1, 1 );
+static Vector megaGravClr = Vector( 102, 255, 255 );
 
 void PlayerWeaponColorProxy::OnBind( C_BaseEntity *pBaseEntity )
 {
