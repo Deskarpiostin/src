@@ -19,4 +19,4 @@ export PATH="$PWD/clang+llvm-11.1.0-x86_64-linux-gnu-ubuntu-16.04/bin:$PATH"
 export PATH="$ANDROID_SDK_ROOT/build-tools/29.0.3:$PATH"
 
 ./waf configure -T release --build-game=hl2sbpp --prefix=srceng-mod-launcher/android --togles --android=aarch64,host,21 --target=../aarch64 -8 --disable-warns &&
-./waf install --target=client,server,GameUI,engine,studiorender,matsys_controls
+./waf install --target=client,server,GameUI,engine,studiorender,matsys_controls -j$(nproc)
