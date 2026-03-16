@@ -67,8 +67,8 @@ jobs:
         run: scripts/build-android-armv7a.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: hl2sbpp-android-armv7a
-          path: srceng-mod-launcher/android/armeabi-v7a
+          name: hl2sbpp-android-armv7a-libs
+          path: srceng-mod-launcher/android
           if-no-files-found: error
 
   build-android-aarch64:
@@ -101,8 +101,8 @@ jobs:
         run: scripts/build-android-aarch64.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: hl2sbpp-android-aarch64
-          path: srceng-mod-launcher/android/aarch64
+          name: hl2sbpp-android-aarch64-libs
+          path: srceng-mod-launcher/android
           if-no-files-found: error
 
   build-android-apk:
@@ -128,16 +128,16 @@ jobs:
           sdkmanager "platform-tools" "platforms;android-29" "build-tools;29.0.3"
       - name: Add to PATH
         run: echo "PATH=$ANDROID_SDK_ROOT/build-tools/29.0.3:$ANDROID_SDK_ROOT/platform-tools:$PATH" >> $GITHUB_ENV
-      - name: Download ARMv7a artifacts
+      - name: Download ARMv7a libs
         uses: actions/download-artifact@v4
         with:
-          name: hl2sbpp-android-armv7a
-          path: srceng-mod-launcher/android/armeabi-v7a
-      - name: Download AArch64 artifacts
+          name: hl2sbpp-android-armv7a-libs
+          path: srceng-mod-launcher/android
+      - name: Download AArch64 libs
         uses: actions/download-artifact@v4
         with:
-          name: hl2sbpp-android-aarch64
-          path: srceng-mod-launcher/android/aarch64
+          name: hl2sbpp-android-aarch64-libs
+          path: srceng-mod-launcher/android
       - name: Build APK
         run: |
           scripts/build-apk.sh
