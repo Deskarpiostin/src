@@ -92,6 +92,8 @@ ConVar physgun_b( "physgun_b", "238", FCVAR_USERINFO | FCVAR_ARCHIVE );
 ConVar physgun_light( "physgun_light", "0", FCVAR_REPLICATED );
 ConVar physgun_vm_glow( "physgun_vm_glow", "1", FCVAR_USERINFO | FCVAR_ARCHIVE );
 
+ConVar physgun_rotation_speed( "physgun_rotation_speed", "0.05", FCVAR_ARCHIVE, "physgun rotation speed" );
+
 static IPhysicsObject *GetPhysObjFromPhysicsBone( CBaseEntity *pEntity, short physicsbone )
 {
 	if ( !pEntity )
@@ -847,11 +849,12 @@ bool CGravControllerPoint::UpdateObject( CBasePlayer *pPlayer, CBaseEntity *pEnt
 		MatrixFromAngles( m_targetRotation, vCurrentRotation );
 
 #ifdef CLIENT_DLL
-		m_vecRotatedCarryAngles[YAW] = pPlayer->m_pCurrentCommand->mousedx*0.05;
-		m_vecRotatedCarryAngles[PITCH] = pPlayer->m_pCurrentCommand->mousedy*-0.05;
+		m_vecRotatedCarryAngles[YAW] = pPlayer->m_pCurrentCommand->mousedx*physgun_rotation_speed.GetFloat();
+		m_vecRotatedCarryAngles[PITCH] = pPlayer->m_pCurrentCommand->mousedy*-physgun_rotation_speed.GetFloat();
 #else
-		m_vecRotatedCarryAngles[YAW] = pPlayer->GetCurrentCommand()->mousedx*0.05;
-		m_vecRotatedCarryAngles[PITCH] = pPlayer->GetCurrentCommand()->mousedy*-0.05;
+		float fValue = (float)atof(engine->GetClientConVarValue(pPlayer->GetClientIndex(), "physgun_rotation_speed"));
+		m_vecRotatedCarryAngles[YAW] = pPlayer->GetCurrentCommand()->mousedx*fValue;
+		m_vecRotatedCarryAngles[PITCH] = pPlayer->GetCurrentCommand()->mousedy*-fValue;
 #endif
 		m_vecRotatedCarryAngles[ROLL] = 0;
 		MatrixFromAngles( m_vecRotatedCarryAngles, vDeltaRotation );
