@@ -1211,7 +1211,7 @@ void CTouchControls::FingerMotion(touch_event_t *ev) // finger in my ass
 				}
 
 				forward = clamp( -delta.y / touch_forwardzone.GetFloat(), -1.f, 1.f );
-				side    = clamp(  delta.x / touch_sidezone.GetFloat(),   -1.f, 1.f );
+				side    = clamp( -delta.x / touch_sidezone.GetFloat(), -1.f, 1.f );
 
 				DevMsg( "joy: forward=%.2f side=%.2f cx=%.2f cy=%.2f px=%.2f py=%.2f\n",
 					forward, side,
