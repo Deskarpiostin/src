@@ -37,7 +37,7 @@ jobs:
         path: ./to-upload
         if-no-files-found: error
 
-  build-android:
+  build-android-armv7a:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -63,10 +63,83 @@ jobs:
           sdkmanager "platform-tools" "platforms;android-29" "build-tools;29.0.3"
       - name: Add to PATH
         run: echo "PATH=$ANDROID_SDK_ROOT/build-tools/29.0.3:$ANDROID_SDK_ROOT/platform-tools:$PATH" >> $GITHUB_ENV
-      - name: Build
+      - name: Build ARMv7a
+        run: scripts/build-android-armv7a.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hl2sbpp-android-armv7a
+          path: srceng-mod-launcher/android/armeabi-v7a
+          if-no-files-found: error
+
+  build-android-aarch64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Setup cache dirs
         run: |
-          scripts/build-android-armv7a.sh
-          scripts/build-android-aarch64.sh
+          mkdir -p ~/.gradle/caches
+          mkdir -p ~/.gradle/wrapper
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "8"
+          cache: gradle
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 8512546
+          accept-android-sdk-licenses: true
+      - name: Install Android SDK
+        run: |
+          sdkmanager "platform-tools" "platforms;android-29" "build-tools;29.0.3"
+      - name: Add to PATH
+        run: echo "PATH=$ANDROID_SDK_ROOT/build-tools/29.0.3:$ANDROID_SDK_ROOT/platform-tools:$PATH" >> $GITHUB_ENV
+      - name: Build AArch64
+        run: scripts/build-android-aarch64.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hl2sbpp-android-aarch64
+          path: srceng-mod-launcher/android/aarch64
+          if-no-files-found: error
+
+  build-android-apk:
+    runs-on: ubuntu-latest
+    needs: [build-android-armv7a, build-android-aarch64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "8"
+          cache: gradle
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 8512546
+          accept-android-sdk-licenses: true
+      - name: Install Android SDK
+        run: |
+          sdkmanager "platform-tools" "platforms;android-29" "build-tools;29.0.3"
+      - name: Add to PATH
+        run: echo "PATH=$ANDROID_SDK_ROOT/build-tools/29.0.3:$ANDROID_SDK_ROOT/platform-tools:$PATH" >> $GITHUB_ENV
+      - name: Download ARMv7a artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: hl2sbpp-android-armv7a
+          path: srceng-mod-launcher/android/armeabi-v7a
+      - name: Download AArch64 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: hl2sbpp-android-aarch64
+          path: srceng-mod-launcher/android/aarch64
+      - name: Build APK
+        run: |
           scripts/build-apk.sh
           mv srceng-mod-launcher/build/android/mod-signed.apk hl2sbpp-release.apk
       - name: Upload APK
