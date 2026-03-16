@@ -230,8 +230,6 @@ $Project
 		$File	"c_fire_smoke.cpp"
 		$File	"c_fish.cpp"
 		$File	"c_func_areaportalwindow.cpp"
-		$File	"worldlight.cpp"
-		$File	"worldlight.h"
 		$File	"c_func_breakablesurf.cpp"
 		$File	"c_func_conveyor.cpp"
 		$File	"c_func_dust.cpp"
