@@ -36,7 +36,8 @@ enum ETouchButtonType
 	touch_joy,     // Like a joystick stick, centered.
 	touch_dpad,    // Only two directions.
 	touch_look,     // Like a touchpad.
-	touch_key
+	touch_key,
+	touch_joystick // IS a joystick (on-screen)
 };
 
 enum ETouchState
@@ -223,6 +224,11 @@ private:
 	int touchTextureID;
 	IMesh* m_pMesh;
 	CMeshBuilder meshBuilder;
+
+	Vector2D m_vecJoystickCenter;
+	Vector2D m_vecJoystickCurrent;
+	bool     m_bJoystickActive;
+	float    m_flJoystickRadius;
 
 	// editing
 	CTouchButton *edit;

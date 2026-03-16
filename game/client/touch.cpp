@@ -383,6 +383,13 @@ void CTouchControls::Init()
 	showtexture = hidetexture = resettexture = closetexture = joytexture = 0;
 	configchanged = false;
 
+	m_bJoystickActive = false;
+	m_vecJoystickCenter.x = 0.f;
+	m_vecJoystickCenter.y = 0.f;
+	m_vecJoystickCurrent.x = 0.f;
+	m_vecJoystickCurrent.y = 0.f;
+	m_flJoystickRadius = 0.f;
+
 	rgba_t color(255, 255, 255, 155);
 
 	AddButton( "look", "", "_look", 0.5, 0, 1, 1, color, 0, 0, 0 );
@@ -892,6 +899,56 @@ void CTouchControls::Paint()
 
 		m_flHideTouch = gpGlobals->curtime + 0.002f;
 	}
+
+	if( m_bJoystickActive )
+	{
+		int cx = m_vecJoystickCenter.x * screen_w;
+		int cy = m_vecJoystickCenter.y * screen_h;
+		int px = m_vecJoystickCurrent.x * screen_w;
+		int py = m_vecJoystickCurrent.y * screen_h;
+		int radius = (int)m_flJoystickRadius;
+		int dotRadius = radius * 0.35f;
+
+		vgui::surface()->DrawSetColor( 0, 0, 0, 60 );
+		for( int dy = -radius; dy <= radius; dy++ )
+		{
+			int dx = (int)sqrtf( (float)(radius*radius - dy*dy) );
+			vgui::surface()->DrawFilledRect( cx-dx, cy+dy, cx+dx, cy+dy+1 );
+		}
+
+		vgui::surface()->DrawSetColor( 255, 255, 255, 80 );
+		for( int i = 0; i < 360; i += 4 )
+		{
+			float a1 = DEG2RAD( i );
+			float a2 = DEG2RAD( i + 4 );
+			vgui::surface()->DrawLine(
+				cx + (int)(cosf(a1) * radius),
+				cy + (int)(sinf(a1) * radius),
+				cx + (int)(cosf(a2) * radius),
+				cy + (int)(sinf(a2) * radius)
+			);
+		}
+
+		vgui::surface()->DrawSetColor( 255, 255, 255, 180 );
+		for( int dy = -dotRadius; dy <= dotRadius; dy++ )
+		{
+			int dx = (int)sqrtf( (float)(dotRadius*dotRadius - dy*dy) );
+			vgui::surface()->DrawFilledRect( px-dx, py+dy, px+dx, py+dy+1 );
+		}
+
+		vgui::surface()->DrawSetColor( 255, 255, 255, 220 );
+		for( int i = 0; i < 360; i += 4 )
+		{
+			float a1 = DEG2RAD( i );
+			float a2 = DEG2RAD( i + 4 );
+			vgui::surface()->DrawLine(
+				px + (int)(cosf(a1) * dotRadius),
+				py + (int)(sinf(a1) * dotRadius),
+				px + (int)(cosf(a2) * dotRadius),
+				py + (int)(sinf(a2) * dotRadius)
+			);
+		}
+	}
 }
 
 void CTouchControls::AddButton( const char *name, const char *texturefile, const char *command, float x1, float y1, float x2, float y2, rgba_t color, int round, float aspect, int flags )
@@ -921,6 +978,8 @@ void CTouchControls::AddButton( const char *name, const char *texturefile, const
 		type = touch_look;
 	else if( Q_strcmp(command, "_move") == 0 )
 		type = touch_move;
+	else if( Q_strcmp(command, "_joystick") == 0 )
+		type = touch_joystick;
 
 	btn->color = color;
 	btn->type = type;
@@ -1132,6 +1191,33 @@ void CTouchControls::FingerMotion(touch_event_t *ev) // finger in my ass
 				yaw += ev->dx;
 				pitch += ev->dy;
 			}
+			else if( btn->type == touch_joystick )
+			{
+				m_vecJoystickCurrent.x = x;
+				m_vecJoystickCurrent.y = y;
+
+				Vector2D delta;
+				delta.x = m_vecJoystickCurrent.x - m_vecJoystickCenter.x;
+				delta.y = m_vecJoystickCurrent.y - m_vecJoystickCenter.y;
+
+				float len = delta.Length();
+				float radiusNormalized = m_flJoystickRadius / screen_w;
+
+				if( len > radiusNormalized )
+				{
+					delta /= len;
+					delta *= radiusNormalized;
+					m_vecJoystickCurrent = m_vecJoystickCenter + delta;
+				}
+
+				forward = clamp( -delta.y / touch_forwardzone.GetFloat(), -1.f, 1.f );
+				side    = clamp(  delta.x / touch_sidezone.GetFloat(),   -1.f, 1.f );
+
+				DevMsg( "joy: forward=%.2f side=%.2f cx=%.2f cy=%.2f px=%.2f py=%.2f\n",
+					forward, side,
+					m_vecJoystickCenter.x, m_vecJoystickCenter.y,
+					m_vecJoystickCurrent.x, m_vecJoystickCurrent.y );
+			}
 		}
 	}
 }
@@ -1172,6 +1258,18 @@ void CTouchControls::FingerPress(touch_event_t *ev)
 					else
 						btn->finger = look_finger;
 				}
+				else if( btn->type == touch_joystick )
+				{
+					m_bJoystickActive = true;
+					m_vecJoystickCenter.x = x;
+					m_vecJoystickCenter.y = y;
+					m_vecJoystickCurrent = m_vecJoystickCenter;
+					m_flJoystickRadius = (btn->x2 - btn->x1) * screen_w * 0.4f;
+					move_start_x = x;
+					move_start_y = y;
+					if( move_finger == -1 )
+						move_finger = ev->fingerid;
+				}
 				else
 					engine->ClientCmd_Unrestricted( btn->command );
 			}
@@ -1197,6 +1295,13 @@ void CTouchControls::FingerPress(touch_event_t *ev)
 				}
 				else if( btn->type == touch_look )
 					look_finger = -1;
+				else if( btn->type == touch_joystick )
+				{
+					m_bJoystickActive = false;
+					forward = side = 0;
+					move_finger = -1;
+					m_vecJoystickCurrent = m_vecJoystickCenter;
+				}
 				else if( btn->command[0] == '+' )
 				{
 					char cmd[256];
