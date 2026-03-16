@@ -257,7 +257,7 @@ void *hk_Memory::aligned_malloc( hk_size_t size, hk_size_t alignment)
 #if defined(_WIN32)
 	return _aligned_malloc ( size, alignment );
 #else
-	return /*std::*/aligned_alloc( alignment, size );
+	return ::malloc(size);
 #endif
 }
 
@@ -266,7 +266,7 @@ void hk_Memory::aligned_free(	 void *data )
 #if defined(_WIN32)
 	_aligned_free ( data );
 #else
-	/*std::*/free(data);
+	/*std::*/::free(data);
 #endif
 
 }
