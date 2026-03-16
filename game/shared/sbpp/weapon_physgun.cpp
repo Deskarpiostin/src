@@ -853,12 +853,12 @@ bool CGravControllerPoint::UpdateObject( CBasePlayer *pPlayer, CBaseEntity *pEnt
 		MatrixFromAngles( m_targetRotation, vCurrentRotation );
 
 #ifdef CLIENT_DLL
-		m_vecRotatedCarryAngles[YAW]   = (pPlayer->m_pCurrentCommand->mousedx / 100.f) * physgun_rotation_speed.GetFloat();
-		m_vecRotatedCarryAngles[PITCH] = (pPlayer->m_pCurrentCommand->mousedy / 100.f) * -physgun_rotation_speed.GetFloat();
+		m_vecRotatedCarryAngles[YAW] = pPlayer->m_pCurrentCommand->mousedx*physgun_rotation_speed.GetFloat();
+		m_vecRotatedCarryAngles[PITCH] = pPlayer->m_pCurrentCommand->mousedy*-physgun_rotation_speed.GetFloat();
 #else
 		float fValue = (float)atof(engine->GetClientConVarValue(pPlayer->GetClientIndex(), "physgun_rotation_speed"));
-		m_vecRotatedCarryAngles[YAW]   = (pPlayer->GetCurrentCommand()->mousedx / 100.f) * fValue;
-		m_vecRotatedCarryAngles[PITCH] = (pPlayer->GetCurrentCommand()->mousedy / 100.f) * -fValue;
+		m_vecRotatedCarryAngles[YAW] = pPlayer->GetCurrentCommand()->mousedx*fValue;
+		m_vecRotatedCarryAngles[PITCH] = pPlayer->GetCurrentCommand()->mousedy*-fValue;
 #endif
 		m_vecRotatedCarryAngles[ROLL] = 0;
 		MatrixFromAngles( m_vecRotatedCarryAngles, vDeltaRotation );
