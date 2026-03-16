@@ -108,6 +108,20 @@ void CInput::TouchMove( CUserCmd *cmd )
 	// Add mouse X/Y movement to cmd
 	ApplyTouch( viewangles, cmd, dx, dy );
 
+#ifdef SBPP
+    bool bWeaponOverride = false;
+    C_BasePlayer *pPlayer = C_BasePlayer::GetLocalPlayer();
+    if ( pPlayer )
+    {
+        C_BaseCombatWeapon *pWeapon = pPlayer->GetActiveWeapon();
+        if ( pWeapon )
+            bWeaponOverride = pWeapon->OverrideViewAngles();
+    }
+#endif
+
 	// Store out the new viewangles.
-	engine->SetViewAngles( viewangles );
+#ifdef SBPP
+    if ( !bWeaponOverride )
+#endif
+        engine->SetViewAngles( viewangles );
 }
