@@ -1231,71 +1231,47 @@ void CTouchControls::FingerPress(touch_event_t *ev)
 
 	if( ev->type == IE_FingerDown )
 	{
-		bool bConsumedByButton = false;
-
 		for( it = btns.begin(); it != btns.end(); it++ )
 		{
 			CTouchButton *btn = *it;
-			if( x > btn->x1 && x < btn->x2 && y > btn->y1 && y < btn->y2 )
+			if(  x > btn->x1 && x < btn->x2 && y > btn->y1 && y < btn->y2 )
 			{
 				if( btn->flags & TOUCH_FL_HIDE )
 					continue;
 
-				if( btn->type != touch_look && btn->type != touch_move && btn->type != touch_joystick )
+				btn->finger = ev->fingerid;
+				if( btn->type == touch_move  )
 				{
-					btn->finger = ev->fingerid;
-					engine->ClientCmd_Unrestricted( btn->command );
-					bConsumedByButton = true;
-				}
-			}
-		}
-
-		if( !bConsumedByButton )
-		{
-			for( it = btns.begin(); it != btns.end(); it++ )
-			{
-				CTouchButton *btn = *it;
-				if( x > btn->x1 && x < btn->x2 && y > btn->y1 && y < btn->y2 )
-				{
-					if( btn->flags & TOUCH_FL_HIDE )
-						continue;
-
-					if( btn->type == touch_move )
+					if( move_finger == -1 )
 					{
-						if( move_finger == -1 )
-						{
-							move_start_x = x;
-							move_start_y = y;
-							move_finger = ev->fingerid;
-							btn->finger = ev->fingerid;
-						}
-						else
-							btn->finger = move_finger;
-					}
-					else if( btn->type == touch_look )
-					{
-						if( look_finger == -1 )
-						{
-							look_finger = ev->fingerid;
-							btn->finger = ev->fingerid;
-						}
-						else
-							btn->finger = look_finger;
-					}
-					else if( btn->type == touch_joystick )
-					{
-						m_bJoystickActive = true;
-						m_vecJoystickCenter.x = x;
-						m_vecJoystickCenter.y = y;
-						m_vecJoystickCurrent = m_vecJoystickCenter;
-						m_flJoystickRadius = (btn->x2 - btn->x1) * screen_w * 0.4f;
 						move_start_x = x;
 						move_start_y = y;
-						btn->finger = ev->fingerid;
-						if( move_finger == -1 )
-							move_finger = ev->fingerid;
+						move_finger = ev->fingerid;
 					}
+					else
+						btn->finger = move_finger;
 				}
+				else if( btn->type == touch_look )
+				{
+					if( look_finger == -1 )
+						look_finger = ev->fingerid;
+					else
+						btn->finger = look_finger;
+				}
+				else if( btn->type == touch_joystick )
+				{
+					m_bJoystickActive = true;
+					m_vecJoystickCenter.x = x;
+					m_vecJoystickCenter.y = y;
+					m_vecJoystickCurrent = m_vecJoystickCenter;
+					m_flJoystickRadius = (btn->x2 - btn->x1) * screen_w * 0.4f;
+					move_start_x = x;
+					move_start_y = y;
+					if( move_finger == -1 )
+						move_finger = ev->fingerid;
+				}
+				else
+					engine->ClientCmd_Unrestricted( btn->command );
 			}
 		}
 	}
