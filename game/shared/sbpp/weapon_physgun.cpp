@@ -92,11 +92,7 @@ ConVar physgun_b( "physgun_b", "238", FCVAR_USERINFO | FCVAR_ARCHIVE );
 ConVar physgun_light( "physgun_light", "0", FCVAR_REPLICATED );
 ConVar physgun_vm_glow( "physgun_vm_glow", "1", FCVAR_USERINFO | FCVAR_ARCHIVE );
 
-#ifdef ANDROID
-ConVar physgun_rotation_speed( "physgun_rotation_speed", "0.25", FCVAR_USERINFO | FCVAR_ARCHIVE, "physgun rotation speed" );
-#else
-ConVar physgun_rotation_speed( "physgun_rotation_speed", "0.05", FCVAR_USERINFO | FCVAR_ARCHIVE, "physgun rotation speed" );
-#endif
+ConVar physgun_rotation_speed( "physgun_rotation_speed", "5.0", FCVAR_USERINFO | FCVAR_ARCHIVE, "physgun rotation speed" );
 
 static IPhysicsObject *GetPhysObjFromPhysicsBone( CBaseEntity *pEntity, short physicsbone )
 {
