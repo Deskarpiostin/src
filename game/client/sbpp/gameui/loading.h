@@ -39,7 +39,7 @@ private:
 
 	bool m_bInitialized;
 
-	vgui::HFont 	   m_hFont;
+	vgui::HFont m_hFont;
 
 	void RenderText( const char *text, int x, int y, int r, int g, int b, int a );
 
