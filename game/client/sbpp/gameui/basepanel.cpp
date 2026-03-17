@@ -96,446 +96,453 @@ void CHoverButton::SetCommand( const char *cmd )
 	m_Command = cmd;
 }
 
-CBackgroundPanel::CBackgroundPanel(vgui::Panel *parent, const char *pName)
-    : BaseClass(parent, pName)
+CBackgroundPanel::CBackgroundPanel( vgui::Panel *parent, const char *pName ) : BaseClass( parent, pName )
 {
-    SetPaintBackgroundEnabled(false);
-    SetMouseInputEnabled(false);
-    m_BackgroundTextureIDs.RemoveAll();
-    m_BackgroundFiles.RemoveAll();
+	SetPaintBackgroundEnabled( false );
+	SetMouseInputEnabled( false );
+	m_BackgroundTextureIDs.RemoveAll();
+	m_BackgroundFiles.RemoveAll();
 }
 
 CBackgroundPanel::~CBackgroundPanel()
 {
-    for (int i = 0; i < m_BackgroundTextureIDs.Count(); ++i)
-        DestroyBackgroundTexture(i);
+	for ( int i = 0; i < m_BackgroundTextureIDs.Count(); ++i )
+		DestroyBackgroundTexture( i );
 }
 
 void CBackgroundPanel::PerformLayout()
 {
-    vgui::Panel *pParent = GetParent();
-    if (pParent)
-    {
-        int w, h;
-        pParent->GetSize(w, h);
-        SetBounds(0, 0, w, h);
-    }
-    BaseClass::PerformLayout();
+	vgui::Panel *pParent = GetParent();
+	if ( pParent )
+	{
+		int w, h;
+		pParent->GetSize( w, h );
+		SetBounds( 0, 0, w, h );
+	}
+	BaseClass::PerformLayout();
 }
 
-void CBackgroundPanel::DestroyBackgroundTexture(int index)
+void CBackgroundPanel::DestroyBackgroundTexture( int index )
 {
-    if (index < 0 || index >= m_BackgroundTextureIDs.Count())
-        return;
+	if ( index < 0 || index >= m_BackgroundTextureIDs.Count() )
+		return;
 
-    int texID = m_BackgroundTextureIDs[index];
-    if (texID >= 0)
-    {
-        surface()->DestroyTextureID(texID);
-        m_BackgroundTextureIDs[index] = -1;
-    }
+	int texID = m_BackgroundTextureIDs[index];
+	if ( texID >= 0 )
+	{
+		surface()->DestroyTextureID( texID );
+		m_BackgroundTextureIDs[index] = -1;
+	}
 }
 
 void CBackgroundPanel::LoadBackgroundImages()
 {
-    m_BackgroundFiles.RemoveAll();
-    m_BackgroundTextureIDs.RemoveAll();
+	m_BackgroundFiles.RemoveAll();
+	m_BackgroundTextureIDs.RemoveAll();
 
-    FileFindHandle_t findHandle;
-    const char* pFilename = g_pFullFileSystem->FindFirstEx("backgrounds/*.*", "MOD", &findHandle);
+	FileFindHandle_t findHandle;
+	const char		*pFilename = g_pFullFileSystem->FindFirstEx( "backgrounds/*.*", "MOD", &findHandle );
 
-    while (pFilename)
-    {
-        if (!g_pFullFileSystem->FindIsDirectory(findHandle))
-        {
-            const char* ext = Q_GetFileExtension(pFilename);
-            if (ext)
-            {
-                char fullPath[MAX_PATH];
-                Q_snprintf(fullPath, sizeof(fullPath), "backgrounds/%s", pFilename);
+	while ( pFilename )
+	{
+		if ( !g_pFullFileSystem->FindIsDirectory( findHandle ) )
+		{
+			const char *ext = Q_GetFileExtension( pFilename );
+			if ( ext )
+			{
+				char fullPath[MAX_PATH];
+				Q_snprintf( fullPath, sizeof( fullPath ), "backgrounds/%s", pFilename );
 
-                m_BackgroundFiles.AddToTail(CUtlString(fullPath));
-                m_BackgroundTextureIDs.AddToTail(-1);
-            }
-        }
-        pFilename = g_pFullFileSystem->FindNext(findHandle);
-    }
-    g_pFullFileSystem->FindClose(findHandle);
+				m_BackgroundFiles.AddToTail( CUtlString( fullPath ) );
+				m_BackgroundTextureIDs.AddToTail( -1 );
+			}
+		}
+		pFilename = g_pFullFileSystem->FindNext( findHandle );
+	}
+	g_pFullFileSystem->FindClose( findHandle );
 
-    if (m_BackgroundFiles.Count() > 1)
-    {
-        for (int i = m_BackgroundFiles.Count() - 1; i > 0; --i)
-        {
-            int j = RandomInt(0, i);
+	if ( m_BackgroundFiles.Count() > 1 )
+	{
+		for ( int i = m_BackgroundFiles.Count() - 1; i > 0; --i )
+		{
+			int j = RandomInt( 0, i );
 
-            CUtlString tempFile = m_BackgroundFiles[i];
-            m_BackgroundFiles[i] = m_BackgroundFiles[j];
-            m_BackgroundFiles[j] = tempFile;
+			CUtlString tempFile = m_BackgroundFiles[i];
+			m_BackgroundFiles[i] = m_BackgroundFiles[j];
+			m_BackgroundFiles[j] = tempFile;
 
-            int tempID = m_BackgroundTextureIDs[i];
-            m_BackgroundTextureIDs[i] = m_BackgroundTextureIDs[j];
-            m_BackgroundTextureIDs[j] = tempID;
-        }
-    }
+			int tempID = m_BackgroundTextureIDs[i];
+			m_BackgroundTextureIDs[i] = m_BackgroundTextureIDs[j];
+			m_BackgroundTextureIDs[j] = tempID;
+		}
+	}
 
-    m_iCurrentBackground = 0;
-    m_flNextBackgroundSwitch = engine->Time() + 10.0f;
+	m_iCurrentBackground = 0;
+	m_flNextBackgroundSwitch = engine->Time() + 10.0f;
 
-    if (m_BackgroundFiles.Count() > 0)
-        EnsureBackgroundTextureLoaded(m_iCurrentBackground);
-    if (m_BackgroundFiles.Count() > 1)
-        EnsureBackgroundTextureLoaded((m_iCurrentBackground + 1) % m_BackgroundFiles.Count());
+	if ( m_BackgroundFiles.Count() > 0 )
+		EnsureBackgroundTextureLoaded( m_iCurrentBackground );
+	if ( m_BackgroundFiles.Count() > 1 )
+		EnsureBackgroundTextureLoaded( ( m_iCurrentBackground + 1 ) % m_BackgroundFiles.Count() );
 }
 
-void CBackgroundPanel::EnsureBackgroundTextureLoaded(int index)
+void CBackgroundPanel::EnsureBackgroundTextureLoaded( int index )
 {
-    if (index < 0 || index >= m_BackgroundFiles.Count())
-        return;
+	if ( index < 0 || index >= m_BackgroundFiles.Count() )
+		return;
 
-    if (index < m_BackgroundTextureIDs.Count() && m_BackgroundTextureIDs[index] >= 0)
-        return;
+	if ( index < m_BackgroundTextureIDs.Count() && m_BackgroundTextureIDs[index] >= 0 )
+		return;
 
-    const char* fullPath = m_BackgroundFiles[index].String();
-    int texID = LoadImageAsTexture(fullPath);
-    if (texID != -1)
-    {
-        if (index >= m_BackgroundTextureIDs.Count())
-        {
-            // resize and init to -1
-            while (m_BackgroundTextureIDs.Count() <= index)
-                m_BackgroundTextureIDs.AddToTail(-1);
-        }
-        m_BackgroundTextureIDs[index] = texID;
-    }
+	const char *fullPath = m_BackgroundFiles[index].String();
+	int			texID = LoadImageAsTexture( fullPath );
+	if ( texID != -1 )
+	{
+		if ( index >= m_BackgroundTextureIDs.Count() )
+		{
+			// resize and init to -1
+			while ( m_BackgroundTextureIDs.Count() <= index )
+				m_BackgroundTextureIDs.AddToTail( -1 );
+		}
+		m_BackgroundTextureIDs[index] = texID;
+	}
 
-    int keepRadius = m_maxLoadedBackgrounds / 2;
-    int keepStart = max(0, index - keepRadius);
-    int keepEnd   = min(m_BackgroundFiles.Count() - 1, index + keepRadius);
+	int keepRadius = m_maxLoadedBackgrounds / 2;
+	int keepStart = max( 0, index - keepRadius );
+	int keepEnd = min( m_BackgroundFiles.Count() - 1, index + keepRadius );
 
-    for (int i = 0; i < m_BackgroundTextureIDs.Count(); ++i)
-    {
-        if (i < keepStart || i > keepEnd)
-            DestroyBackgroundTexture(i);
-    }
+	for ( int i = 0; i < m_BackgroundTextureIDs.Count(); ++i )
+	{
+		if ( i < keepStart || i > keepEnd )
+			DestroyBackgroundTexture( i );
+	}
 }
 
-int CBackgroundPanel::GetNextPowerOfTwo(int value)
+int CBackgroundPanel::GetNextPowerOfTwo( int value )
 {
-    int power = 1;
-    while (power < value)
-        power *= 2;
-    return power;
+	int power = 1;
+	while ( power < value )
+		power *= 2;
+	return power;
 }
 
-unsigned char* CBackgroundPanel::ResizeImage(unsigned char* src, int srcW, int srcH, int dstW, int dstH)
+unsigned char *CBackgroundPanel::ResizeImage( unsigned char *src, int srcW, int srcH, int dstW, int dstH )
 {
-    if (!src || srcW <= 0 || srcH <= 0 || dstW <= 0 || dstH <= 0)
-        return nullptr;
+	if ( !src || srcW <= 0 || srcH <= 0 || dstW <= 0 || dstH <= 0 )
+		return nullptr;
 
-    unsigned char* dst = (unsigned char*)MemAlloc_Alloc(dstW * dstH * 4, __FILE__, __LINE__);
-    if (!dst)
-        return nullptr;
+	unsigned char *dst = (unsigned char *)MemAlloc_Alloc( dstW * dstH * 4, __FILE__, __LINE__ );
+	if ( !dst )
+		return nullptr;
 
-    float xRatio = (float)srcW / (float)dstW;
-    float yRatio = (float)srcH / (float)dstH;
+	float xRatio = (float)srcW / (float)dstW;
+	float yRatio = (float)srcH / (float)dstH;
 
-    for (int y = 0; y < dstH; y++)
-    {
-        for (int x = 0; x < dstW; x++)
-        {
-            int srcX = (int)(x * xRatio);
-            int srcY = (int)(y * yRatio);
+	for ( int y = 0; y < dstH; y++ )
+	{
+		for ( int x = 0; x < dstW; x++ )
+		{
+			int srcX = (int)( x * xRatio );
+			int srcY = (int)( y * yRatio );
 
-            if (srcX >= srcW) srcX = srcW - 1;
-            if (srcY >= srcH) srcY = srcH - 1;
+			if ( srcX >= srcW )
+				srcX = srcW - 1;
+			if ( srcY >= srcH )
+				srcY = srcH - 1;
 
-            int srcIdx = (srcY * srcW + srcX) * 4;
-            int dstIdx = (y * dstW + x) * 4;
+			int srcIdx = ( srcY * srcW + srcX ) * 4;
+			int dstIdx = ( y * dstW + x ) * 4;
 
-            dst[dstIdx + 0] = src[srcIdx + 0]; // R
-            dst[dstIdx + 1] = src[srcIdx + 1]; // G
-            dst[dstIdx + 2] = src[srcIdx + 2]; // B
-            dst[dstIdx + 3] = src[srcIdx + 3]; // A
-        }
-    }
+			dst[dstIdx + 0] = src[srcIdx + 0]; // R
+			dst[dstIdx + 1] = src[srcIdx + 1]; // G
+			dst[dstIdx + 2] = src[srcIdx + 2]; // B
+			dst[dstIdx + 3] = src[srcIdx + 3]; // A
+		}
+	}
 
-    return dst;
+	return dst;
 }
 
-int CBackgroundPanel::LoadImageAsTexture(const char* imagePath)
+int CBackgroundPanel::LoadImageAsTexture( const char *imagePath )
 {
-    if (!imagePath)
-        return -1;
+	if ( !imagePath )
+		return -1;
 
-    unsigned char* imageData = nullptr;
-    int width = 0, height = 0, channels = 0;
+	unsigned char *imageData = nullptr;
+	int			   width = 0, height = 0, channels = 0;
 
-    {
-        CUtlBuffer buf;
-        if (!g_pFullFileSystem->ReadFile(imagePath, "MOD", buf))
-        {
-            Warning("Could not open image file: %s\n", imagePath);
-            return -1;
-        }
-        int fileSize = buf.TellPut();
-        unsigned char* fileData = (unsigned char*)buf.Base();
+	{
+		CUtlBuffer buf;
+		if ( !g_pFullFileSystem->ReadFile( imagePath, "MOD", buf ) )
+		{
+			Warning( "Could not open image file: %s\n", imagePath );
+			return -1;
+		}
+		int			   fileSize = buf.TellPut();
+		unsigned char *fileData = (unsigned char *)buf.Base();
 
-        imageData = LoadImageFromMemory(fileData, fileSize, width, height, channels);
-        if (!imageData)
-        {
-            Warning("Unsupported or corrupt image: %s\n", imagePath);
-            return -1;
-        }
-    }
+		imageData = LoadImageFromMemory( fileData, fileSize, width, height, channels );
+		if ( !imageData )
+		{
+			Warning( "Unsupported or corrupt image: %s\n", imagePath );
+			return -1;
+		}
+	}
 
-    if (!imageData || width <= 0 || height <= 0)
-    {
-        if (imageData) MemAlloc_Free(imageData);
-        Warning("Failed to decode image: %s\n", imagePath);
-        return -1;
-    }
+	if ( !imageData || width <= 0 || height <= 0 )
+	{
+		if ( imageData )
+			MemAlloc_Free( imageData );
+		Warning( "Failed to decode image: %s\n", imagePath );
+		return -1;
+	}
 
-    if (channels != 4)
-    {
-        unsigned char* rgba = (unsigned char*)MemAlloc_Alloc(width * height * 4, __FILE__, __LINE__);
-        if (!rgba)
-        {
-            MemAlloc_Free(imageData);
-            Warning("Out of memory converting to RGBA: %s\n", imagePath);
-            return -1;
-        }
+	if ( channels != 4 )
+	{
+		unsigned char *rgba = (unsigned char *)MemAlloc_Alloc( width * height * 4, __FILE__, __LINE__ );
+		if ( !rgba )
+		{
+			MemAlloc_Free( imageData );
+			Warning( "Out of memory converting to RGBA: %s\n", imagePath );
+			return -1;
+		}
 
-        for (int i = 0; i < width * height; ++i)
-        {
-            int srcIdx = i * channels;
-            int dstIdx = i * 4;
-            rgba[dstIdx + 0] = imageData[srcIdx + 0];
-            rgba[dstIdx + 1] = imageData[srcIdx + 1];
-            rgba[dstIdx + 2] = imageData[srcIdx + 2];
-            rgba[dstIdx + 3] = (channels == 3) ? 255 : imageData[srcIdx + 3];
-        }
+		for ( int i = 0; i < width * height; ++i )
+		{
+			int srcIdx = i * channels;
+			int dstIdx = i * 4;
+			rgba[dstIdx + 0] = imageData[srcIdx + 0];
+			rgba[dstIdx + 1] = imageData[srcIdx + 1];
+			rgba[dstIdx + 2] = imageData[srcIdx + 2];
+			rgba[dstIdx + 3] = ( channels == 3 ) ? 255 : imageData[srcIdx + 3];
+		}
 
-        MemAlloc_Free(imageData);
-        imageData = rgba;
-        channels = 4;
-    }
+		MemAlloc_Free( imageData );
+		imageData = rgba;
+		channels = 4;
+	}
 
-    int newWidth = GetNextPowerOfTwo(width);
-    int newHeight = GetNextPowerOfTwo(height);
+	int newWidth = GetNextPowerOfTwo( width );
+	int newHeight = GetNextPowerOfTwo( height );
 
-    if (newWidth > MAX_BG_TEXTURE_SIZE) newWidth = MAX_BG_TEXTURE_SIZE;
-    if (newHeight > MAX_BG_TEXTURE_SIZE) newHeight = MAX_BG_TEXTURE_SIZE;
+	if ( newWidth > MAX_BG_TEXTURE_SIZE )
+		newWidth = MAX_BG_TEXTURE_SIZE;
+	if ( newHeight > MAX_BG_TEXTURE_SIZE )
+		newHeight = MAX_BG_TEXTURE_SIZE;
 
-    unsigned char* finalData = imageData;
-    if (newWidth != width || newHeight != height)
-    {
-        finalData = ResizeImage(imageData, width, height, newWidth, newHeight);
-        MemAlloc_Free(imageData);
-        imageData = nullptr;
-        width = newWidth;
-        height = newHeight;
-        if (!finalData)
-        {
-            Warning("Failed to resize image: %s\n", imagePath);
-            return -1;
-        }
-    }
+	unsigned char *finalData = imageData;
+	if ( newWidth != width || newHeight != height )
+	{
+		finalData = ResizeImage( imageData, width, height, newWidth, newHeight );
+		MemAlloc_Free( imageData );
+		imageData = nullptr;
+		width = newWidth;
+		height = newHeight;
+		if ( !finalData )
+		{
+			Warning( "Failed to resize image: %s\n", imagePath );
+			return -1;
+		}
+	}
 
-    int texID = surface()->CreateNewTextureID(true); // procedural
-    surface()->DrawSetTextureRGBA(texID, finalData, width, height, 1, false);
+	int texID = surface()->CreateNewTextureID( true ); // procedural
+	surface()->DrawSetTextureRGBA( texID, finalData, width, height, 1, false );
 
-    if (finalData) MemAlloc_Free(finalData);
+	if ( finalData )
+		MemAlloc_Free( finalData );
 
-    return texID;
+	return texID;
 }
 
-unsigned char* CBackgroundPanel::LoadImageFromMemory(unsigned char* data, int dataSize, int& width, int& height, int& channels)
+unsigned char *CBackgroundPanel::LoadImageFromMemory( unsigned char *data, int dataSize, int &width, int &height, int &channels )
 {
-    if (!data || dataSize <= 0)
-    {
-        width = height = channels = 0;
-        return nullptr;
-    }
+	if ( !data || dataSize <= 0 )
+	{
+		width = height = channels = 0;
+		return nullptr;
+	}
 
-    int reqChannels = 4;
-    unsigned char* stbiData = stbi_load_from_memory(data, dataSize, &width, &height, &channels, reqChannels);
-    if (!stbiData)
-    {
-        Warning("Failed to load image: %s\n", stbi_failure_reason());
-        width = height = channels = 0;
-        return nullptr;
-    }
+	int			   reqChannels = 4;
+	unsigned char *stbiData = stbi_load_from_memory( data, dataSize, &width, &height, &channels, reqChannels );
+	if ( !stbiData )
+	{
+		Warning( "Failed to load image: %s\n", stbi_failure_reason() );
+		width = height = channels = 0;
+		return nullptr;
+	}
 
-    // stbi gave us RGBA (reqChannels==4)
-    channels = 4;
-    int total = width * height * channels;
-    unsigned char* result = (unsigned char*)MemAlloc_Alloc(total, __FILE__, __LINE__);
-    if (!result)
-    {
-        stbi_image_free(stbiData);
-        Warning("Out of memory while loading image\n");
-        width = height = channels = 0;
-        return nullptr;
-    }
+	// stbi gave us RGBA (reqChannels==4)
+	channels = 4;
+	int			   total = width * height * channels;
+	unsigned char *result = (unsigned char *)MemAlloc_Alloc( total, __FILE__, __LINE__ );
+	if ( !result )
+	{
+		stbi_image_free( stbiData );
+		Warning( "Out of memory while loading image\n" );
+		width = height = channels = 0;
+		return nullptr;
+	}
 
-    memcpy(result, stbiData, total);
-    stbi_image_free(stbiData);
+	memcpy( result, stbiData, total );
+	stbi_image_free( stbiData );
 
-    return result;
+	return result;
 }
 
 void CBackgroundPanel::Paint()
 {
-    if (m_BackgroundTextureIDs.Count() == 0)
-        return;
-
-	if (engine->IsInGame())
+	if ( m_BackgroundTextureIDs.Count() == 0 )
 		return;
 
-    int wide, tall;
-    GetSize(wide, tall);
+	if ( engine->IsInGame() )
+		return;
 
-	surface()->DrawSetColor(0, 0, 0, 255);
-    surface()->DrawFilledRect(0, 0, wide, tall);
+	int wide, tall;
+	GetSize( wide, tall );
 
-    float frametime = engine->Time();
+	surface()->DrawSetColor( 0, 0, 0, 255 );
+	surface()->DrawFilledRect( 0, 0, wide, tall );
 
-    const float switchInterval = 10.0f;
-    int count = m_BackgroundTextureIDs.Count();
-    int iNextBackground = (m_iCurrentBackground + 1) % count;
+	float frametime = engine->Time();
 
-    EnsureBackgroundTextureLoaded(m_iCurrentBackground);
-    if (count > 1)
-        EnsureBackgroundTextureLoaded(iNextBackground);
+	const float switchInterval = 10.0f;
+	int			count = m_BackgroundTextureIDs.Count();
+	int			iNextBackground = ( m_iCurrentBackground + 1 ) % count;
 
-    if (m_flNextBackgroundSwitch <= 0.0f)
-        m_flNextBackgroundSwitch = frametime + switchInterval;
+	EnsureBackgroundTextureLoaded( m_iCurrentBackground );
+	if ( count > 1 )
+		EnsureBackgroundTextureLoaded( iNextBackground );
 
-    float switchTime = m_flNextBackgroundSwitch;
-    float fadeDuration = (m_flFadeDuration > 0.001f) ? m_flFadeDuration : 4.0f;
-    float fadeStart = switchTime - fadeDuration;
+	if ( m_flNextBackgroundSwitch <= 0.0f )
+		m_flNextBackgroundSwitch = frametime + switchInterval;
 
-    while (frametime >= m_flNextBackgroundSwitch)
-    {
-        m_iCurrentBackground = (m_iCurrentBackground + 1) % count;
-        m_flNextBackgroundSwitch += switchInterval;
-    }
+	float switchTime = m_flNextBackgroundSwitch;
+	float fadeDuration = ( m_flFadeDuration > 0.001f ) ? m_flFadeDuration : 4.0f;
+	float fadeStart = switchTime - fadeDuration;
 
-    float fade = 0.0f;
-    if (frametime >= fadeStart && fadeDuration > 0.0f)
-    {
-        float t = (frametime - fadeStart) / fadeDuration;
-        t = clamp(t, 0.0f, 1.0f);
-        fade = t * t * (3.0f - 2.0f * t);
-    }
+	while ( frametime >= m_flNextBackgroundSwitch )
+	{
+		m_iCurrentBackground = ( m_iCurrentBackground + 1 ) % count;
+		m_flNextBackgroundSwitch += switchInterval;
+	}
 
-    float lastSwitchTime = m_flNextBackgroundSwitch - switchInterval;
-    float growEnd = fadeStart;
-    float growDur = growEnd - lastSwitchTime;
-    if (growDur < 0.001f) growDur = 0.001f;
+	float fade = 0.0f;
+	if ( frametime >= fadeStart && fadeDuration > 0.0f )
+	{
+		float t = ( frametime - fadeStart ) / fadeDuration;
+		t = clamp( t, 0.0f, 1.0f );
+		fade = t * t * ( 3.0f - 2.0f * t );
+	}
 
-    float zoom = 1.0f;
-    float peakZoom = 1.0f + m_flZoomAmount;
-    if (frametime < fadeStart)
-    {
-        float pg = (frametime - lastSwitchTime) / growDur;
-        pg = clamp(pg, 0.0f, 1.0f);
-        float pg_eased = pg * pg * pg * (pg * (pg * 6 - 15) + 10);
-        zoom = 1.0f + ((peakZoom - 1.0f) * pg_eased);
-    }
-    else
-    {
-        float tf = (frametime - fadeStart) / fadeDuration;
-        tf = clamp(tf, 0.0f, 1.0f);
-        zoom = peakZoom * (1.0f - tf) + 1.0f * tf;
-    }
+	float lastSwitchTime = m_flNextBackgroundSwitch - switchInterval;
+	float growEnd = fadeStart;
+	float growDur = growEnd - lastSwitchTime;
+	if ( growDur < 0.001f )
+		growDur = 0.001f;
 
-    float rotation = 0.0f;
-    float peakRotation = m_flRotationAmount;
+	float zoom = 1.0f;
+	float peakZoom = 1.0f + m_flZoomAmount;
+	if ( frametime < fadeStart )
+	{
+		float pg = ( frametime - lastSwitchTime ) / growDur;
+		pg = clamp( pg, 0.0f, 1.0f );
+		float pg_eased = pg * pg * pg * ( pg * ( pg * 6 - 15 ) + 10 );
+		zoom = 1.0f + ( ( peakZoom - 1.0f ) * pg_eased );
+	}
+	else
+	{
+		float tf = ( frametime - fadeStart ) / fadeDuration;
+		tf = clamp( tf, 0.0f, 1.0f );
+		zoom = peakZoom * ( 1.0f - tf ) + 1.0f * tf;
+	}
 
-    if (frametime < fadeStart)
-    {
-        float pg = (frametime - lastSwitchTime) / growDur;
-        pg = clamp(pg, 0.0f, 1.0f);
-        float pg_eased = pg * pg * pg * (pg * (pg * 6 - 15) + 10);
-        rotation = peakRotation * pg_eased;
-    }
-    else
-    {
-        float tf = (frametime - fadeStart) / fadeDuration;
-        tf = clamp(tf, 0.0f, 1.0f);
-        rotation = peakRotation * (1.0f - tf);
-    }
+	float rotation = 0.0f;
+	float peakRotation = m_flRotationAmount;
 
-    int wZoomed = (int)(wide * zoom);
-    int hZoomed = (int)(tall * zoom);
+	if ( frametime < fadeStart )
+	{
+		float pg = ( frametime - lastSwitchTime ) / growDur;
+		pg = clamp( pg, 0.0f, 1.0f );
+		float pg_eased = pg * pg * pg * ( pg * ( pg * 6 - 15 ) + 10 );
+		rotation = peakRotation * pg_eased;
+	}
+	else
+	{
+		float tf = ( frametime - fadeStart ) / fadeDuration;
+		tf = clamp( tf, 0.0f, 1.0f );
+		rotation = peakRotation * ( 1.0f - tf );
+	}
 
-    float rotRad = rotation * (M_PI / 180.0f);
-    float cosR = cos(rotRad);
-    float sinR = sin(rotRad);
+	int wZoomed = (int)( wide * zoom );
+	int hZoomed = (int)( tall * zoom );
 
-    float centerX = wide / 2.0f;
-    float centerY = tall / 2.0f;
+	float rotRad = rotation * ( M_PI / 180.0f );
+	float cosR = cos( rotRad );
+	float sinR = sin( rotRad );
 
-    float halfW = wZoomed / 2.0f;
-    float halfH = hZoomed / 2.0f;
+	float centerX = wide / 2.0f;
+	float centerY = tall / 2.0f;
 
-    struct Vert { float x, y, u, v; };
-    Vert verts[4];
-    float corners[4][2] = {
-        {-halfW, -halfH}, {halfW, -halfH}, {halfW, halfH}, {-halfW, halfH}
-    };
+	float halfW = wZoomed / 2.0f;
+	float halfH = hZoomed / 2.0f;
 
-    for (int i = 0; i < 4; ++i)
-    {
-        float x = corners[i][0];
-        float y = corners[i][1];
-        float rotX = x * cosR - y * sinR;
-        float rotY = x * sinR + y * cosR;
-        verts[i].x = centerX + rotX;
-        verts[i].y = centerY + rotY;
-        verts[i].u = (i == 1 || i == 2) ? 1.0f : 0.0f;
-        verts[i].v = (i == 2 || i == 3) ? 1.0f : 0.0f;
-    }
+	struct Vert
+	{
+		float x, y, u, v;
+	};
+	Vert  verts[4];
+	float corners[4][2] = { { -halfW, -halfH }, { halfW, -halfH }, { halfW, halfH }, { -halfW, halfH } };
 
-    // draw current
-    int texIDCurr = m_BackgroundTextureIDs[m_iCurrentBackground];
-    if (texIDCurr >= 0)
-    {
-        surface()->DrawSetTexture(texIDCurr);
-        int alphaCurr = (int)(255.0f * (1.0f - fade));
-        surface()->DrawSetColor(128, 128, 128, alphaCurr);
-        
-        vgui::Vertex_t v[4];
-        for (int i = 0; i < 4; ++i)
-        {
-            v[i].m_Position.x = verts[i].x;
-            v[i].m_Position.y = verts[i].y;
-            v[i].m_TexCoord.x = verts[i].u;
-            v[i].m_TexCoord.y = verts[i].v;
-        }
-        surface()->DrawTexturedPolygon(4, v);
-    }
+	for ( int i = 0; i < 4; ++i )
+	{
+		float x = corners[i][0];
+		float y = corners[i][1];
+		float rotX = x * cosR - y * sinR;
+		float rotY = x * sinR + y * cosR;
+		verts[i].x = centerX + rotX;
+		verts[i].y = centerY + rotY;
+		verts[i].u = ( i == 1 || i == 2 ) ? 1.0f : 0.0f;
+		verts[i].v = ( i == 2 || i == 3 ) ? 1.0f : 0.0f;
+	}
 
-    if (fade > 0.0f && count > 1)
-    {
-        int texIDNext = m_BackgroundTextureIDs[iNextBackground];
-        if (texIDNext >= 0)
-        {
-            surface()->DrawSetTexture(texIDNext);
-            int alphaNext = (int)(255.0f * fade);
-            surface()->DrawSetColor(128, 128, 128, alphaNext);
-            vgui::Vertex_t v2[4];
-            for (int i = 0; i < 4; ++i)
-            {
-                v2[i].m_Position.x = verts[i].x;
-                v2[i].m_Position.y = verts[i].y;
-                v2[i].m_TexCoord.x = verts[i].u;
-                v2[i].m_TexCoord.y = verts[i].v;
-            }
-            surface()->DrawTexturedPolygon(4, v2);
-        }
-    }
+	// draw current
+	int texIDCurr = m_BackgroundTextureIDs[m_iCurrentBackground];
+	if ( texIDCurr >= 0 )
+	{
+		surface()->DrawSetTexture( texIDCurr );
+		int alphaCurr = (int)( 255.0f * ( 1.0f - fade ) );
+		surface()->DrawSetColor( 128, 128, 128, alphaCurr );
+
+		vgui::Vertex_t v[4];
+		for ( int i = 0; i < 4; ++i )
+		{
+			v[i].m_Position.x = verts[i].x;
+			v[i].m_Position.y = verts[i].y;
+			v[i].m_TexCoord.x = verts[i].u;
+			v[i].m_TexCoord.y = verts[i].v;
+		}
+		surface()->DrawTexturedPolygon( 4, v );
+	}
+
+	if ( fade > 0.0f && count > 1 )
+	{
+		int texIDNext = m_BackgroundTextureIDs[iNextBackground];
+		if ( texIDNext >= 0 )
+		{
+			surface()->DrawSetTexture( texIDNext );
+			int alphaNext = (int)( 255.0f * fade );
+			surface()->DrawSetColor( 128, 128, 128, alphaNext );
+			vgui::Vertex_t v2[4];
+			for ( int i = 0; i < 4; ++i )
+			{
+				v2[i].m_Position.x = verts[i].x;
+				v2[i].m_Position.y = verts[i].y;
+				v2[i].m_TexCoord.x = verts[i].u;
+				v2[i].m_TexCoord.y = verts[i].v;
+			}
+			surface()->DrawTexturedPolygon( 4, v2 );
+		}
+	}
 }
 
 CMainMenuSystem::CMainMenuSystem() : CAutoGameSystem( "CMainMenuSystem" )
@@ -593,9 +600,9 @@ CMainMenu::CMainMenu( VPANEL parent ) : Panel( NULL, "MainMenu" )
 	m_pLogo = new ImageExtButton( this, "Logo", "materials/gamemode/sandbox.png" );
 	m_pLogo->SetBounds( scheme()->GetProportionalScaledValue( 70 ), scheme()->GetProportionalScaledValue( 25 ), 256, 256 );
 
-	m_pBackground = new CBackgroundPanel(this, "MainMenuBackground");
-	m_pBackground->SetZPos(-5);
-	m_pBackground->SetVisible(true);
+	m_pBackground = new CBackgroundPanel( this, "MainMenuBackground" );
+	m_pBackground->SetZPos( -5 );
+	m_pBackground->SetVisible( true );
 	m_pBackground->LoadBackgroundImages();
 
 	LoadGameMenu();
@@ -678,6 +685,25 @@ void CMainMenu::PerformLayout()
 
 	if ( m_pMenuBar )
 		m_pMenuBar->SetBounds( 0, tall - 50, wide, 50 );
+
+	if ( m_pLogo )
+		m_pLogo->SetPos( scheme()->GetProportionalScaledValue( 70 ), scheme()->GetProportionalScaledValue( 25 ) );
+
+	if ( m_pBackground )
+		m_pBackground->SetBounds( 0, 0, wide, tall );
+}
+
+void CMainMenu::OnScreenSizeChanged( int iOldWide, int iOldTall )
+{
+	BaseClass::OnScreenSizeChanged( iOldWide, iOldTall );
+
+	int wide, tall;
+	surface()->GetScreenSize( wide, tall );
+	SetSize( wide, tall );
+
+	LoadGameMenu();
+
+	InvalidateLayout( true, true );
 }
 
 void CMainMenu::ApplySchemeSettings( IScheme *pScheme )

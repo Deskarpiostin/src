@@ -30,10 +30,10 @@ class CHoverButton : public vgui::Label
 public:
 	CHoverButton( vgui::Panel *parent, const char *panelName );
 
-	virtual void OnCursorEntered() override;
-	virtual void OnCursorExited() override;
-	virtual void OnMousePressed( vgui::MouseCode code ) override;
-	virtual void ApplySchemeSettings( vgui::IScheme *pScheme ) override;
+	virtual void OnCursorEntered() OVERRIDE;
+	virtual void OnCursorExited() OVERRIDE;
+	virtual void OnMousePressed( vgui::MouseCode code ) OVERRIDE;
+	virtual void ApplySchemeSettings( vgui::IScheme *pScheme ) OVERRIDE;
 
 	void SetCommand( const char *cmd );
 
@@ -47,33 +47,33 @@ private:
 
 class CBackgroundPanel : public vgui::Panel
 {
-    DECLARE_CLASS_SIMPLE(CBackgroundPanel, vgui::Panel);
+	DECLARE_CLASS_SIMPLE( CBackgroundPanel, vgui::Panel );
 
 public:
-    CBackgroundPanel(vgui::Panel *parent, const char *pName);
-    virtual ~CBackgroundPanel();
+	CBackgroundPanel( vgui::Panel *parent, const char *pName );
+	virtual ~CBackgroundPanel();
 
-    virtual void Paint() OVERRIDE;
-    virtual void PerformLayout() OVERRIDE;
+	virtual void Paint() OVERRIDE;
+	virtual void PerformLayout() OVERRIDE;
 
-    void LoadBackgroundImages();
+	void LoadBackgroundImages();
 
 private:
-    CUtlVector<int>       m_BackgroundTextureIDs;
-    CUtlVector<CUtlString> m_BackgroundFiles;
-    int                   m_iCurrentBackground = 0;
-    float                 m_flNextBackgroundSwitch = 0.f;
-    float                 m_flFadeDuration = 2.f;
-    float                 m_flZoomAmount = 0.15f;
-    float                 m_flRotationAmount = 5.f;
-    int                   m_maxLoadedBackgrounds = 2;
+	CUtlVector< int >		 m_BackgroundTextureIDs;
+	CUtlVector< CUtlString > m_BackgroundFiles;
+	int						 m_iCurrentBackground = 0;
+	float					 m_flNextBackgroundSwitch = 0.f;
+	float					 m_flFadeDuration = 2.f;
+	float					 m_flZoomAmount = 0.15f;
+	float					 m_flRotationAmount = 5.f;
+	int						 m_maxLoadedBackgrounds = 2;
 
-    void DestroyBackgroundTexture(int index);
-    void EnsureBackgroundTextureLoaded(int index);
-    int  LoadImageAsTexture(const char* imagePath);
-    unsigned char* LoadImageFromMemory(unsigned char* data, int dataSize, int& width, int& height, int& channels);
-    int  GetNextPowerOfTwo(int value);
-    unsigned char* ResizeImage(unsigned char* src, int srcW, int srcH, int dstW, int dstH);
+	void		   DestroyBackgroundTexture( int index );
+	void		   EnsureBackgroundTextureLoaded( int index );
+	int			   LoadImageAsTexture( const char *imagePath );
+	unsigned char *LoadImageFromMemory( unsigned char *data, int dataSize, int &width, int &height, int &channels );
+	int			   GetNextPowerOfTwo( int value );
+	unsigned char *ResizeImage( unsigned char *src, int srcW, int srcH, int dstW, int dstH );
 };
 
 class CMainMenu : public vgui::Panel
@@ -87,11 +87,13 @@ public:
 	virtual void PerformLayout() OVERRIDE;
 	void		 LoadGameMenu();
 
+	virtual void OnScreenSizeChanged( int iOldWide, int iOldTall ) OVERRIDE;
+
 private:
 	CMenuBar					*m_pMenuBar;
 	CHoverButton				*m_pStartButton;
 	ImageExtButton				*m_pLogo;
-	CBackgroundPanel 			*m_pBackground;
+	CBackgroundPanel			*m_pBackground;
 	CUtlVector< CHoverButton * > m_GameMenuButtons;
 };
 
