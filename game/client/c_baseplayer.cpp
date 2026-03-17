@@ -2945,6 +2945,12 @@ void C_BasePlayer::UpdateWearables( void )
 //-----------------------------------------------------------------------------
 void C_BasePlayer::BuildFirstPersonMeathookTransformations( CStudioHdr *hdr, Vector *pos, Quaternion q[], const matrix3x4_t& cameraTransform, int boneMask, CBoneBitList &boneComputed, const char *pchHeadBoneName )
 {
+#ifdef SBPP
+	view_id_t viewID = CurrentViewID();
+	if ( viewID == VIEW_REFLECTION || viewID == VIEW_REFRACTION )
+		return;
+#endif
+
 	// Handle meathook mode. If we aren't rendering, just use last frame's transforms
 	if ( !InFirstPersonView() )
 		return;
