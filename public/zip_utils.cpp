@@ -185,7 +185,7 @@ public:
 
 			close( fd );
 
-			strncpy( tempFileName, tmpTemplate, sizeof( tempFileName ) );
+			Q_strncpy( tempFileName, tmpTemplate, sizeof( tempFileName ) );
 		}
 		else
 		{
