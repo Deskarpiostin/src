@@ -856,7 +856,7 @@ bool CGravControllerPoint::UpdateObject( CBasePlayer *pPlayer, CBaseEntity *pEnt
 		m_vecRotatedCarryAngles[YAW]   = (pPlayer->m_pCurrentCommand->mousedx / 100.f) * physgun_rotation_speed.GetFloat();
 		m_vecRotatedCarryAngles[PITCH] = (pPlayer->m_pCurrentCommand->mousedy / 100.f) * -physgun_rotation_speed.GetFloat();
 #else
-		float fValue = (float)atof(engine->GetClientConVarValue(pPlayer->GetClientIndex(), "physgun_rotation_speed"));
+		float fValue = (float)atof(engine->GetClientConVarValue(pPlayer->GetClientIndex()+1, "physgun_rotation_speed"));
 		m_vecRotatedCarryAngles[YAW]   = (pPlayer->GetCurrentCommand()->mousedx / 100.f) * fValue;
 		m_vecRotatedCarryAngles[PITCH] = (pPlayer->GetCurrentCommand()->mousedy / 100.f) * -fValue;
 #endif
