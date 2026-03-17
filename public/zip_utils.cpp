@@ -177,21 +177,15 @@ public:
 		char tempFileName[MAX_PATH];
 		if ( WritePath.IsEmpty() )
 		{
-			// use a safe name in the cwd
-			char *pBuffer = tmpnam( NULL );
-			if ( !pBuffer )
-			{
+			char tmpTemplate[] = "/tmp/_fileXXXXXX.tmp";
+			int	 fd = mkstemp( tmpTemplate );
+
+			if ( fd == -1 )
 				return INVALID_HANDLE_VALUE;
-			}
-			if ( pBuffer[0] == '\\' )
-			{
-				pBuffer++;
-			}
-			if ( pBuffer[strlen( pBuffer )-1] == '.' )
-			{
-				pBuffer[strlen( pBuffer )-1] = '\0';
-			}
-			V_snprintf( tempFileName, sizeof( tempFileName ), "_%s.tmp", pBuffer );
+
+			close( fd );
+
+			strncpy( tempFileName, tmpTemplate, sizeof( tempFileName ) );
 		}
 		else
 		{
