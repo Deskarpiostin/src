@@ -1040,9 +1040,11 @@ void CBasePlayer::DamageEffect(float flDamage, int fDamageType)
 {
 	if (fDamageType & DMG_CRUSH)
 	{
+#ifndef SBPP
 		//Red damage indicator
 		color32 red = {128,0,0,128};
 		UTIL_ScreenFade( this, red, 1.0f, 0.1f, FFADE_IN );
+#endif
 	}
 	else if (fDamageType & DMG_DROWN)
 	{
