@@ -146,9 +146,9 @@ int CBaseScripted::OnTakeDamage(const CTakeDamageInfo &info)
 {
 	CTakeDamageInfo nonConstInfo = info;
 
-    BEGIN_LUA_CALL_ENTITY_METHOD("OnTakeDamage");
+	BEGIN_LUA_CALL_ENTITY_METHOD( "OnTakeDamage" );
 		lua_pushdamageinfo( L, nonConstInfo );
-    END_LUA_CALL_ENTITY_METHOD(0, 0);
+	END_LUA_CALL_ENTITY_METHOD( 1, 0 );
 
 #ifdef CLIENT_DLL
 	return 0; // ... what
@@ -279,14 +279,11 @@ void CBaseScripted::Spawn( void )
 {
 	BaseClass::Spawn();
 
+	m_takedamage = DAMAGE_YES;
+
 #ifndef CLIENT_DLL
 	InitScriptedEntity();
 #endif
-
-#ifdef GAME_DLL
-	SetMaxHealth( 100 );
-#endif
-	SetHealth( 100 );
 }
 
 void CBaseScripted::Precache( void )
