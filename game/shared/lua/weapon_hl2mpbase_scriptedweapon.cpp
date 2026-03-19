@@ -1495,7 +1495,7 @@ bool CHL2MPScriptedWeapon::Holster( CBaseCombatWeapon *pSwitchingTo )
 	{
 #ifndef CLIENT_DLL
 	CHL2MP_Player *pPlayer = ToHL2MPPlayer(GetOwner());
-	if ( pPlayer )
+	if ( pPlayer && m_nTableReference != LUA_NOREF )
 	{
 		CUtlString desiredModel;
 		int desiredSkin = 0;
