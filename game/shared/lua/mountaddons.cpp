@@ -156,6 +156,12 @@ static void MountAddonFolder( const char *folder, const char *gamePath )
 				filesystem->AddSearchPath( fullPath, "MOD", PATH_ADD_TO_HEAD );
 				filesystem->AddSearchPath( fullPath, "GAME", PATH_ADD_TO_HEAD );
 			}
+			else if ( Q_stristr( fn, ".gma" ) )
+			{
+				DevMsg( "Mounting %s GMA: %s\n", folder, fullPath );
+				filesystem->AddSearchPath( fullPath, "MOD", PATH_ADD_TO_HEAD );
+				filesystem->AddSearchPath( fullPath, "GAME", PATH_ADD_TO_HEAD );
+			}
 			else if ( Q_stristr( fn, ".zip" ) )
 			{
 				DevMsg( "Mounting %s ZIP: %s\n", folder, fullPath );
