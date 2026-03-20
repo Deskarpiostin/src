@@ -1474,6 +1474,9 @@ Activity CHL2MPScriptedWeapon::GetDrawActivity( void )
 		return BaseClass::GetDrawActivity();
 
 #if defined ( LUA_SDK )
+	if ( !PushTableFromRef( L, m_nTableReference ) )
+		return BaseClass::GetDrawActivity();
+
 	BEGIN_LUA_CALL_WEAPON_METHOD( "GetDrawActivity" );
 	END_LUA_CALL_WEAPON_METHOD( 0, 1 );
 
