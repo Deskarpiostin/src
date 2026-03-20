@@ -3,7 +3,7 @@
     <string name="srceng_launcher_command_args">Command-line arguments</string>
 
     <string name="srceng_launcher_about_title">Credits</string>
-    <string name="srceng_launcher_about_text">CREDITS\nThePixelMoon/YourLocalMoon - Lead programmer\nWaltenthethird - Helping fix thirdperson animations\nAshforever - Provider of fixed GMod models\nMrDinnerMau5 - Supporter, advertising\nGraman/Carl - Suggestions\nItzVladik - Contributor, the one who allowed me to use his mov_ convars from GunMod\n\nCONTRIBUTORS\nhahayoutookind - Russian translation\nKokoleong - Fancy hat\nR_4d - Fancy hat..again\n\nPLAYTESTERS\nInflesi\nGustavo/Nekto\nRamdoms\nYaymon\nBartG1014\n\nSome map thumbnails - https://github.com/norbcodes/MapThumbnailPack, https://steamcommunity.com/sharedfiles/filedetails/?id=2922426391\n\nSpecial thanks to everyone that have supported this project!\nAnd GMod, of course.</string>
+    <string name="srceng_launcher_about_text">ThePixelMoon/YourLocalMoon - Lead programmer\nWaltenthethird - Helping fix thirdperson animations\nAshforever - Provider of fixed GMod models\nMrDinnerMau5 - Supporter, advertising\nGraman/Carl - Suggestions\nItzVladik - Contributor, the one who allowed me to use his mov_ convars from GunMod\n\nCONTRIBUTORS\nhahayoutookind - Russian translation\nKokoleong - Fancy hat\nR_4d - Fancy hat..again\n\nPLAYTESTERS\nInflesi\nGustavo/Nekto\nRamdoms\nYaymon\nBartG1014\n\nSome map thumbnails - https://github.com/norbcodes/MapThumbnailPack, https://steamcommunity.com/sharedfiles/filedetails/?id=2922426391\n\nSpecial thanks to everyone that have supported this project!\nAnd GMod, of course.</string>
 
     <string name="srceng_launcher_launch">Launch</string>
     <string name="srceng_launcher_ok">OK</string>
