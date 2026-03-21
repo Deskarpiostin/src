@@ -568,6 +568,8 @@ private:
 	int	 m_poseActive;							  // Cached index of "active" pose parameter
 	bool m_sbStaticPoseParamsLoaded;			  // Have we loaded the pose parameter?
 
+	Vector mPrevGrabPos;
+
 	bool m_bCarryingNPC;
 	int	 m_savedMoveType;
 
@@ -693,13 +695,12 @@ void PlayerWeaponColorProxy::OnBind( C_BaseEntity *pBaseEntity )
 	if ( !m_pResultVar || !pBaseEntity )
 		return;
 
+	CBaseCombatWeapon *pWeapon = nullptr;
 	C_BaseViewModel *pVM = dynamic_cast<C_BaseViewModel *>( pBaseEntity );
-	if ( !pVM )
-		return;
-
-	CBaseCombatWeapon *pWeapon = pVM->GetOwningWeapon();
-	if ( !pWeapon )
-		return;
+	if ( pVM )
+		pWeapon = pVM->GetOwningWeapon();
+	else
+		pWeapon = dynamic_cast<CBaseCombatWeapon *>( pBaseEntity );
 
 	C_BasePlayer *player = ToBasePlayer( pWeapon->GetOwner() );
 	if ( !player )
@@ -1451,8 +1452,7 @@ int CWeaponPhysicsGun::DrawModel( int flags )
 		if ( !pOwner )
 			return 0;
 
-		// hack
-		if ( pOwner->InPerspectiveView() || pOwner->InFirstPersonView() )
+		if ( pOwner->InFirstPersonView() )
 			return 0;
 
 		Vector points[3];
@@ -1550,10 +1550,10 @@ int CWeaponPhysicsGun::DrawModel( int flags )
 						Vector worldGrabPos;
 						pPhys->LocalToWorld( &worldGrabPos, m_worldPosition );
 
-						static Vector s_prevGrabPos = worldGrabPos;
+						mPrevGrabPos = worldGrabPos;
 						const float	  lerpFactor = 0.45f;
-						points[2] = s_prevGrabPos * ( 1.0f - lerpFactor ) + worldGrabPos * lerpFactor;
-						s_prevGrabPos = points[2];
+						points[2] = mPrevGrabPos * ( 1.0f - lerpFactor ) + worldGrabPos * lerpFactor;
+						mPrevGrabPos = points[2];
 					}
 				}
 				else
@@ -1726,10 +1726,10 @@ void CWeaponPhysicsGun::ViewModelDrawn( C_BaseViewModel *pBaseViewModel )
 					Vector worldGrabPos;
 					pPhys->LocalToWorld( &worldGrabPos, m_worldPosition );
 
-					static Vector s_prevGrabPos = worldGrabPos;
+					mPrevGrabPos = worldGrabPos;
 					const float	  lerpFactor = 0.45f;
-					points[2] = s_prevGrabPos * ( 1.0f - lerpFactor ) + worldGrabPos * lerpFactor;
-					s_prevGrabPos = points[2];
+					points[2] = mPrevGrabPos * ( 1.0f - lerpFactor ) + worldGrabPos * lerpFactor;
+					mPrevGrabPos = points[2];
 				}
 			}
 			else
