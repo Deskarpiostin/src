@@ -914,12 +914,20 @@ void CHL2MPRules::ClientDisconnected( edict_t *pClient )
 #ifndef CLIENT_DLL
 	// Msg( "CLIENT DISCONNECTED, REMOVING FROM TEAM.\n" );
 
+    CBasePlayer *pPlayer = nullptr;
+
+    if ( pClient && !pClient->IsFree() )
+        pPlayer = ToBasePlayer( CBaseEntity::Instance( pClient ) );
+
 #if defined ( LUA_SDK )
-	BEGIN_LUA_CALL_HOOK( "ClientDisconnected" );
-		lua_pushplayer( L, (CBasePlayer *)CBaseEntity::Instance( pClient ) );
-	END_LUA_CALL_HOOK( 1, 0 );
+	if ( pPlayer )
+	{
+		BEGIN_LUA_CALL_HOOK( "ClientDisconnected" );
+			lua_pushplayer( L, pPlayer );
+		END_LUA_CALL_HOOK( 1, 0 );
+	}
 #endif
-	CBasePlayer *pPlayer = (CBasePlayer *)CBaseEntity::Instance( pClient );
+#ifndef SBPP
 	if ( pPlayer )
 	{
 		// Remove the player from his team
@@ -928,6 +936,7 @@ void CHL2MPRules::ClientDisconnected( edict_t *pClient )
 			pPlayer->GetTeam()->RemovePlayer( pPlayer );
 		}
 	}
+#endif
 
 	BaseClass::ClientDisconnected( pClient );
 
