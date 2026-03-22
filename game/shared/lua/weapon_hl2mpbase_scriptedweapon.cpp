@@ -1493,12 +1493,18 @@ Activity CHL2MPScriptedWeapon::GetDrawActivity( void )
 //-----------------------------------------------------------------------------
 bool CHL2MPScriptedWeapon::Holster( CBaseCombatWeapon *pSwitchingTo )
 {
+	if (m_nTableReference == LUA_NOREF)
+		return BaseClass::Holster( pSwitchingTo );
+
+	if ( !PushTableFromRef( L, m_nTableReference ) )
+		return BaseClass::Holster( pSwitchingTo );
+
 #ifdef HL2SB
 	if ( !UseHands )
 	{
 #ifndef CLIENT_DLL
 	CHL2MP_Player *pPlayer = ToHL2MPPlayer(GetOwner());
-	if ( pPlayer && m_nTableReference != LUA_NOREF )
+	if ( pPlayer )
 	{
 		CUtlString desiredModel;
 		int desiredSkin = 0;
@@ -1544,11 +1550,6 @@ bool CHL2MPScriptedWeapon::Holster( CBaseCombatWeapon *pSwitchingTo )
 	// lua one exists
 
 #if defined ( LUA_SDK )
-	if (m_nTableReference == LUA_NOREF)
-		return BaseClass::Holster( pSwitchingTo );
-	else
-		BaseClass::Holster( pSwitchingTo );
-
 	BEGIN_LUA_CALL_WEAPON_METHOD( "Holster" );
 		lua_pushweapon( L, pSwitchingTo );
 	END_LUA_CALL_WEAPON_METHOD( 1, 1 );
