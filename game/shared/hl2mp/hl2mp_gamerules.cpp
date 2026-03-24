@@ -1415,6 +1415,14 @@ bool CHL2MPRules::PlayerCanHearChat( CBasePlayer *pListener, CBasePlayer *pSpeak
 
 bool CHL2MPRules::ClientConnected( edict_t *pEntity, const char *pszName, const char *pszAddress, char *reject, int maxrejectlen )
 {
+#ifdef SBPP
+    if ( FStrEq( pszName, "unnamed" ) )
+    {
+        Q_strncpy( reject, "Please set a name for yourself in Advanced Options before joining", maxrejectlen );
+        return false;
+    }
+#endif
+
 	BEGIN_LUA_CALL_HOOK( "ClientConnected" );
 		lua_pushplayer( L, (CBasePlayer *)CBaseEntity::Instance( pEntity ) );
 		lua_pushstring( L, pszName );
