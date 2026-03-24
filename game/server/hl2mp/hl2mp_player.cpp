@@ -1384,8 +1384,7 @@ bool CHL2MP_Player::ClientCommand( const CCommand &args )
 #ifdef SBPP
 	else if ( FStrEq( args[0], "messagemode" ) )
 	{
-		CBasePlayer *pPlayer = UTIL_GetCommandClient();
-		SendStartMessageMode( pPlayer, 0 );
+		SendStartMessageMode( this, 0 );
 		return true;
 	}
 #endif
