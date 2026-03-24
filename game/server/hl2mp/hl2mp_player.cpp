@@ -143,12 +143,15 @@ IMPLEMENT_SERVERCLASS_ST(CHL2MP_Player, DT_HL2MP_Player)
 	SendPropEHandle( SENDINFO( m_hRagdoll ) ),
 	SendPropInt( SENDINFO( m_iPlayerSoundType), 3 ),
 	
-	SendPropBool( SENDINFO( m_bTaunting) ),
+	SendPropBool( SENDINFO( m_bTaunting ) ),
 	SendPropInt( SENDINFO( m_aCurrentTaunt ) ),
 
 	SendPropInt( SENDINFO( m_iPlayerColorR ) ),
 	SendPropInt( SENDINFO( m_iPlayerColorG ) ),
 	SendPropInt( SENDINFO( m_iPlayerColorB ) ),
+
+	SendPropBool( SENDINFO( m_bIsChatting ) ),
+	SendPropBool( SENDINFO( m_bIsNoclipping ) ),
 #endif
 END_SEND_TABLE()
 
@@ -261,6 +264,9 @@ CHL2MP_Player::CHL2MP_Player() : m_PlayerAnimState( this )
 	m_iPlayerColorR = 255;
 	m_iPlayerColorG = 255;
 	m_iPlayerColorB = 255;
+
+	m_bIsChatting = false;
+	m_bIsNoclipping = false;
 
 	m_CurrentHandModel = "";
 

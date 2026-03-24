@@ -68,12 +68,15 @@ IMPLEMENT_CLIENTCLASS_DT(C_HL2MP_Player, DT_HL2MP_Player, CHL2MP_Player)
 #endif
 	RecvPropBool( RECVINFO( m_fIsWalking ) ),
 #ifdef SBPP
-	RecvPropBool( RECVINFO( m_bTaunting) ),
+	RecvPropBool( RECVINFO( m_bTaunting ) ),
 	RecvPropInt( RECVINFO( m_aCurrentTaunt ) ),
 
 	RecvPropInt( RECVINFO( m_iPlayerColorR ) ),
 	RecvPropInt( RECVINFO( m_iPlayerColorG ) ),
 	RecvPropInt( RECVINFO( m_iPlayerColorB ) ),
+
+	RecvPropBool( RECVINFO( m_bIsChatting ) ),
+	RecvPropBool( RECVINFO( m_bIsNoclipping ) ),
 #endif
 END_RECV_TABLE()
 
@@ -125,6 +128,9 @@ C_HL2MP_Player::C_HL2MP_Player() : m_PlayerAnimState( this ), m_iv_angEyeAngles(
 	m_iPlayerColorR = 255;
 	m_iPlayerColorG = 255;
 	m_iPlayerColorB = 255;
+
+	m_bIsChatting = false;
+	m_bIsNoclipping = false;
 #endif
 
 	m_pFlashlightBeam = NULL;

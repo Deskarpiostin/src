@@ -25,14 +25,14 @@
 #include "vgui/ILocalize.h"
 #include "multiplay_gamerules.h"
 #include "tier0/icommandline.h"
+#ifdef SBPP
+#include "c_hl2mp_player.h"
+#endif
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
 #define CHAT_WIDTH_PERCENTAGE 0.6f
-#ifdef SBPP
-ConVar is_chatting("is_chatting", "0", FCVAR_DEVELOPMENTONLY | FCVAR_USERINFO);
-#endif
 
 #ifndef _XBOX
 ConVar hud_saytext_time( "hud_saytext_time", "12", 0 );
@@ -1238,7 +1238,9 @@ void CBaseHudChat::StartMessageMode( int iMessageModeType )
 	m_pChatInput->SetPaintBorderEnabled( true );
 	m_pChatInput->SetMouseInputEnabled( true );
 #ifdef SBPP
-	is_chatting.SetValue( 1 );
+	C_HL2MP_Player *pHL2MPPlayer = ToHL2MPPlayer( C_BasePlayer::GetLocalPlayer() );
+	if ( pHL2MPPlayer )
+		pHL2MPPlayer->SetChatting( true );
 #endif
 
 	//Place the mouse cursor near the text so people notice it.
@@ -1287,7 +1289,9 @@ void CBaseHudChat::StopMessageMode( void )
 
 	m_nMessageMode = MM_NONE;
 #ifdef SBPP
-	is_chatting.SetValue( 0 );
+	C_HL2MP_Player *pHL2MPPlayer = ToHL2MPPlayer( C_BasePlayer::GetLocalPlayer() );
+	if ( pHL2MPPlayer )
+		pHL2MPPlayer->SetChatting( false );
 #endif
 #endif
 }

@@ -178,6 +178,13 @@ public:
 	virtual int GetPlayerColorG() const { return m_iPlayerColorG; }
 	virtual int GetPlayerColorB() const { return m_iPlayerColorB; }
 
+	virtual bool IsChatting() const { return m_bIsChatting; }
+	virtual bool IsNoclipping() const { return m_bIsNoclipping; }
+
+	/* And whatever this monstrosity is */
+	virtual void SetChatting(bool bValue) { m_bIsChatting = bValue; }
+	virtual void SetNoclipping(bool bValue) { m_bIsNoclipping = bValue; }
+
 	virtual void UpdatePlayerColors();
 
 public:
@@ -207,6 +214,9 @@ private:
 	CNetworkVar( int, m_iPlayerColorR );
 	CNetworkVar( int, m_iPlayerColorG );
 	CNetworkVar( int, m_iPlayerColorB );
+
+	CNetworkVar( bool, m_bIsChatting );
+	CNetworkVar( bool, m_bIsNoclipping );
 #endif
 
 	float m_flSlamProtectTime;	

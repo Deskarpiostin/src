@@ -35,6 +35,9 @@
 #include "datacache/imdlcache.h"
 #include "basemultiplayerplayer.h"
 #include "voice_gamemgr.h"
+#ifdef SBPP
+#include "hl2mp_player.h"
+#endif
 
 #ifdef TF_DLL
 #include "tf_player.h"
@@ -1162,6 +1165,12 @@ void CC_Player_NoClip( void )
 
 	CPlayerState *pl = pPlayer->PlayerData();
 	Assert( pl );
+
+#ifdef SBPP
+	CHL2MP_Player *pHL2MPPlayer = ToHL2MPPlayer( pPlayer );
+	if ( pHL2MPPlayer )
+		pHL2MPPlayer->SetNoclipping( !pHL2MPPlayer->IsNoclipping() ); // toggle stuff idk
+#endif
 
 	if (pPlayer->GetMoveType() != MOVETYPE_NOCLIP)
 	{
