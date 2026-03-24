@@ -204,7 +204,20 @@ ConVar npc_deathnotice("npc_deathnotice", "1", FCVAR_REPLICATED);
 	public:
 		virtual bool		CanPlayerHearPlayer( CBasePlayer *pListener, CBasePlayer *pTalker, bool &bProximity )
 		{
+#ifndef SBPP
 			return ( pListener->GetTeamNumber() == pTalker->GetTeamNumber() );
+#else
+			BEGIN_LUA_CALL_HOOK( "CanPlayerHearPlayer" );
+				lua_pushplayer( L, pListener );
+				lua_pushplayer( L, pTalker );
+				lua_pushboolean( L, bProximity );
+			END_LUA_CALL_HOOK( 3, 1 );
+
+			RETURN_LUA_BOOLEAN();
+
+			/* Default to true */
+			return true;
+#endif
 		}
 	};
 	CVoiceGameMgrHelper g_VoiceGameMgrHelper;
