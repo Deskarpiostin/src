@@ -49,3 +49,5 @@ source-engine.sln
 !lib/win32/x86/ftol3.obj
 !lib/win32/x86/SDL2.dll
 !lib/win32/x86/SDL2.pdb
+
+opus/
