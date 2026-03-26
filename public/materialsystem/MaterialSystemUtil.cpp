@@ -119,6 +119,9 @@ CTextureReference::CTextureReference( ) : m_pTexture(NULL)
 }
 
 CTextureReference::CTextureReference( const CTextureReference &ref )
+#ifdef MOON
+	: m_pTexture( NULL )
+#endif
 {
 	m_pTexture = ref.m_pTexture;
 	if ( m_pTexture )
@@ -129,6 +132,9 @@ CTextureReference::CTextureReference( const CTextureReference &ref )
 
 void CTextureReference::operator=( CTextureReference &ref )
 {
+#ifdef MOON
+	Shutdown();
+#endif
 	m_pTexture = ref.m_pTexture;
 	if ( m_pTexture )
 	{
