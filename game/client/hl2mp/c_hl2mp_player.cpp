@@ -288,6 +288,10 @@ CStudioHdr *C_HL2MP_Player::OnNewModel( void )
 		m_PlayerAnimState->OnNewModel();
 	}
 
+#ifdef SBPP
+	SetNumAnimOverlays( 15 );
+#endif
+
 	return hdr;
 }
 

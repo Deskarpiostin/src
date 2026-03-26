@@ -79,7 +79,11 @@ void CThirdPersonManager::Update( void )
 	}
 
 	// If cheats have been disabled, pull us back out of third-person view.
+#ifndef SBPP
 	if ( sv_cheats && !sv_cheats->GetBool() && GameRules() && GameRules()->AllowThirdPersonCamera() == false )
+#else
+	if ( GameRules() && GameRules()->AllowThirdPersonCamera() == false )
+#endif
 	{
 		if ( (bool)input->CAM_IsThirdPerson() == true )
 		{

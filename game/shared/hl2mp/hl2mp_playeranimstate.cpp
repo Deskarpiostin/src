@@ -100,39 +100,65 @@ void CHL2MPPlayerAnimState::ClearAnimationState( void )
 	BaseClass::ClearAnimationState();
 }
 
+#ifdef SBPP
 //-----------------------------------------------------------------------------
 // Purpose: 
-// Input  : actDesired - 
-// Output : Activity
 //-----------------------------------------------------------------------------
-Activity CHL2MPPlayerAnimState::TranslateActivity( Activity actDesired )
+void CHL2MPPlayerAnimState::SetGesture( Activity act, int order )
 {
-    CHL2MP_Player *pPlayer = GetHL2MPPlayer();
-	if ( pPlayer->IsTaunting() )
-	{
-		Activity danceAct = pPlayer->GetDanceAct();
-		if ( danceAct != ACT_INVALID )
-			return danceAct;
-	}
+	CHL2MP_Player *pPlayer = GetHL2MPPlayer();
+	if ( !pPlayer )
+		return;
 
-	if ( HandleVehicle( actDesired ) )
-		return actDesired; // the vehicle act...
+	int iSequence = pPlayer->SelectWeightedSequence( act );
+	if ( iSequence < 0 || iSequence >= pPlayer->GetModelPtr()->GetNumSeq() )
+		return;
 
-#ifdef CLIENT_DLL
-	if ( pPlayer->IsChatting() )
+	int iLayer = -1;
+
+#ifndef CLIENT_DLL
+	if ( !pPlayer->IsPlayingGesture( act ) )
+		pPlayer->RestartGesture( act );
+#else
+	if ( iSequence != -1 )
 	{
-		int iLayer = -1;
-		int iSequence = pPlayer->SelectWeightedSequence( ACT_GMOD_IN_CHAT );
-		if ( iSequence < 0 || iSequence >= pPlayer->GetModelPtr()->GetNumSeq() )
-			return actDesired;
+		bool bPlaying = false;
 
 		for ( int i = 0; i < pPlayer->GetNumAnimOverlays(); i++ )
 		{
 			C_AnimationLayer *pLayer = pPlayer->GetAnimOverlay( i );
+
 			if ( pLayer && pLayer->m_nSequence == iSequence && pLayer->m_flWeight > 0.0f )
 			{
+				bPlaying = true;
 				iLayer = i;
 				break;
+			}
+		}
+
+		if ( bPlaying && iLayer != -1 )
+		{
+			C_AnimationLayer *pLayer = pPlayer->GetAnimOverlay( iLayer );
+
+			float flCycleRate = pPlayer->GetSequenceCycleRate( pPlayer->GetModelPtr(), pLayer->m_nSequence );
+			float flElapsed = gpGlobals->curtime - pLayer->m_flLayerAnimtime;
+			float flCycle = flElapsed * flCycleRate * pLayer->m_flPlaybackRate;
+
+			if ( flCycle >= 1.0f )
+			{
+				pLayer->m_flWeight = 0.0f;
+				pLayer->m_nSequence = -1;
+				pLayer->m_flCycle = 0.0f;
+				pLayer->m_flPrevCycle = 0.0f;
+				pLayer->m_flLayerAnimtime = 0.0f;
+				pLayer->m_flLayerFadeOuttime = 0.0f;
+				iLayer = -1;
+			}
+			else
+			{
+				pLayer->m_flPrevCycle = pLayer->m_flCycle;
+				pLayer->m_flCycle = flCycle;
+				return;
 			}
 		}
 
@@ -148,109 +174,88 @@ Activity CHL2MPPlayerAnimState::TranslateActivity( Activity actDesired )
 					pLayer->m_flPrevCycle = 0.0f;
 					pLayer->m_flWeight = 1.0f;
 					pLayer->m_flPlaybackRate = 1.0f;
-					pLayer->m_nOrder = i;
+					pLayer->m_nOrder = order;
 					pLayer->m_flLayerAnimtime = gpGlobals->curtime;
-					pLayer->m_flLayerFadeOuttime = 0.0f;
+					pLayer->m_flLayerFadeOuttime = ( order == 7 || order == 8 ) ? 1.0f : 0.0f;
 					break;
 				}
 			}
 		}
 	}
-	else
-	{
-		int iSequence = pPlayer->SelectWeightedSequence( ACT_GMOD_IN_CHAT );
+#endif
+}
 
-		if ( iSequence != -1 )
-		{
-			for ( int i = 0; i < pPlayer->GetNumAnimOverlays(); i++ )
-			{
-				C_AnimationLayer *pLayer = pPlayer->GetAnimOverlay( i );
-				if ( pLayer && pLayer->m_nSequence == iSequence && pLayer->m_flWeight > 0.0f )
-				{
-					pLayer->m_flWeight = 0.0f;
-					pLayer->m_nSequence = -1;
-					break;
-				}
-			}
-		}
-	}
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CHL2MPPlayerAnimState::ClearGesture( Activity act )
+{
+	CHL2MP_Player *pPlayer = GetHL2MPPlayer();
+	if ( !pPlayer )
+		return;
 
-	// noclip
-	if ( pPlayer->IsNoclipping() )
-	{
-		int iLayer = -1;
-		int iSequence = pPlayer->SelectWeightedSequence( ACT_GMOD_NOCLIP_LAYER );
-		if ( iSequence < 0 || iSequence >= pPlayer->GetModelPtr()->GetNumSeq() )
-			return actDesired;
-
-		if ( iSequence != -1 )
-		{
-			for ( int i = 0; i < pPlayer->GetNumAnimOverlays(); i++ )
-			{
-				C_AnimationLayer *pLayer = pPlayer->GetAnimOverlay( i );
-				if ( pLayer && pLayer->m_nSequence == iSequence && pLayer->m_flWeight > 0.0f )
-				{
-					iLayer = i;
-					break;
-				}
-			}
-
-			if ( iLayer == -1 )
-			{
-				for ( int i = 0; i < pPlayer->GetNumAnimOverlays(); i++ )
-				{
-					C_AnimationLayer *pLayer = pPlayer->GetAnimOverlay( i );
-					if ( pLayer && pLayer->m_flWeight < 0.001f )
-					{
-						pLayer->m_nSequence = iSequence;
-						pLayer->m_flCycle = 0.0f;
-						pLayer->m_flPrevCycle = 0.0f;
-						pLayer->m_flWeight = 1.0f;
-						pLayer->m_flPlaybackRate = 1.0f;
-						pLayer->m_nOrder = 1;
-						pLayer->m_flLayerAnimtime = gpGlobals->curtime;
-						pLayer->m_flLayerFadeOuttime = 0.0f;
-						break;
-					}
-				}
-			}
-		}
-	}
-	else
-	{
-		int iSequence = pPlayer->SelectWeightedSequence( ACT_GMOD_NOCLIP_LAYER );
-
-		if ( iSequence != -1 )
-		{
-			for ( int i = 0; i < pPlayer->GetNumAnimOverlays(); i++ )
-			{
-				C_AnimationLayer *pLayer = pPlayer->GetAnimOverlay( i );
-				if ( pLayer && pLayer->m_nSequence == iSequence && pLayer->m_flWeight > 0.0f )
-				{
-					pLayer->m_flWeight = 0.0f;
-					pLayer->m_nSequence = -1;
-					break;
-				}
-			}
-		}
-	}
+#ifndef CLIENT_DLL
+	pPlayer->RemoveGesture( act );
 #else
-	if ( pPlayer->IsChatting() )
-	{
-		if ( pPlayer->FindGestureLayer( ACT_GMOD_IN_CHAT ) == -1 )
-			pPlayer->AddGestureSequence( ACT_GMOD_IN_CHAT );
-	}
-	else
-		pPlayer->RemoveGesture( ACT_GMOD_IN_CHAT );
+    int iSequence = pPlayer->SelectWeightedSequence( act );
+    if ( iSequence != -1 )
+    {
+        for ( int i = 0; i < pPlayer->GetNumAnimOverlays(); i++ )
+        {
+            C_AnimationLayer *pLayer = pPlayer->GetAnimOverlay( i );
+            if ( pLayer && pLayer->m_nSequence == iSequence && pLayer->m_flWeight > 0.0f )
+            {
+                pLayer->m_flWeight          = 0.0f;
+                pLayer->m_nSequence         = -1;
+                pLayer->m_flCycle           = 0.0f;
+                pLayer->m_flPrevCycle        = 0.0f;
+                pLayer->m_flLayerAnimtime   = 0.0f;
+                pLayer->m_flLayerFadeOuttime = 0.0f;
+                pLayer->m_nOrder            = CBaseAnimatingOverlay::MAX_OVERLAYS;
+                break;
+            }
+        }
+    }
+#endif
+}
+#endif
 
-	// noclip
+//-----------------------------------------------------------------------------
+// Purpose: 
+// Input  : actDesired - 
+// Output : Activity
+//-----------------------------------------------------------------------------
+Activity CHL2MPPlayerAnimState::TranslateActivity( Activity actDesired )
+{
+    CHL2MP_Player *pPlayer = GetHL2MPPlayer();
+
+#ifdef SBPP
+	if ( HandleVehicle( actDesired ) )
+		return actDesired;
+
+	if ( pPlayer->IsChatting() )
+		SetGesture( ACT_GMOD_IN_CHAT, 7 );
+	else
+		ClearGesture( ACT_GMOD_IN_CHAT );
+
 	if ( pPlayer->GetMoveType() == MOVETYPE_NOCLIP && !pPlayer->IsInAVehicle() )
+		SetGesture( ACT_GMOD_NOCLIP_LAYER, 8 );
+	else
+		ClearGesture( ACT_GMOD_NOCLIP_LAYER );
+
+	if ( pPlayer->IsTaunting() )
 	{
-		if ( pPlayer->FindGestureLayer( ACT_GMOD_NOCLIP_LAYER ) == -1 )
-			pPlayer->AddGestureSequence( ACT_GMOD_NOCLIP_LAYER );
+		m_aPrevDanceAct = pPlayer->GetDanceAct();
+		SetGesture( m_aPrevDanceAct, 9 );
 	}
 	else
-		pPlayer->RemoveGesture( ACT_GMOD_NOCLIP_LAYER );
+	{
+		if ( m_aPrevDanceAct != ACT_INVALID )
+		{
+			ClearGesture( m_aPrevDanceAct );
+			m_aPrevDanceAct = ACT_INVALID;
+		}
+	}
 #endif
 
 	// Hook into baseclass when / if hl2mp player models get swim animations.

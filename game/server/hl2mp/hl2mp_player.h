@@ -171,7 +171,10 @@ public:
 	CHL2MPPlayerAnimState *GetAnimState() const { return m_PlayerAnimState; }
 	virtual void StartTaunt(Activity aDance);
 	virtual void EndTaunt();
+	virtual void TauntThink();
+
 	virtual bool IsTaunting() const { return m_bTaunting; }
+
 	virtual Activity GetDanceAct() const { return m_aCurrentTaunt; }
 
 	virtual int GetPlayerColorR() const { return m_iPlayerColorR; }
@@ -217,6 +220,9 @@ private:
 
 	CNetworkVar( bool, m_bIsChatting );
 	CNetworkVar( bool, m_bIsNoclipping );
+
+	float   m_flTauntEndTime;
+	int     m_iTauntSeq;
 #endif
 
 	float m_flSlamProtectTime;	

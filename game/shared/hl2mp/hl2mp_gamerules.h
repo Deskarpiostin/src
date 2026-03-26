@@ -144,6 +144,10 @@ public:
 	void CheckRestartGame();
 	void RestartGame();
 
+#ifdef SBPP
+	virtual bool AllowThirdPersonCamera( void ) OVERRIDE { return true; }
+#endif
+
 #ifndef CLIENT_DLL
 	virtual Vector VecItemRespawnSpot( CItem *pItem );
 	virtual QAngle VecItemRespawnAngles( CItem *pItem );

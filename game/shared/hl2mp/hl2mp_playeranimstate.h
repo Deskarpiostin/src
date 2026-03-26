@@ -32,6 +32,11 @@ public:
 	void InitHL2MPAnimState( CHL2MP_Player *pPlayer );
 	CHL2MP_Player *GetHL2MPPlayer( void )							{ return m_pHL2MPPlayer; }
 
+#ifdef SBPP
+	void ClearGesture( Activity act );
+	void SetGesture( Activity act, int order );
+#endif
+
 	virtual void ClearAnimationState();
 	virtual Activity TranslateActivity( Activity actDesired );
 	virtual void Update( float eyeYaw, float eyePitch );
@@ -57,6 +62,10 @@ private:
 	CHL2MP_Player   *m_pHL2MPPlayer;
 	bool		m_bInAirWalk;
 	float		m_flHoldDeployedPoseUntilTime;
+
+#ifdef SBPP
+	Activity m_aPrevDanceAct = ACT_INVALID;
+#endif
 };
 
 CHL2MPPlayerAnimState *CreateHL2MPPlayerAnimState( CHL2MP_Player *pPlayer );

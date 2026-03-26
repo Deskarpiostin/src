@@ -1616,6 +1616,10 @@ void CHL2MP_Player::Event_Killed( const CTakeDamageInfo &info )
 
 #ifndef SBPP
 	SetNumAnimOverlays( 0 );
+#else
+	// hack
+	if ( m_bTaunting )
+		EndTaunt();
 #endif
 
 	// Note: since we're dead, it won't draw us on the client, but we don't set EF_NODRAW
@@ -2265,74 +2269,140 @@ void CHL2MP_Player::SetupBones( matrix3x4_t *pBoneToWorld, int boneMask )
 		boneMask );
 }
 
-void CHL2MP_Player::StartTaunt(Activity aDance)
+void CHL2MP_Player::StartTaunt( Activity aDance )
 {
+	// We cannot taunt inside a vehicle.
+	if ( IsInAVehicle() )
+		return;
+
+	if ( m_bTaunting )
+		return;
+
 	m_bTaunting = true;
 	AddFlag( FL_FROZEN );
 	m_aCurrentTaunt = aDance;
-
+    //m_bForceThirdPerson = true;
 	engine->ClientCommand( edict(), "thirdperson" );
-	if (GetActiveWeapon())
-		GetActiveWeapon()->Holster();
 
-	float duration = 3.f;
-	switch (aDance)
+	//SnapEyeAngles( EyeAngles() );
+
+	//if ( CBaseCombatWeapon *pWeapon = GetActiveWeapon() )
+	//	pWeapon->Holster();
+
+	//if ( FindGestureLayer( m_aCurrentTaunt ) == -1 )
+	//	AddGesture( m_aCurrentTaunt );
+
+	int seq = SelectWeightedSequence( m_aCurrentTaunt );
+	m_flTauntEndTime = gpGlobals->curtime + SequenceDuration(seq);
+
+	SetThink( &CHL2MP_Player::TauntThink );
+	SetNextThink( gpGlobals->curtime + 0.05f );
+}
+
+void CHL2MP_Player::TauntThink()
+{
+	if ( !IsAlive() )
 	{
-		case ACT_GMOD_TAUNT_MUSCLE:
-			duration = 10.f;
-			break;
-		case ACT_GMOD_TAUNT_DANCE:
-			duration = 4.5f;
-			break;
-		case ACT_GMOD_TAUNT_LAUGH:
-			duration = 2.75f;
-			break;
-		default:
-			duration = 3.f;
-			break;
+		EndTaunt();
+		return;
 	}
 
-	SetThink(&CHL2MP_Player::EndTaunt);
-	SetNextThink(gpGlobals->curtime + duration);
+	int seq = SelectWeightedSequence( m_aCurrentTaunt );
+
+	if ( seq == ACT_INVALID )
+	{
+		EndTaunt();
+		return;
+	}
+
+	float duration = SequenceDuration( seq );
+
+	if ( gpGlobals->curtime >= m_flTauntEndTime )
+	{
+		EndTaunt();
+		return;
+	}
+
+	SetNextThink( gpGlobals->curtime + 0.1f );
 }
 
 void CHL2MP_Player::EndTaunt()
 {
+	SetThink( NULL );
+
+    if ( m_aCurrentTaunt != ACT_INVALID )
+        RemoveGesture( m_aCurrentTaunt );
+
 	m_bTaunting = false;
-	RemoveFlag( FL_FROZEN );
 	m_aCurrentTaunt = ACT_INVALID;
-
+    //m_bForceThirdPerson = false;
 	engine->ClientCommand( edict(), "firstperson" );
-	if (GetActiveWeapon())
-		GetActiveWeapon()->Deploy();
+
+	RemoveFlag( FL_FROZEN );
+
+	//engine->ClientCommand( edict(), "firstperson" );
+
+	//if ( CBaseCombatWeapon *pWeapon = GetActiveWeapon() )
+	//	pWeapon->Deploy();
 }
 
-void CC_PlayAct(const CCommand &args)
+struct ActEntry
 {
-	if (args.ArgC() < 2)
+	const char *name;
+	Activity	act;
+};
+
+// TODO: add more taunts
+static ActEntry g_ActList[] =
+{
+	{ "agree", ACT_GMOD_GESTURE_AGREE },
+	{ "becon", ACT_GMOD_GESTURE_BECON },
+	{ "bow", ACT_GMOD_GESTURE_BOW },
+	{ "disagree", ACT_GMOD_GESTURE_DISAGREE },
+	{ "salute", ACT_GMOD_TAUNT_SALUTE },
+	{ "wave", ACT_GMOD_GESTURE_WAVE },
+	{ "persistence", ACT_GMOD_TAUNT_PERSISTENCE },
+	{ "muscle", ACT_GMOD_TAUNT_MUSCLE },
+	{ "laugh", ACT_GMOD_TAUNT_LAUGH },
+	{ "point", ACT_GMOD_GESTURE_POINT },
+	{ "cheer", ACT_GMOD_TAUNT_CHEER },
+	{ "dance", ACT_GMOD_TAUNT_DANCE },
+	{ "robot", ACT_GMOD_TAUNT_ROBOT }
+};
+
+void CC_PlayAct( const CCommand &args )
+{
+	if ( args.ArgC() < 2 )
 	{
-		Msg("Usage: act <act_name>\n");
+		Msg( "Usage: act <act_name, ex.: dance>\n" );
 		return;
 	}
 
-	const char* actName = args[1];
-	Activity act = ACT_INVALID;
+	const char *actName = args[1];
+	Activity	act = ACT_INVALID;
 
-	if (FStrEq(actName, "dance")) act = ACT_GMOD_TAUNT_DANCE;
-	else if (FStrEq(actName, "muscle")) act = ACT_GMOD_TAUNT_MUSCLE;
-	else if (FStrEq(actName, "laugh")) act = ACT_GMOD_TAUNT_LAUGH;
-	else
+	for ( int i = 0; i < ARRAYSIZE( g_ActList ); i++ )
 	{
-		Msg("Unknown act: %s\n", actName);
+		if ( FStrEq( actName, g_ActList[i].name ) )
+		{
+			act = g_ActList[i].act;
+			break;
+		}
+	}
+
+	if ( act == ACT_INVALID )
+	{
+		Msg( "Unknown act: %s\n", actName );
 		return;
 	}
 
-	CHL2MP_Player* pPlayer = ToHL2MPPlayer( UTIL_GetCommandClient() );
-	if (!pPlayer) return;
+	CHL2MP_Player *pPlayer = ToHL2MPPlayer( UTIL_GetCommandClient() );
+	if ( !pPlayer )
+		return;
 
-	pPlayer->StartTaunt(act);
+	pPlayer->StartTaunt( act );
 }
 
-ConCommand act("act", CC_PlayAct, "Plays a specific animation, don't use this lmao", FCVAR_NONE);
+ConCommand act( "act", CC_PlayAct, "Plays a specific animation, don't use this lmao", FCVAR_NONE );
 
 #endif
