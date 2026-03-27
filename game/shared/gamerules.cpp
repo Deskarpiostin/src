@@ -353,6 +353,10 @@ void CGameRules::RadiusDamage( const CTakeDamageInfo &info, const Vector &vecSrc
 	// iterate on all entities in the vicinity.
 	for ( CEntitySphereQuery sphere( vecSrc, flRadius ); (pEntity = sphere.GetCurrentEntity()) != NULL; sphere.NextEntity() )
 	{
+#ifdef SBPP
+		if ( !pEntity )
+			continue;
+#endif
 		// This value is used to scale damage when the explosion is blocked by some other object.
 		float flBlockedDamagePercent = 0.0f;
 
