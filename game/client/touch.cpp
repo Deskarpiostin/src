@@ -910,43 +910,113 @@ void CTouchControls::Paint()
 		int dotRadius = radius * 0.35f;
 
 		vgui::surface()->DrawSetColor( 0, 0, 0, 60 );
-		for( int dy = -radius; dy <= radius; dy++ )
 		{
-			int dx = (int)sqrtf( (float)(radius*radius - dy*dy) );
-			vgui::surface()->DrawFilledRect( cx-dx, cy+dy, cx+dx, cy+dy+1 );
+			int x = radius;
+			int y = 0;
+			int d = 1 - radius;
+
+			while( y <= x )
+			{
+				vgui::surface()->DrawFilledRect(cx-x, cy+y, cx+x+1, cy+y+1);
+				vgui::surface()->DrawFilledRect(cx-x, cy-y, cx+x+1, cy-y+1);
+				vgui::surface()->DrawFilledRect(cx-y, cy+x, cx+y+1, cy+x+1);
+				vgui::surface()->DrawFilledRect(cx-y, cy-x, cx+y+1, cy-x+1);
+
+				y++;
+
+				if( d < 0 )
+					d += 2*y + 1;
+				else
+				{
+					x--;
+					d += 2*(y-x) + 1;
+				}
+			}
 		}
 
 		vgui::surface()->DrawSetColor( 255, 255, 255, 80 );
-		for( int i = 0; i < 360; i += 4 )
 		{
-			float a1 = DEG2RAD( i );
-			float a2 = DEG2RAD( i + 4 );
-			vgui::surface()->DrawLine(
-				cx + (int)(cosf(a1) * radius),
-				cy + (int)(sinf(a1) * radius),
-				cx + (int)(cosf(a2) * radius),
-				cy + (int)(sinf(a2) * radius)
-			);
+			int x = radius;
+			int y = 0;
+			int d = 1 - radius;
+
+			while( y <= x )
+			{
+				vgui::surface()->DrawFilledRect(cx+x, cy+y, cx+x+1, cy+y+1);
+				vgui::surface()->DrawFilledRect(cx-x, cy+y, cx-x+1, cy+y+1);
+				vgui::surface()->DrawFilledRect(cx+x, cy-y, cx+x+1, cy-y+1);
+				vgui::surface()->DrawFilledRect(cx-x, cy-y, cx-x+1, cy-y+1);
+
+				vgui::surface()->DrawFilledRect(cx+y, cy+x, cx+y+1, cy+x+1);
+				vgui::surface()->DrawFilledRect(cx-y, cy+x, cx-y+1, cy+x+1);
+				vgui::surface()->DrawFilledRect(cx+y, cy-x, cx+y+1, cy-x+1);
+				vgui::surface()->DrawFilledRect(cx-y, cy-x, cx-y+1, cy-x+1);
+
+				y++;
+
+				if( d < 0 )
+					d += 2*y + 1;
+				else
+				{
+					x--;
+					d += 2*(y-x) + 1;
+				}
+			}
 		}
 
 		vgui::surface()->DrawSetColor( 255, 255, 255, 180 );
-		for( int dy = -dotRadius; dy <= dotRadius; dy++ )
 		{
-			int dx = (int)sqrtf( (float)(dotRadius*dotRadius - dy*dy) );
-			vgui::surface()->DrawFilledRect( px-dx, py+dy, px+dx, py+dy+1 );
+			int x = dotRadius;
+			int y = 0;
+			int d = 1 - dotRadius;
+
+			while( y <= x )
+			{
+				vgui::surface()->DrawFilledRect(px-x, py+y, px+x+1, py+y+1);
+				vgui::surface()->DrawFilledRect(px-x, py-y, px+x+1, py-y+1);
+				vgui::surface()->DrawFilledRect(px-y, py+x, px+y+1, py+x+1);
+				vgui::surface()->DrawFilledRect(px-y, py-x, px+y+1, py-x+1);
+
+				y++;
+
+				if( d < 0 )
+					d += 2*y + 1;
+				else
+				{
+					x--;
+					d += 2*(y-x) + 1;
+				}
+			}
 		}
 
 		vgui::surface()->DrawSetColor( 255, 255, 255, 220 );
-		for( int i = 0; i < 360; i += 4 )
 		{
-			float a1 = DEG2RAD( i );
-			float a2 = DEG2RAD( i + 4 );
-			vgui::surface()->DrawLine(
-				px + (int)(cosf(a1) * dotRadius),
-				py + (int)(sinf(a1) * dotRadius),
-				px + (int)(cosf(a2) * dotRadius),
-				py + (int)(sinf(a2) * dotRadius)
-			);
+			int x = dotRadius;
+			int y = 0;
+			int d = 1 - dotRadius;
+
+			while( y <= x )
+			{
+				vgui::surface()->DrawFilledRect(px+x, py+y, px+x+1, py+y+1);
+				vgui::surface()->DrawFilledRect(px-x, py+y, px-x+1, py+y+1);
+				vgui::surface()->DrawFilledRect(px+x, py-y, px+x+1, py-y+1);
+				vgui::surface()->DrawFilledRect(px-x, py-y, px-x+1, py-y+1);
+
+				vgui::surface()->DrawFilledRect(px+y, py+x, px+y+1, py+x+1);
+				vgui::surface()->DrawFilledRect(px-y, py+x, px-y+1, py+x+1);
+				vgui::surface()->DrawFilledRect(px+y, py-x, px+y+1, py-x+1);
+				vgui::surface()->DrawFilledRect(px-y, py-x, px-y+1, py-x+1);
+
+				y++;
+
+				if( d < 0 )
+					d += 2*y + 1;
+				else
+				{
+					x--;
+					d += 2*(y-x) + 1;
+				}
+			}
 		}
 	}
 }
