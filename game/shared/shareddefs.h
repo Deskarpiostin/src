@@ -120,7 +120,11 @@ public:
 #define MAX_WEAPON_SLOTS		6	// hud item selection slots
 #define MAX_WEAPON_POSITIONS	20	// max number of items within a slot
 #define MAX_ITEM_TYPES			6	// hud item selection slots
+#ifdef SBPP
+#define MAX_WEAPONS				512	// Max number of weapons available
+#else
 #define MAX_WEAPONS				48	// Max number of weapons available
+#endif
 
 #define MAX_ITEMS				5	// hard coded item types
 
