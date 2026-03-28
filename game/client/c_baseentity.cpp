@@ -2834,6 +2834,10 @@ void C_BaseEntity::OnLatchInterpolatedVariables( int flags )
 	{
 		VarMapEntry_t *e = &m_VarMap.m_Entries[ i ];
 		IInterpolatedVar *watcher = e->watcher;
+#ifdef SBPP
+		if ( !watcher )
+			continue;
+#endif
 
 		int type = watcher->GetType();
 

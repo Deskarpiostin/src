@@ -16,6 +16,9 @@
 #include "view.h"
 #include "physics_saverestore.h"
 #include "vphysics/constraints.h"
+#ifdef SBPP
+#include "c_baseflex.h"
+#endif
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
@@ -370,10 +373,17 @@ CRagdoll *CreateRagdoll(
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
+#ifdef SBPP
+class C_ServerRagdoll : public C_BaseFlex
+{
+public:
+	DECLARE_CLASS( C_ServerRagdoll, C_BaseFlex );
+#else
 class C_ServerRagdoll : public C_BaseAnimating
 {
 public:
 	DECLARE_CLASS( C_ServerRagdoll, C_BaseAnimating );
+#endif
 	DECLARE_CLIENTCLASS();
 	DECLARE_INTERPOLATION();
 
@@ -423,6 +433,10 @@ IMPLEMENT_CLIENTCLASS_DT(C_ServerRagdoll, DT_Ragdoll, CRagdollProp)
 	RecvPropEHandle(RECVINFO(m_hUnragdoll)),
 	RecvPropFloat(RECVINFO(m_flBlendWeight)),
 	RecvPropInt(RECVINFO(m_nOverlaySequence)),
+
+#ifdef SBPP
+	RecvPropDataTable("baseclass", 0, 0, &REFERENCE_RECV_TABLE(DT_BaseFlex)),
+#endif
 END_RECV_TABLE()
 
 

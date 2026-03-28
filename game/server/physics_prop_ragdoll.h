@@ -19,9 +19,17 @@
 //-----------------------------------------------------------------------------
 
 // UNDONE: Move this to a private header
+#ifdef SBPP
+#include "baseflex.h"
+
+class CRagdollProp : public CBaseFlex, public CDefaultPlayerPickupVPhysics
+{
+	DECLARE_CLASS( CRagdollProp, CBaseFlex );
+#else
 class CRagdollProp : public CBaseAnimating, public CDefaultPlayerPickupVPhysics
 {
 	DECLARE_CLASS( CRagdollProp, CBaseAnimating );
+#endif
 
 public:
 	CRagdollProp( void );

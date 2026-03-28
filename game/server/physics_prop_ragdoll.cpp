@@ -62,6 +62,10 @@ IMPLEMENT_SERVERCLASS_ST(CRagdollProp, DT_Ragdoll)
 	SendPropEHandle(SENDINFO( m_hUnragdoll ) ),
 	SendPropFloat(SENDINFO(m_flBlendWeight), 8, SPROP_ROUNDDOWN, 0.0f, 1.0f ),
 	SendPropInt(SENDINFO(m_nOverlaySequence), 11),
+
+#ifdef SBPP
+	SendPropDataTable("baseclass", 0, &REFERENCE_SEND_TABLE(DT_BaseFlex)),
+#endif
 END_SEND_TABLE()
 
 #define DEFINE_RAGDOLL_ELEMENT( i ) \
