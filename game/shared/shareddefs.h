@@ -118,7 +118,11 @@ public:
 #define TIME_TO_UNDUCK_MS	200.0f
 
 #define MAX_WEAPON_SLOTS		6	// hud item selection slots
+#ifdef SBPP
+#define MAX_WEAPON_POSITIONS	128	// max number of items within a slot
+#else
 #define MAX_WEAPON_POSITIONS	20	// max number of items within a slot
+#endif
 #define MAX_ITEM_TYPES			6	// hud item selection slots
 #ifdef SBPP
 #define MAX_WEAPONS				512	// Max number of weapons available
